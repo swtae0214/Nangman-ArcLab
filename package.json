@@ -1,0 +1,33 @@
+{
+  "name": "nangman-archlab",
+  "private": true,
+  "version": "0.1.0",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "packageManager": "pnpm@10.28.2",
+  "scripts": {
+    "dev:web": "pnpm --filter @nangman/web dev",
+    "dev:api": "pnpm --filter @nangman/api start:dev",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test",
+    "test:e2e": "playwright test",
+    "db:up": "docker compose up -d db",
+    "db:down": "docker compose down"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@prisma/client",
+      "@prisma/engines",
+      "esbuild",
+      "msgpackr-extract",
+      "prisma",
+      "unrs-resolver",
+      "workerd"
+    ]
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1"
+  }
+}

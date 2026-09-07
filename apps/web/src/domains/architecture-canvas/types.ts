@@ -1,0 +1,68 @@
+import type { ArchitectureGraph, ComponentType, GraphEdge, GraphNode } from "@nangman/shared-types";
+import type { Edge, Node } from "@xyflow/react";
+import { COMPONENT_META, DEFAULT_GROUP_HEIGHT, DEFAULT_GROUP_WIDTH } from "./component-meta";
+
+export interface FlowNodeData extends Record<string, unknown> {
+  label: string;
+  presetCode?: string;
+  /** 9단계: Target Group(논리적 그룹) 소속. React Flow의 Node 타입에는 커스텀 최상위 필드를
+   *  못 넣어서 data 안에 두고, 저장 시에는 GraphNode의 최상위 logicalGroupId로 옮긴다. */
+  logicalGroupId?: string;
+}
+
+export type FlowNode = Node<FlowNodeData, ComponentType>;
+export type FlowEdge = Edge;
+
+/** 저장된 그래프(shared-types)를 React Flow가 다룰 수 있는 노드/엣지 배열로 변환한다. */
+export function graphToFlow(graph: ArchitectureGraph): { nodes: FlowNode[]; edges: FlowEdge[] } {
+  const nodes: FlowNode[] = graph.nodes.map((node) => {
+    const meta = COMPONENT_META[node.type];
+    return {
+      id: node.id,
+      type: node.type,
+      position: node.position,
+      ...(node.parentId ? { parentId: node.parentId, extent: "parent" as const } : {}),
+      data: { label: node.data.label, presetCode: node.data.presetCode, logicalGroupId: node.logicalGroupId },
+      // 저장된 크기가 있으면(중첩 배치·리사이즈로 부모보다 작게 만든 그룹 등) 그걸 그대로 쓰고,
+      // 없을 때만(옛 데이터, 최상위 그룹의 첫 생성 등) 기본 크기로 어림잡는다.
+      ...(meta.isGroup
+        ? { width: node.width ?? DEFAULT_GROUP_WIDTH, height: node.height ?? DEFAULT_GROUP_HEIGHT }
+        : {}),
+    };
+  });
+  const edges: FlowEdge[] = graph.edges.map((edge) => ({
+    id: edge.id,
+    source: edge.source,
+    target: edge.target,
+    ...(edge.label ? { label: edge.label } : {}),
+  }));
+  return { nodes, edges };
+}
+
+/**
+ * 캔버스 상태(React Flow)를 저장용 그래프(shared-types)로 되돌린다.
+ * React Flow 전용 필드(selected 등)는 걷어내지만, width/height는 그룹을 중첩하거나 리사이즈한
+ * 결과를 다음에 불러왔을 때도 유지해야 해서 값이 있으면 그대로 저장한다.
+ */
+export function flowToGraph(nodes: FlowNode[], edges: FlowEdge[]): ArchitectureGraph {
+  const graphNodes: GraphNode[] = nodes.map((node) => ({
+    id: node.id,
+    type: node.type ?? "WEB_SERVER",
+    position: node.position,
+    ...(node.parentId ? { parentId: node.parentId } : {}),
+    ...(node.width !== undefined ? { width: node.width } : {}),
+    ...(node.height !== undefined ? { height: node.height } : {}),
+    ...(node.data.logicalGroupId ? { logicalGroupId: node.data.logicalGroupId } : {}),
+    data: {
+      label: node.data.label,
+      ...(node.data.presetCode ? { presetCode: node.data.presetCode } : {}),
+    },
+  }));
+  const graphEdges: GraphEdge[] = edges.map((edge) => ({
+    id: edge.id,
+    source: edge.source,
+    target: edge.target,
+    ...(typeof edge.label === "string" && edge.label ? { label: edge.label } : {}),
+  }));
+  return { nodes: graphNodes, edges: graphEdges };
+}

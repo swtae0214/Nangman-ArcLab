@@ -1,0 +1,31 @@
+# 8주차: 자체 서버(Raspberry Pi / EC2) 배포용 구성.
+# DB는 여기 포함하지 않는다 — NAS에서 별도 Postgres 컨테이너로 띄워 네트워크로 접속하는 구조라서다.
+# 사용법:
+#   1) .env.production (.env.production.example 참고)을 이 파일과 같은 위치에 만든다.
+#   2) docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+services:
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      COOKIE_SECRET: ${COOKIE_SECRET}
+      WEB_ORIGIN: ${WEB_ORIGIN}
+      API_PORT: 4000
+    ports:
+      - "4000:4000"
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    restart: unless-stopped
+    environment:
+      # 컨테이너 안에서 api 서비스 이름으로 접속 — 브라우저는 이 값을 모르고, 항상 web의 /api/backend/*로만 접속한다.
+      API_INTERNAL_URL: "http://api:4000/api/v1"
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api

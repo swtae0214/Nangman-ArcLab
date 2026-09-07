@@ -1,0 +1,14 @@
+# node_modules는 Docker 이미지 안에서 pnpm install로 새로 설치한다.
+# 로컬(윈도우)에서 만든 node_modules를 빌드 컨텍스트에 같이 보내면, 그 안의 심볼릭 링크가
+# 리눅스 컨테이너에서는 깨진 채로 덮어써져서 "모듈을 찾을 수 없음" 에러가 난다 — 반드시 제외해야 함.
+**/node_modules/
+**/dist/
+**/.next/
+**/generated/
+**/coverage/
+**/test-results/
+**/playwright-report/
+.git/
+.env
+.env.local
+.env.production

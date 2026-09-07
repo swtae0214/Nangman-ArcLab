@@ -1,0 +1,202 @@
+// 4단계 DB 스키마 설계를 그대로 옮긴 Prisma 스키마.
+// 1주차 범위에서 구현하는 API는 Architecture CRUD뿐이지만,
+// 전체 테이블을 먼저 마이그레이션해두고 이후 주차에서 모듈을 하나씩 붙여나간다.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum ComponentType {
+  LOAD_BALANCER
+  WEB_SERVER
+  DB_PRIMARY
+  DB_REPLICA
+  CACHE
+  CDN
+  AUTO_SCALING_GROUP
+  MULTI_AZ_GROUP
+  MULTI_REGION_GROUP
+  GENERIC_GROUP
+  VPN_GATEWAY
+  DIRECT_CONNECT
+  TRANSIT_GATEWAY
+  NAT_GATEWAY
+  INTERNET_GATEWAY
+  WAF
+  SHIELD
+  API_GATEWAY
+  ROUTE53
+  LAMBDA
+  SQS
+  SNS
+  S3
+
+  // 9단계: 성우가 보여준 참고 아키텍처(IoT/스트리밍, Region>AZ>VPC>Subnet 3-tier, CI/CD 파이프라인)를
+  // 그릴 수 있도록 추가한 컨테이너/서비스 타입. 아직 정적 검증·시뮬레이션 엔진 계산 대상은 아니다
+  // (component-meta.ts의 isSimulated: false — 그려지고 저장은 되지만 SPOF/큐잉 계산에는 안 들어감).
+  REGION
+  AWS_CLOUD
+  VPC
+  PUBLIC_SUBNET
+  PRIVATE_SUBNET
+  AVAILABILITY_ZONE
+  CORPORATE_DATACENTER
+  IOT_CORE
+  KINESIS_DATA_STREAMS
+  KINESIS_DATA_FIREHOSE
+  AURORA
+  COGNITO
+  DOCUMENT_DB
+  CODEPIPELINE
+  CODEBUILD
+  CLOUDFORMATION
+  CLOUDWATCH
+  PARAMETER_STORE
+  FARGATE
+  ECR
+  SECRETS_MANAGER
+  TARGET_GROUP
+
+  @@map("component_type")
+}
+
+enum RuleSeverity {
+  CRITICAL
+  WARNING
+  INFO
+
+  @@map("rule_severity")
+}
+
+enum RuleCategory {
+  RELIABILITY
+  PERFORMANCE
+
+  @@map("rule_category")
+}
+
+enum ScenarioPhase {
+  BASELINE
+  DURING_FAILURE
+
+  @@map("scenario_phase")
+}
+
+/// 사용자가 캔버스에서 저장한 아키텍처 (익명 세션 소유)
+model Architecture {
+  id          String   @id @default(uuid())
+  ownerToken  String   @map("owner_token")
+  name        String
+  graphJson   Json     @map("graph_json")
+  shareToken  String?  @unique @map("share_token")
+  isPublic    Boolean  @default(false) @map("is_public")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  simulationRuns SimulationRun[]
+
+  @@index([ownerToken])
+  @@map("architectures")
+}
+
+/// 컴포넌트 스펙 프리셋 (예: ec2-t3-medium -> 초당 처리 가능 요청 수)
+model ComponentPreset {
+  code            String        @id
+  componentType   ComponentType @map("component_type")
+  displayName     String        @map("display_name")
+  serviceRateRps  Decimal       @map("service_rate_rps") @db.Decimal(10, 2)
+  sourceNote      String        @map("source_note")
+  metadata        Json          @default("{}")
+
+  @@map("component_presets")
+}
+
+/// 장애 시나리오 카탈로그
+model FailureScenario {
+  code               String   @id
+  displayName        String   @map("display_name")
+  description        String
+  defaultDurationSec Int      @map("default_duration_sec")
+  affectsRule        Json     @map("affects_rule")
+
+  simulationRuns SimulationRun[]
+
+  @@map("failure_scenarios")
+}
+
+/// 정적 검증 규칙 카탈로그 (탐지 로직은 코드에, 설명/근거만 데이터로 관리)
+model ValidationRule {
+  code            String       @id
+  name            String
+  description     String
+  defaultSeverity RuleSeverity @map("default_severity")
+  sourceCitation  String       @map("source_citation")
+  category        RuleCategory
+
+  validationResults ValidationResult[]
+
+  @@map("validation_rules")
+}
+
+/// 실행 1회 = 요구사항 입력 + 결과 스냅샷
+model SimulationRun {
+  id                    String   @id @default(uuid())
+  architectureId        String   @map("architecture_id")
+  architectureSnapshot  Json     @map("architecture_snapshot")
+  targetAvailability    Decimal  @map("target_availability") @db.Decimal(5, 3)
+  expectedRps           Decimal  @map("expected_rps") @db.Decimal(10, 2)
+  failureScenarioCode   String?  @map("failure_scenario_code")
+  failureDurationSec    Int?     @map("failure_duration_sec")
+  observationPeriodSec  Int      @map("observation_period_sec")
+  createdAt             DateTime @default(now()) @map("created_at")
+
+  architecture     Architecture       @relation(fields: [architectureId], references: [id], onDelete: Cascade)
+  failureScenario  FailureScenario?   @relation(fields: [failureScenarioCode], references: [code])
+  validationResults ValidationResult[]
+  simulationMetrics SimulationMetric[]
+
+  @@index([architectureId])
+  @@map("simulation_runs")
+}
+
+/// 규칙별 통과/실패 결과
+model ValidationResult {
+  id              String       @id @default(uuid())
+  simulationRunId String       @map("simulation_run_id")
+  ruleCode        String       @map("rule_code")
+  passed          Boolean
+  severityAtRun   RuleSeverity @map("severity_at_run")
+  detail          Json         @default("{}")
+
+  simulationRun SimulationRun  @relation(fields: [simulationRunId], references: [id], onDelete: Cascade)
+  rule          ValidationRule @relation(fields: [ruleCode], references: [code])
+
+  @@index([simulationRunId])
+  @@map("validation_results")
+}
+
+/// 노드/구간별 M/M/c 시뮬레이션 결과
+model SimulationMetric {
+  id              String        @id @default(uuid())
+  simulationRunId String        @map("simulation_run_id")
+  nodeId          String        @map("node_id")
+  nodeType        ComponentType @map("node_type")
+  scenarioPhase   ScenarioPhase @map("scenario_phase")
+  lambdaRps       Decimal       @map("lambda_rps") @db.Decimal(10, 2)
+  muRps           Decimal       @map("mu_rps") @db.Decimal(10, 2)
+  cServers        Int           @map("c_servers")
+  rho             Decimal       @db.Decimal(6, 4)
+  avgLatencyMs    Decimal?      @map("avg_latency_ms") @db.Decimal(10, 2)
+  throughputRps   Decimal       @map("throughput_rps") @db.Decimal(10, 2)
+  isSaturated     Boolean       @map("is_saturated")
+
+  simulationRun SimulationRun @relation(fields: [simulationRunId], references: [id], onDelete: Cascade)
+
+  @@index([simulationRunId])
+  @@map("simulation_metrics")
+}
