@@ -1,12 +1,12 @@
 "use client";
 
-import type { ArchitectureDetail, ArchitectureSummary, CreateArchitectureRequest } from "@nangman/shared-types";
+import type { ArchitectureDashboardSummary, ArchitectureDetail, CreateArchitectureRequest } from "@nangman/shared-types";
 import { useMutation, useQuery, useQueryClient, type UseMutationResult, type UseQueryResult } from "@tanstack/react-query";
 import { createArchitecture, deleteArchitecture, listArchitectures } from "./api";
 
 const ARCHITECTURES_QUERY_KEY = ["architectures"] as const;
 
-export function useArchitectures(): UseQueryResult<ArchitectureSummary[], Error> {
+export function useArchitectures(): UseQueryResult<ArchitectureDashboardSummary[], Error> {
   return useQuery({ queryKey: ARCHITECTURES_QUERY_KEY, queryFn: listArchitectures });
 }
 

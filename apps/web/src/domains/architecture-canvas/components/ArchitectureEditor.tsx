@@ -7,6 +7,7 @@ import { useValidation } from "../hooks/useValidation";
 import { useRunSimulation } from "../hooks/useSimulation";
 import { ArchitectureCanvas } from "./ArchitectureCanvas";
 import { CapacityCalculator } from "./CapacityCalculator";
+import { EditableLabel } from "./EditableLabel";
 import { ExportButton } from "./ExportButton";
 import { ShareButton } from "./ShareButton";
 import { SimulationPanel } from "./SimulationPanel";
@@ -22,7 +23,7 @@ const SAVE_STATUS_LABEL: Record<string, string> = {
 type SidePanelTab = "validation" | "capacity" | "simulation";
 
 export function ArchitectureEditor({ id }: { id: string }) {
-  const { query, saveStatus, handleGraphChange } = useArchitectureEditor(id);
+  const { query, saveStatus, handleGraphChange, handleRename } = useArchitectureEditor(id);
   const validation = useValidation(id);
   const runSimulation = useRunSimulation(id);
   const [activeTab, setActiveTab] = useState<SidePanelTab>("validation");
@@ -63,7 +64,9 @@ export function ArchitectureEditor({ id }: { id: string }) {
           <Link href="/architectures" className="text-sm text-blue-600 hover:underline">
             ← 목록
           </Link>
-          <h1 className="text-sm font-semibold">{query.data.name}</h1>
+          <h1>
+            <EditableLabel value={query.data.name} onChange={handleRename} className="text-sm font-semibold" inputClassName="text-sm font-semibold" />
+          </h1>
         </div>
         <div className="flex items-center gap-3">
           <span className="text-xs text-gray-400">{SAVE_STATUS_LABEL[saveStatus]}</span>

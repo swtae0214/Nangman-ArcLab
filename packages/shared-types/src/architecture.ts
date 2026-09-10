@@ -4,6 +4,8 @@
  * "필드 이름과 모양"만 이 파일을 기준으로 맞춘다 (검증 로직 자체는 공유하지 않음).
  */
 
+import type { RuleSeverity } from './validation.js';
+
 /**
  * 배열로 먼저 정의하는 이유: class-validator의 @IsIn()이 실행 시점에 검사할
  * 실제 값 목록을 필요로 하기 때문. TS의 union 타입만으로는 런타임 검증이 불가능해서,
@@ -118,6 +120,39 @@ export interface ArchitectureSummary {
 
 export interface ArchitectureDetail extends ArchitectureSummary {
   graph: ArchitectureGraph;
+}
+
+/** 홈 대시보드 카드에 쓰는 요약 통계. 정적 검증은 항상 최신 그래프 기준으로 실시간 계산하고,
+ *  가용성/지연시간은 그 아키텍처의 가장 최근 시뮬레이션 실행 기록에서 가져온다(실행한 적이
+ *  없으면 latestSimulation이 null). */
+export interface ArchitectureFailedRule {
+  ruleCode: string;
+  name: string;
+  severity: RuleSeverity;
+}
+
+export interface ArchitectureValidationSummary {
+  passed: boolean;
+  /** 정적 검증 규칙 카탈로그 총 개수(현재 5개) — "통과 · 규칙 N/5" 배지에 쓴다. */
+  totalCount: number;
+  failedCount: number;
+  worstSeverity: RuleSeverity | null;
+  /** 홈 대시보드의 "아키텍처별 위반 규칙" 패널에 쓰는, 실제로 위반한 규칙 목록. */
+  failedRules: ArchitectureFailedRule[];
+}
+
+export interface ArchitectureLatestSimulationSummary {
+  estimatedAvailabilityPercent: number;
+  /** 큐잉 모델이 계산하는 값은 평균 종단 지연시간이지 P99 같은 백분위수가 아니다 — 화면 라벨도
+   *  "평균 지연시간"으로 표기할 것. */
+  avgLatencyMs: number | null;
+  createdAt: string;
+}
+
+export interface ArchitectureDashboardSummary extends ArchitectureSummary {
+  nodeCount: number;
+  validation: ArchitectureValidationSummary;
+  latestSimulation: ArchitectureLatestSimulationSummary | null;
 }
 
 export interface CreateArchitectureRequest {

@@ -1,7 +1,7 @@
 "use client";
 
 import type { ArchitectureDetail, ArchitectureGraph } from "@nangman/shared-types";
-import { useMutation, useQuery, type UseQueryResult } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, type UseQueryResult } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getArchitecture, updateArchitecture } from "@/lib/api";
 
@@ -13,11 +13,13 @@ export interface UseArchitectureEditorResult {
   query: UseQueryResult<ArchitectureDetail, Error>;
   saveStatus: SaveStatus;
   handleGraphChange: (graph: ArchitectureGraph) => void;
+  handleRename: (name: string) => void;
 }
 
 /** 아키텍처 조회 + 캔버스 변경을 AUTO_SAVE_DEBOUNCE_MS만큼 모았다가 PATCH하는 자동저장을 함께 관리한다. */
 export function useArchitectureEditor(id: string): UseArchitectureEditorResult {
   const query = useQuery({ queryKey: ["architectures", id], queryFn: () => getArchitecture(id) });
+  const queryClient = useQueryClient();
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isFirstChangeRef = useRef(true);
@@ -27,6 +29,21 @@ export function useArchitectureEditor(id: string): UseArchitectureEditorResult {
     onSuccess: () => setSaveStatus("saved"),
     onError: () => setSaveStatus("error"),
   });
+
+  // 이름 변경은 그래프 자동저장과 달리 debounce 없이 EditableLabel이 커밋하는 즉시 저장한다.
+  // 대시보드 카드 목록(["architectures"])은 별도 쿼리라 여기서 같이 무효화해줘야 목록에도 새 이름이 반영된다.
+  const { mutate: saveName } = useMutation({
+    mutationFn: (name: string) => updateArchitecture(id, { name }),
+    onMutate: () => setSaveStatus("saving"),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(["architectures", id], updated);
+      void queryClient.invalidateQueries({ queryKey: ["architectures"], exact: true });
+      setSaveStatus("saved");
+    },
+    onError: () => setSaveStatus("error"),
+  });
+
+  const handleRename = useCallback((name: string) => saveName(name), [saveName]);
 
   const handleGraphChange = useCallback(
     (graph: ArchitectureGraph) => {
@@ -56,5 +73,5 @@ export function useArchitectureEditor(id: string): UseArchitectureEditorResult {
     };
   }, []);
 
-  return { query, saveStatus, handleGraphChange };
+  return { query, saveStatus, handleGraphChange, handleRename };
 }

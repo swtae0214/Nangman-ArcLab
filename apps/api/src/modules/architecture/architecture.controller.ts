@@ -1,4 +1,4 @@
-import type { ArchitectureDetail, ArchitectureSummary, ShareArchitectureResponse } from '@nangman/shared-types';
+import type { ArchitectureDashboardSummary, ArchitectureDetail, ShareArchitectureResponse } from '@nangman/shared-types';
 import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { OwnerToken } from '../../common/decorators/owner-token.decorator.js';
 import { AnonymousSessionGuard } from '../../common/guards/anonymous-session.guard.js';
@@ -17,7 +17,7 @@ export class ArchitectureController {
   }
 
   @Get()
-  list(@OwnerToken() ownerToken: string): Promise<ArchitectureSummary[]> {
+  list(@OwnerToken() ownerToken: string): Promise<ArchitectureDashboardSummary[]> {
     return this.architectureService.listByOwner(ownerToken);
   }
 

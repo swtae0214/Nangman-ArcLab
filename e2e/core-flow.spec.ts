@@ -68,8 +68,8 @@ test("핵심 플로우: 생성 → 배치/연결 → 검증 → 시뮬레이션 
   // 1) 목록 페이지에서 아키텍처 생성 (Turbopack 첫 컴파일/첫 쿼리가 끝날 때까지 먼저 기다린다)
   await page.goto("/architectures");
   await expect(page.getByText("불러오는 중...")).toHaveCount(0);
-  await page.getByPlaceholder("아키텍처 이름").fill(architectureName);
-  await page.getByRole("button", { name: "만들기" }).click();
+  await page.getByPlaceholder("새 아키텍처 이름").fill(architectureName);
+  await page.getByRole("button", { name: "+ 새 아키텍처 시작하기" }).click();
   await page.waitForURL(/\/architectures\/[0-9a-f-]{36}$/);
   await expect(page.getByText("핵심 인프라")).toBeVisible(); // 팔레트가 실제로 마운트될 때까지 대기
 
@@ -118,10 +118,16 @@ test("핵심 플로우: 생성 → 배치/연결 → 검증 → 시뮬레이션 
   await page.getByRole("button", { name: "공유 해제" }).click();
   await expect(page.getByRole("button", { name: "공유", exact: true })).toBeVisible();
 
-  // 9) 목록으로 돌아가 삭제
+  // 9) 목록(대시보드)으로 돌아가 삭제 — 삭제 버튼은 카드에 마우스를 올려야 보이고,
+  //    누르면 되돌릴 수 없다는 확인창이 한 번 더 뜬다.
   await page.goto("/architectures");
-  const row = page.locator("li").filter({ hasText: architectureName });
-  await expect(row).toBeVisible();
-  await row.getByRole("button", { name: "삭제" }).click();
-  await expect(page.locator("li").filter({ hasText: architectureName })).toHaveCount(0);
+  const card = page.locator(".group").filter({ hasText: architectureName });
+  await expect(card).toBeVisible();
+  await card.hover();
+  await card.getByRole("button", { name: "삭제" }).click();
+  const confirmDialog = page.getByRole("alertdialog");
+  await expect(confirmDialog).toBeVisible();
+  await expect(confirmDialog.getByText("복구할 수 없어요")).toBeVisible();
+  await confirmDialog.getByRole("button", { name: "삭제" }).click();
+  await expect(page.locator(".group").filter({ hasText: architectureName })).toHaveCount(0);
 });

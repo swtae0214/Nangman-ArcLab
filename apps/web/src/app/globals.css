@@ -10,6 +10,22 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  /* design_handoff_home_dashboard/README.md의 Design Tokens 섹션 — 랜딩/대시보드
+     ("ARCLAB.NANGMAN.CLOUD") 화면 전용 다크 팔레트. 기존 --color-background 등은 에디터 화면이
+     쓰고 있어서 그대로 두고, 이 화면들만 쓰는 새 토큰을 추가한다. */
+  --color-console-bg: #080a0c;
+  --color-console-panel: #0e1310;
+  --color-console-fg: #d7e4de;
+  --color-console-muted: #7d9089;
+  --color-console-subtle: #8fa39c;
+  --color-console-accent: #5aff9e;
+  --color-console-accent-hover: #8dffbe;
+  --color-console-critical: #ff8a8a;
+  --color-console-warning: #ffcf7a;
+  --color-console-info: #7fb0e0;
+  --font-noto-kr: var(--font-noto-sans-kr);
+  --font-jetbrains: var(--font-jetbrains-mono);
 }
 
 @media (prefers-color-scheme: dark) {

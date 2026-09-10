@@ -1,9 +1,17 @@
 import { randomUUID } from 'node:crypto';
 import type { ArchitectureModel } from '../../generated/prisma/models.js';
 import type { Prisma } from '../../generated/prisma/client.js';
-import type { ArchitectureDetail, ArchitectureGraph, ArchitectureSummary, ShareArchitectureResponse } from '@nangman/shared-types';
+import type {
+  ArchitectureDashboardSummary,
+  ArchitectureDetail,
+  ArchitectureGraph,
+  ArchitectureSummary,
+  ShareArchitectureResponse,
+} from '@nangman/shared-types';
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { ValidationService } from '../validation/validation.service.js';
+import { summarizeLatestSimulationRun, summarizeValidation } from './dashboard-stats.util.js';
 import { CreateArchitectureDto } from './dto/create-architecture.dto.js';
 import { UpdateArchitectureDto } from './dto/update-architecture.dto.js';
 
@@ -11,7 +19,10 @@ const DEFAULT_WEB_ORIGIN = 'http://localhost:3000';
 
 @Injectable()
 export class ArchitectureService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly validationService: ValidationService,
+  ) {}
 
   async create(ownerToken: string, dto: CreateArchitectureDto): Promise<ArchitectureDetail> {
     const created = await this.prisma.architecture.create({
@@ -24,12 +35,13 @@ export class ArchitectureService {
     return this.toDetail(created);
   }
 
-  async listByOwner(ownerToken: string): Promise<ArchitectureSummary[]> {
+  /** 홈 대시보드용 — 카드마다 실시간 정적 검증 + 가장 최근 시뮬레이션 실행 결과를 함께 내려준다. */
+  async listByOwner(ownerToken: string): Promise<ArchitectureDashboardSummary[]> {
     const rows = await this.prisma.architecture.findMany({
       where: { ownerToken },
       orderBy: { updatedAt: 'desc' },
     });
-    return rows.map((row) => this.toSummary(row));
+    return Promise.all(rows.map((row) => this.toDashboardSummary(row)));
   }
 
   /** owner 본인이거나, 공개(is_public)된 아키텍처만 조회 가능 (4/5단계 권한 규칙) */
@@ -138,6 +150,26 @@ export class ArchitectureService {
     return {
       ...this.toSummary(row),
       graph: row.graphJson as unknown as ArchitectureGraph,
+    };
+  }
+
+  private async toDashboardSummary(row: ArchitectureModel): Promise<ArchitectureDashboardSummary> {
+    const graph = row.graphJson as unknown as ArchitectureGraph;
+
+    const [validationReport, latestRun] = await Promise.all([
+      this.validationService.evaluate(graph),
+      this.prisma.simulationRun.findFirst({
+        where: { architectureId: row.id },
+        orderBy: { createdAt: 'desc' },
+        include: { simulationMetrics: true },
+      }),
+    ]);
+
+    return {
+      ...this.toSummary(row),
+      nodeCount: graph.nodes.length,
+      validation: summarizeValidation(validationReport),
+      latestSimulation: latestRun ? summarizeLatestSimulationRun(latestRun) : null,
     };
   }
 }

@@ -1,7 +1,7 @@
 import type {
   ApiResponse,
+  ArchitectureDashboardSummary,
   ArchitectureDetail,
-  ArchitectureSummary,
   ArchitectureValidationReport,
   ComponentPresetCatalogItem,
   CreateArchitectureRequest,
@@ -13,6 +13,7 @@ import type {
   SimulationRunResult,
   SimulationRunSummary,
   UpdateArchitectureRequest,
+  ValidationRuleCatalogItem,
 } from "@nangman/shared-types";
 
 const BASE_PATH = "/api/backend";
@@ -33,8 +34,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return body.data;
 }
 
-export function listArchitectures(): Promise<ArchitectureSummary[]> {
-  return request<ArchitectureSummary[]>("/architectures");
+export function listArchitectures(): Promise<ArchitectureDashboardSummary[]> {
+  return request<ArchitectureDashboardSummary[]>("/architectures");
 }
 
 export function createArchitecture(input: CreateArchitectureRequest): Promise<ArchitectureDetail> {
@@ -99,4 +100,8 @@ export function unshareArchitecture(id: string): Promise<{ id: string }> {
 
 export function getSharedArchitecture(shareToken: string): Promise<ArchitectureDetail> {
   return request<ArchitectureDetail>(`/shared/${shareToken}`);
+}
+
+export function getValidationRuleCatalog(): Promise<ValidationRuleCatalogItem[]> {
+  return request<ValidationRuleCatalogItem[]>("/catalog/validation-rules");
 }
