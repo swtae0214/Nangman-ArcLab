@@ -30,9 +30,8 @@ services:
       context: .
       dockerfile: apps/web/Dockerfile
     restart: unless-stopped
-    environment:
-      # 컨테이너 안에서 api 서비스 이름으로 접속 — 브라우저는 이 값을 모르고, 항상 web의 /api/backend/*로만 접속한다.
-      API_INTERNAL_URL: "http://api:4000/api/v1"
+    # API_INTERNAL_URL은 여기서 안 넘긴다 — output:"standalone" 빌드라 next.config.ts의 rewrites가
+    # 빌드 시점에 고정되기 때문에(apps/web/Dockerfile 참고), 런타임 environment로 줘도 무시된다.
     ports:
       - "3000:3000"
     depends_on:
