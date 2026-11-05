@@ -24,10 +24,10 @@ export class ArchitectureService {
     private readonly validationService: ValidationService,
   ) {}
 
-  async create(ownerToken: string, dto: CreateArchitectureDto): Promise<ArchitectureDetail> {
+  async create(userId: string, dto: CreateArchitectureDto): Promise<ArchitectureDetail> {
     const created = await this.prisma.architecture.create({
       data: {
-        ownerToken,
+        userId,
         name: dto.name,
         graphJson: dto.graph as unknown as Prisma.InputJsonValue,
       },
@@ -36,33 +36,33 @@ export class ArchitectureService {
   }
 
   /** 홈 대시보드용 — 카드마다 실시간 정적 검증 + 가장 최근 시뮬레이션 실행 결과를 함께 내려준다. */
-  async listByOwner(ownerToken: string): Promise<ArchitectureDashboardSummary[]> {
+  async listByOwner(userId: string): Promise<ArchitectureDashboardSummary[]> {
     const rows = await this.prisma.architecture.findMany({
-      where: { ownerToken },
+      where: { userId },
       orderBy: { updatedAt: 'desc' },
     });
     return Promise.all(rows.map((row) => this.toDashboardSummary(row)));
   }
 
-  /** owner 본인이거나, 공개(is_public)된 아키텍처만 조회 가능 (4/5단계 권한 규칙) */
-  async getOneForOwnerOrPublic(id: string, ownerToken: string): Promise<ArchitectureDetail> {
+  /** 본인 소유이거나, 공개(is_public)된 아키텍처만 조회 가능 (4/5단계 권한 규칙) */
+  async getOneForOwnerOrPublic(id: string, userId: string): Promise<ArchitectureDetail> {
     const row = await this.findOrThrow(id);
-    if (row.ownerToken !== ownerToken && !row.isPublic) {
+    if (row.userId !== userId && !row.isPublic) {
       throw new ForbiddenException('이 아키텍처에 접근할 권한이 없습니다.');
     }
     return this.toDetail(row);
   }
 
-  /** POST 계열(시뮬레이션 실행 등)에서 재사용 — owner 본인이 아니면 무조건 거부한다. */
-  async getOwned(id: string, ownerToken: string): Promise<ArchitectureDetail> {
+  /** POST 계열(시뮬레이션 실행 등)에서 재사용 — 본인 소유가 아니면 무조건 거부한다. */
+  async getOwned(id: string, userId: string): Promise<ArchitectureDetail> {
     const row = await this.findOrThrow(id);
-    this.assertOwner(row, ownerToken);
+    this.assertOwner(row, userId);
     return this.toDetail(row);
   }
 
-  async update(id: string, ownerToken: string, dto: UpdateArchitectureDto): Promise<ArchitectureDetail> {
+  async update(id: string, userId: string, dto: UpdateArchitectureDto): Promise<ArchitectureDetail> {
     const row = await this.findOrThrow(id);
-    this.assertOwner(row, ownerToken);
+    this.assertOwner(row, userId);
 
     const updated = await this.prisma.architecture.update({
       where: { id },
@@ -74,17 +74,17 @@ export class ArchitectureService {
     return this.toDetail(updated);
   }
 
-  async remove(id: string, ownerToken: string): Promise<{ id: string }> {
+  async remove(id: string, userId: string): Promise<{ id: string }> {
     const row = await this.findOrThrow(id);
-    this.assertOwner(row, ownerToken);
+    this.assertOwner(row, userId);
     await this.prisma.architecture.delete({ where: { id } });
     return { id };
   }
 
-  /** 공유 링크를 새로 발급(또는 재발급)하고 공개로 전환한다. owner만 가능. */
-  async share(id: string, ownerToken: string): Promise<ShareArchitectureResponse> {
+  /** 공유 링크를 새로 발급(또는 재발급)하고 공개로 전환한다. 본인 소유만 가능. */
+  async share(id: string, userId: string): Promise<ShareArchitectureResponse> {
     const row = await this.findOrThrow(id);
-    this.assertOwner(row, ownerToken);
+    this.assertOwner(row, userId);
 
     const shareToken = randomUUID();
     await this.prisma.architecture.update({
@@ -95,10 +95,10 @@ export class ArchitectureService {
     return { shareToken, shareUrl: `${process.env.WEB_ORIGIN ?? DEFAULT_WEB_ORIGIN}/shared/${shareToken}` };
   }
 
-  /** 공유를 해제한다 (비공개로 전환 + 기존 링크 무효화). owner만 가능. */
-  async unshare(id: string, ownerToken: string): Promise<{ id: string }> {
+  /** 공유를 해제한다 (비공개로 전환 + 기존 링크 무효화). 본인 소유만 가능. */
+  async unshare(id: string, userId: string): Promise<{ id: string }> {
     const row = await this.findOrThrow(id);
-    this.assertOwner(row, ownerToken);
+    this.assertOwner(row, userId);
 
     await this.prisma.architecture.update({
       where: { id },
@@ -108,7 +108,7 @@ export class ArchitectureService {
   }
 
   /**
-   * 공유 링크로만 접근하는 완전 공개 조회 — owner_token 없이도 열람 가능해야 하므로
+   * 공유 링크로만 접근하는 완전 공개 조회 — 로그인 없이도 열람 가능해야 하므로
    * getOneForOwnerOrPublic과 달리 소유권 검사를 아예 하지 않는다. is_public이 꺼져 있으면
    * (해제되었거나 애초에 공유된 적 없으면) 존재 자체를 알려주지 않고 404로 처리한다.
    */
@@ -128,9 +128,9 @@ export class ArchitectureService {
     return row;
   }
 
-  /** POST/PATCH/DELETE는 share_token 공개 여부와 무관하게 owner만 가능 (5-1단계에서 짚은 보안 규칙) */
-  private assertOwner(row: ArchitectureModel, ownerToken: string): void {
-    if (row.ownerToken !== ownerToken) {
+  /** POST/PATCH/DELETE는 share_token 공개 여부와 무관하게 본인 소유만 가능 (5-1단계에서 짚은 보안 규칙) */
+  private assertOwner(row: ArchitectureModel, userId: string): void {
+    if (row.userId !== userId) {
       throw new ForbiddenException('이 아키텍처를 수정할 권한이 없습니다.');
     }
   }

@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useCurrentUser } from "@/lib/use-current-user";
 import { useArchitectureEditor } from "../hooks/useArchitectureEditor";
 import { useValidation } from "../hooks/useValidation";
 import { useRunSimulation } from "../hooks/useSimulation";
@@ -23,7 +25,11 @@ const SAVE_STATUS_LABEL: Record<string, string> = {
 type SidePanelTab = "validation" | "capacity" | "simulation";
 
 export function ArchitectureEditor({ id }: { id: string }) {
-  const { query, saveStatus, handleGraphChange, handleRename } = useArchitectureEditor(id);
+  const router = useRouter();
+  const { data: currentUser, isLoading: isLoadingUser } = useCurrentUser();
+  const { query, saveStatus, handleGraphChange, handleRename } = useArchitectureEditor(id, {
+    enabled: currentUser != null,
+  });
   const validation = useValidation(id);
   const runSimulation = useRunSimulation(id);
   const [activeTab, setActiveTab] = useState<SidePanelTab>("validation");
@@ -42,7 +48,14 @@ export function ArchitectureEditor({ id }: { id: string }) {
     return ids;
   }, [validation.data, runSimulation.data]);
 
-  if (query.isLoading) {
+  // 깃헙 로그인이 필수인 화면이라, 로그인 안 된 게 확인되면 마케팅 홈으로 돌려보낸다.
+  useEffect(() => {
+    if (!isLoadingUser && currentUser === null) {
+      router.replace("/");
+    }
+  }, [isLoadingUser, currentUser, router]);
+
+  if (isLoadingUser || !currentUser || query.isLoading) {
     return <div className="p-8">불러오는 중...</div>;
   }
 

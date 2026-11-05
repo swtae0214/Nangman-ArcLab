@@ -1,10 +1,11 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import type { ArchitectureDashboardSummary } from "@nangman/shared-types";
 import { ConsoleNavBar } from "@/components/ConsoleNavBar";
 import { useArchitectures, useCreateArchitecture, useDeleteArchitecture } from "@/lib/use-architectures";
+import { useCurrentUser } from "@/lib/use-current-user";
 import { computeDashboardAggregateStats } from "../dashboard-stats";
 import { ArchitectureCard } from "./ArchitectureCard";
 import { ArchitectureViolationsPanel } from "./ArchitectureViolationsPanel";
@@ -25,11 +26,19 @@ function formatLatency(value: number | null): string {
 
 export function DashboardPage() {
   const router = useRouter();
+  const { data: currentUser, isLoading: isLoadingUser } = useCurrentUser();
   const [name, setName] = useState("");
   const [pendingDelete, setPendingDelete] = useState<ArchitectureDashboardSummary | null>(null);
-  const { data: architectures, isLoading, error } = useArchitectures();
+  const { data: architectures, isLoading, error } = useArchitectures({ enabled: currentUser != null });
   const createArchitecture = useCreateArchitecture();
   const deleteArchitecture = useDeleteArchitecture();
+
+  // 깃헙 로그인이 필수인 화면이라, 로그인 안 된 게 확인되면 마케팅 홈으로 돌려보낸다.
+  useEffect(() => {
+    if (!isLoadingUser && currentUser === null) {
+      router.replace("/");
+    }
+  }, [isLoadingUser, currentUser, router]);
 
   const handleConfirmDelete = () => {
     if (!pendingDelete) return;
@@ -54,6 +63,11 @@ export function DashboardPage() {
     error?.message ?? createArchitecture.error?.message ?? deleteArchitecture.error?.message ?? null;
   const stats = computeDashboardAggregateStats(architectures ?? []);
 
+  // 로그인 확인 중이거나(깜빡임 방지) 로그인 안 돼서 곧 홈으로 리다이렉트될 거면, 대시보드 내용은 아직 안 그린다.
+  if (isLoadingUser || !currentUser) {
+    return <div className="flex min-h-screen items-center justify-center bg-console-bg text-sm text-console-muted">불러오는 중...</div>;
+  }
+
   return (
     <div className="min-h-screen bg-console-bg font-noto-kr text-console-fg">
       <div className="mx-auto max-w-[1360px]">
@@ -73,14 +87,6 @@ export function DashboardPage() {
               placeholder="새 아키텍처 이름"
               className="rounded border border-console-accent/25 bg-console-panel px-3.5 py-3 text-[13.5px] text-console-fg placeholder:text-console-muted focus:border-console-accent focus:outline-none"
             />
-            <button
-              type="button"
-              disabled
-              title="템플릿 목록은 아직 준비 중이에요"
-              className="cursor-not-allowed rounded border border-console-accent/30 px-5 py-3 text-[13.5px] font-semibold text-console-fg/50"
-            >
-              템플릿에서 시작
-            </button>
             <button
               type="submit"
               disabled={createArchitecture.isPending}

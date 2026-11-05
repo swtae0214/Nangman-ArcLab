@@ -70,8 +70,8 @@ export class SimulationService {
    * simulation_runs/validation_results/simulation_metrics에 그대로 남긴다 (재현 가능성을 위한
    * 스냅샷 패턴 — 4단계에서 정한 원칙).
    */
-  async runSimulation(architectureId: string, ownerToken: string, request: CreateSimulationRunRequest): Promise<SimulationRunResult> {
-    const architecture = await this.architectureService.getOwned(architectureId, ownerToken);
+  async runSimulation(architectureId: string, userId: string, request: CreateSimulationRunRequest): Promise<SimulationRunResult> {
+    const architecture = await this.architectureService.getOwned(architectureId, userId);
     const presets = await this.catalogService.listComponentPresets();
 
     const validation = await this.validationService.evaluate(architecture.graph);
@@ -127,12 +127,12 @@ export class SimulationService {
     };
   }
 
-  async getRun(runId: string, ownerToken: string): Promise<SimulationRunResult> {
+  async getRun(runId: string, userId: string): Promise<SimulationRunResult> {
     const run = await this.prisma.simulationRun.findUnique({
       where: { id: runId },
       include: { architecture: true, validationResults: { include: { rule: true } }, simulationMetrics: true },
     });
-    if (!run || (run.architecture.ownerToken !== ownerToken && !run.architecture.isPublic)) {
+    if (!run || (run.architecture.userId !== userId && !run.architecture.isPublic)) {
       throw new NotFoundException('시뮬레이션 실행 결과를 찾을 수 없습니다.');
     }
 
@@ -184,8 +184,8 @@ export class SimulationService {
     };
   }
 
-  async listRuns(architectureId: string, ownerToken: string): Promise<SimulationRunSummary[]> {
-    await this.architectureService.getOneForOwnerOrPublic(architectureId, ownerToken);
+  async listRuns(architectureId: string, userId: string): Promise<SimulationRunSummary[]> {
+    await this.architectureService.getOneForOwnerOrPublic(architectureId, userId);
 
     const runs = await this.prisma.simulationRun.findMany({
       where: { architectureId },

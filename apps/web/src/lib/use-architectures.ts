@@ -6,8 +6,8 @@ import { createArchitecture, deleteArchitecture, listArchitectures } from "./api
 
 const ARCHITECTURES_QUERY_KEY = ["architectures"] as const;
 
-export function useArchitectures(): UseQueryResult<ArchitectureDashboardSummary[], Error> {
-  return useQuery({ queryKey: ARCHITECTURES_QUERY_KEY, queryFn: listArchitectures });
+export function useArchitectures(options?: { enabled?: boolean }): UseQueryResult<ArchitectureDashboardSummary[], Error> {
+  return useQuery({ queryKey: ARCHITECTURES_QUERY_KEY, queryFn: listArchitectures, enabled: options?.enabled ?? true });
 }
 
 export function useCreateArchitecture(): UseMutationResult<ArchitectureDetail, Error, CreateArchitectureRequest> {

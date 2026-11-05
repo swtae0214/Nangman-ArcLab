@@ -1,9 +1,35 @@
 "use client";
 
+import type { CurrentUser } from "@nangman/shared-types";
 import Link from "next/link";
 import { ConsoleNavBar } from "@/components/ConsoleNavBar";
+import { GITHUB_LOGIN_URL } from "@/lib/api";
+import { AuthErrorBanner } from "./AuthErrorBanner";
+import { useCurrentUser } from "@/lib/use-current-user";
 import { useValidationRuleCatalog } from "@/lib/use-catalog";
 import { SEVERITY_BORDER_STYLE, SEVERITY_TEXT_CLASS } from "@/lib/severity-colors";
+
+/** 로그인 여부에 따라 "캔버스 시작하기"(기존 세션) 또는 "GitHub로 시작하기"(로그인 화면 이동)로 바뀌는 CTA. */
+function StartCta({ user }: { user: CurrentUser | null | undefined }) {
+  if (user) {
+    return (
+      <Link
+        href="/architectures"
+        className="rounded bg-console-accent px-6 py-3.5 text-sm font-bold text-console-bg hover:bg-console-accent-hover"
+      >
+        캔버스 시작하기 →
+      </Link>
+    );
+  }
+  return (
+    <a
+      href={GITHUB_LOGIN_URL}
+      className="rounded bg-console-accent px-6 py-3.5 text-sm font-bold text-console-bg hover:bg-console-accent-hover"
+    >
+      GitHub로 시작하기 →
+    </a>
+  );
+}
 
 const FEATURES = [
   {
@@ -29,11 +55,13 @@ const FEATURES = [
 
 export function LandingPage() {
   const { data: rules } = useValidationRuleCatalog();
+  const { data: user } = useCurrentUser();
 
   return (
     <div className="min-h-screen bg-console-bg font-noto-kr text-console-fg">
       <div className="mx-auto max-w-[1360px]">
         <ConsoleNavBar variant="landing" />
+        <AuthErrorBanner />
 
         <section className="px-10 pt-16 pb-12">
           <div className="mb-3.5 font-jetbrains text-xs font-semibold text-console-accent">
@@ -49,12 +77,7 @@ export function LandingPage() {
             돌아옵니다.
           </p>
           <div className="mb-11 flex gap-3">
-            <Link
-              href="/architectures"
-              className="rounded bg-console-accent px-6 py-3.5 text-sm font-bold text-console-bg hover:bg-console-accent-hover"
-            >
-              캔버스 시작하기 →
-            </Link>
+            <StartCta user={user} />
             <a
               href="https://github.com/swtae0214/Nangman-ArcLab"
               target="_blank"
@@ -147,12 +170,7 @@ export function LandingPage() {
             ))}
           </div>
           <div className="flex justify-end border-t border-console-accent/15 pt-6">
-            <Link
-              href="/architectures"
-              className="rounded bg-console-accent px-6 py-3.5 text-sm font-bold text-console-bg hover:bg-console-accent-hover"
-            >
-              캔버스 시작하기 →
-            </Link>
+            <StartCta user={user} />
           </div>
         </section>
       </div>

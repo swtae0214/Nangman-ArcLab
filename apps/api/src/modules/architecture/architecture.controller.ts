@@ -1,52 +1,52 @@
 import type { ArchitectureDashboardSummary, ArchitectureDetail, ShareArchitectureResponse } from '@nangman/shared-types';
 import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
-import { OwnerToken } from '../../common/decorators/owner-token.decorator.js';
-import { AnonymousSessionGuard } from '../../common/guards/anonymous-session.guard.js';
+import { CurrentUserId } from '../../common/decorators/current-user.decorator.js';
+import { AuthGuard } from '../../common/guards/auth.guard.js';
 import { ArchitectureService } from './architecture.service.js';
 import { CreateArchitectureDto } from './dto/create-architecture.dto.js';
 import { UpdateArchitectureDto } from './dto/update-architecture.dto.js';
 
-@UseGuards(AnonymousSessionGuard)
+@UseGuards(AuthGuard)
 @Controller('architectures')
 export class ArchitectureController {
   constructor(private readonly architectureService: ArchitectureService) {}
 
   @Post()
-  create(@OwnerToken() ownerToken: string, @Body() dto: CreateArchitectureDto): Promise<ArchitectureDetail> {
-    return this.architectureService.create(ownerToken, dto);
+  create(@CurrentUserId() userId: string, @Body() dto: CreateArchitectureDto): Promise<ArchitectureDetail> {
+    return this.architectureService.create(userId, dto);
   }
 
   @Get()
-  list(@OwnerToken() ownerToken: string): Promise<ArchitectureDashboardSummary[]> {
-    return this.architectureService.listByOwner(ownerToken);
+  list(@CurrentUserId() userId: string): Promise<ArchitectureDashboardSummary[]> {
+    return this.architectureService.listByOwner(userId);
   }
 
   @Get(':id')
-  getOne(@OwnerToken() ownerToken: string, @Param('id') id: string): Promise<ArchitectureDetail> {
-    return this.architectureService.getOneForOwnerOrPublic(id, ownerToken);
+  getOne(@CurrentUserId() userId: string, @Param('id') id: string): Promise<ArchitectureDetail> {
+    return this.architectureService.getOneForOwnerOrPublic(id, userId);
   }
 
   @Patch(':id')
   update(
-    @OwnerToken() ownerToken: string,
+    @CurrentUserId() userId: string,
     @Param('id') id: string,
     @Body() dto: UpdateArchitectureDto,
   ): Promise<ArchitectureDetail> {
-    return this.architectureService.update(id, ownerToken, dto);
+    return this.architectureService.update(id, userId, dto);
   }
 
   @Delete(':id')
-  remove(@OwnerToken() ownerToken: string, @Param('id') id: string): Promise<{ id: string }> {
-    return this.architectureService.remove(id, ownerToken);
+  remove(@CurrentUserId() userId: string, @Param('id') id: string): Promise<{ id: string }> {
+    return this.architectureService.remove(id, userId);
   }
 
   @Post(':id/share')
-  share(@OwnerToken() ownerToken: string, @Param('id') id: string): Promise<ShareArchitectureResponse> {
-    return this.architectureService.share(id, ownerToken);
+  share(@CurrentUserId() userId: string, @Param('id') id: string): Promise<ShareArchitectureResponse> {
+    return this.architectureService.share(id, userId);
   }
 
   @Delete(':id/share')
-  unshare(@OwnerToken() ownerToken: string, @Param('id') id: string): Promise<{ id: string }> {
-    return this.architectureService.unshare(id, ownerToken);
+  unshare(@CurrentUserId() userId: string, @Param('id') id: string): Promise<{ id: string }> {
+    return this.architectureService.unshare(id, userId);
   }
 }

@@ -17,8 +17,12 @@ export interface UseArchitectureEditorResult {
 }
 
 /** 아키텍처 조회 + 캔버스 변경을 AUTO_SAVE_DEBOUNCE_MS만큼 모았다가 PATCH하는 자동저장을 함께 관리한다. */
-export function useArchitectureEditor(id: string): UseArchitectureEditorResult {
-  const query = useQuery({ queryKey: ["architectures", id], queryFn: () => getArchitecture(id) });
+export function useArchitectureEditor(id: string, options?: { enabled?: boolean }): UseArchitectureEditorResult {
+  const query = useQuery({
+    queryKey: ["architectures", id],
+    queryFn: () => getArchitecture(id),
+    enabled: options?.enabled ?? true,
+  });
   const queryClient = useQueryClient();
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);

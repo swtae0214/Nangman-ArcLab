@@ -1,6 +1,13 @@
+"use client";
+
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { GITHUB_LOGIN_URL } from "@/lib/api";
+import { useCurrentUser, useLogout } from "@/lib/use-current-user";
+import { UserMenu } from "./UserMenu";
 
 const GITHUB_REPO_URL = "https://github.com/swtae0214/Nangman-ArcLab";
+const README_URL = `${GITHUB_REPO_URL}/blob/main/README.md`;
 
 interface ConsoleNavBarProps {
   /**
@@ -11,11 +18,18 @@ interface ConsoleNavBarProps {
 }
 
 /**
- * design_handoff_home_dashboard의 랜딩/대시보드 상단 네비게이션. 디자인엔 있지만 대응하는
- * 실제 화면이 없는 메뉴(대시보드의 "공유 링크"/"문서")는 없는 페이지로 링크를 걸지 않고
- * 비활성 텍스트로만 둔다 — 새 페이지를 임의로 만들지 않기 위해서다.
+ * design_handoff_home_dashboard의 랜딩/대시보드 상단 네비게이션. "공유 링크"처럼 대응하는 화면이
+ * 아직 없는 메뉴는 아예 빼뒀고, "문서"는 별도 문서 페이지 대신 GitHub README로 바로 연결한다.
  */
 export function ConsoleNavBar({ variant }: ConsoleNavBarProps) {
+  const router = useRouter();
+  const { data: user } = useCurrentUser();
+  const logout = useLogout();
+
+  const handleLogout = () => {
+    logout.mutate(undefined, { onSuccess: () => router.push("/") });
+  };
+
   return (
     <div
       className={`flex items-center justify-between border-b border-console-accent/15 bg-console-bg px-10 py-5 ${
@@ -44,29 +58,32 @@ export function ConsoleNavBar({ variant }: ConsoleNavBarProps) {
           <Link href="/architectures" className="font-bold text-console-accent">
             내 아키텍처
           </Link>
-          <span className="cursor-default text-console-muted/50" title="아직 준비되지 않은 화면이에요">
-            공유 링크
-          </span>
-          <span className="cursor-default text-console-muted/50" title="아직 준비되지 않은 화면이에요">
+          <a href={README_URL} target="_blank" rel="noreferrer" className="hover:text-console-accent-hover">
             문서
-          </span>
+          </a>
         </nav>
       )}
 
       {variant === "landing" ? (
-        <Link
-          href="/architectures"
-          className="rounded bg-console-accent px-5 py-2.5 font-sans text-[13px] font-bold text-console-bg hover:bg-console-accent-hover"
-        >
-          로그인 / 시작하기
-        </Link>
+        user ? (
+          <Link
+            href="/architectures"
+            className="rounded bg-console-accent px-5 py-2.5 font-sans text-[13px] font-bold text-console-bg hover:bg-console-accent-hover"
+          >
+            대시보드로 가기
+          </Link>
+        ) : (
+          <a
+            href={GITHUB_LOGIN_URL}
+            className="rounded bg-console-accent px-5 py-2.5 font-sans text-[13px] font-bold text-console-bg hover:bg-console-accent-hover"
+          >
+            GitHub로 로그인
+          </a>
+        )
+      ) : user ? (
+        <UserMenu user={user} onLogout={handleLogout} isLoggingOut={logout.isPending} />
       ) : (
-        <div
-          className="flex h-8 w-8 items-center justify-center rounded-full bg-console-accent font-sans text-[13px] font-bold text-console-bg"
-          title="ArchLab (로그인 없이 브라우저 세션으로 동작해요)"
-        >
-          A
-        </div>
+        <div className="h-8 w-8" />
       )}
     </div>
   );

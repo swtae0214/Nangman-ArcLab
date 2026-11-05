@@ -87,10 +87,26 @@ enum ScenarioPhase {
   @@map("scenario_phase")
 }
 
-/// 사용자가 캔버스에서 저장한 아키텍처 (익명 세션 소유)
+/// GitHub 계정으로 로그인한 사용자.
+model User {
+  id         String   @id @default(uuid())
+  githubId   String   @unique @map("github_id")
+  username   String
+  email      String?
+  avatarUrl  String?  @map("avatar_url")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  architectures Architecture[]
+
+  @@map("users")
+}
+
+/// 사용자가 캔버스에서 저장한 아키텍처. 로그인이 필수라 생성 시점에 항상 userId가 채워진다
+/// (스키마상 nullable로 둔 건 과거 레코드 때문이 아니라, Prisma가 FK 컬럼에 안전한 기본값 없이
+/// NOT NULL을 강제하긴 까다로워서다 — 실제로 null인 레코드는 없다).
 model Architecture {
   id          String   @id @default(uuid())
-  ownerToken  String   @map("owner_token")
+  userId      String?  @map("user_id")
   name        String
   graphJson   Json     @map("graph_json")
   shareToken  String?  @unique @map("share_token")
@@ -98,9 +114,10 @@ model Architecture {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
+  user           User?           @relation(fields: [userId], references: [id], onDelete: Cascade)
   simulationRuns SimulationRun[]
 
-  @@index([ownerToken])
+  @@index([userId])
   @@map("architectures")
 }
 
