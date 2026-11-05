@@ -30,6 +30,7 @@ import {
   NESTED_GROUP_MIN_HEIGHT,
   NESTED_GROUP_MIN_WIDTH,
 } from "../component-meta";
+import { generateId } from "@/lib/generate-id";
 import { ProblemNodesProvider } from "../problem-nodes-context";
 import { ReadOnlyProvider } from "../read-only-context";
 import { flowToGraph, graphToFlow, type FlowEdge, type FlowNode } from "../types";
@@ -283,7 +284,7 @@ function CanvasInner({ initialGraph, onGraphChange, problemNodeIds, exportContai
     if (!clipboard || clipboard.nodes.length === 0) return;
 
     const idMap = new Map<string, string>();
-    for (const node of clipboard.nodes) idMap.set(node.id, crypto.randomUUID());
+    for (const node of clipboard.nodes) idMap.set(node.id, generateId());
 
     const pastedNodes: FlowNode[] = clipboard.nodes.map((node) => {
       const newParentId = node.parentId ? idMap.get(node.parentId) : undefined;
@@ -309,7 +310,7 @@ function CanvasInner({ initialGraph, onGraphChange, problemNodeIds, exportContai
     });
 
     const pastedEdges: FlowEdge[] = clipboard.edges.map((edge) => ({
-      id: crypto.randomUUID(),
+      id: generateId(),
       source: idMap.get(edge.source)!,
       target: idMap.get(edge.target)!,
     }));
@@ -473,7 +474,7 @@ function CanvasInner({ initialGraph, onGraphChange, problemNodeIds, exportContai
       }
 
       const newNode: FlowNode = {
-        id: crypto.randomUUID(),
+        id: generateId(),
         type,
         position: nodePosition,
         data: { label: meta.label, ...(logicalGroup ? { logicalGroupId: logicalGroup.id } : {}) },
@@ -598,7 +599,7 @@ function CanvasInner({ initialGraph, onGraphChange, problemNodeIds, exportContai
       const targets = logicalGroupableSelectedNodes;
       if (targets.length === 0) return;
 
-      const groupId = crypto.randomUUID();
+      const groupId = generateId();
       const targetIds = new Set(targets.map((node) => node.id));
       const placeholderGroup: FlowNode = {
         id: groupId,
@@ -649,7 +650,7 @@ function CanvasInner({ initialGraph, onGraphChange, problemNodeIds, exportContai
       const groupWidth = maxX - minX + padding * 2;
       const groupHeight = maxY - minY + padding * 2 + headerOffset;
 
-      const groupId = crypto.randomUUID();
+      const groupId = generateId();
       const groupNode: FlowNode = {
         id: groupId,
         type: groupType,
