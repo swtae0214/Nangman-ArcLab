@@ -14,6 +14,10 @@ services:
       COOKIE_SECRET: ${COOKIE_SECRET}
       WEB_ORIGIN: ${WEB_ORIGIN}
       API_PORT: 4000
+      # GitHub OAuth App(운영용으로 따로 등록한 것) — Authorization callback URL은
+      # "${WEB_ORIGIN}/api/backend/auth/github/callback" 이어야 한다.
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET}
     ports:
       - "4000:4000"
 
