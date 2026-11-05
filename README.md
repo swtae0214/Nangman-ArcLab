@@ -114,10 +114,10 @@ NAS의 Docker(Synology는 Container Manager, QNAP은 Container Station)에서 �
 
 ### 2) GitHub OAuth App 등록 (운영용, 로컬 개발용과 별개)
 
-로그인 쿠키는 HTTPS 연결에서만 저장되도록 되어 있어서, **외부에 공개하는 서버는 HTTPS가 사실상 필수**입니다(3번에서 Caddy로 자동 처리). [GitHub 개발자 설정](https://github.com/settings/developers)에서 OAuth App을 하나 더 등록하세요(로컬 개발용과는 별도 앱이어야 합니다):
+[GitHub 개발자 설정](https://github.com/settings/developers)에서 OAuth App을 하나 더 등록하세요(로컬 개발용과는 별도 앱이어야 합니다). Homepage URL/Authorization callback URL은 실제로 접속할 주소를 그대로 씁니다:
 
-- Homepage URL: `https://<실제_도메인>`
-- Authorization callback URL: `https://<실제_도메인>/api/backend/auth/github/callback`
+- **외부 공개(도메인+HTTPS)**: Homepage `https://<실제_도메인>`, 콜백 `https://<실제_도메인>/api/backend/auth/github/callback`
+- **팀 내부 전용(와이어가드 등 사설망)**: Homepage `http://<서버의 사설망 IP>:3000`, 콜백 `http://<서버의 사설망 IP>:3000/api/backend/auth/github/callback`
 
 ### 3) 앱 서버(Pi/EC2)에 코드 준비 + 환경변수 설정
 
@@ -128,7 +128,7 @@ cp .env.production.example .env.production
 # WEB_ORIGIN(https://실제_도메인), DOMAIN(실제_도메인)을 채운다
 ```
 
-### 4) 도메인 DNS 연결
+### 4) 도메인 DNS 연결 (외부 공개할 때만 — 팀 내부 전용이면 건너뛰어도 됨)
 
 도메인을 등록한 곳(가비아, Namecheap, 또는 DuckDNS 같은 무료 동적 DNS)에서 **A 레코드**를 이 서버의 공인 IP로 연결합니다. 공유기 뒤에 있다면 80/443 포트를 서버로 포트포워딩해야 합니다.
 
@@ -140,11 +140,13 @@ cp .env.production.example .env.production
 docker compose -f docker-compose.prod.yml -f docker-compose.caddy.yml --env-file .env.production up -d --build
 ```
 
-도메인 없이 로컬 네트워크(또는 Tailscale 같은 사설 VPN)에서만 쓸 거라면 Caddy 없이 이렇게만 실행해도 됩니다 — 이 경우 로그인은 안 되니, 서비스를 쓰려면 위 외부 공개 구성이 필요합니다:
+도메인/HTTPS 없이 **와이어가드 같은 이미 암호화된 사설망 안에서만** 팀 내부 테스트용으로 먼저 써볼 거라면, Caddy 없이 이렇게만 실행해도 됩니다. 단 `.env.production`에 `COOKIE_SECURE=false`를 넣고 `WEB_ORIGIN`도 `http://<서버의 사설망 IP>:3000`처럼 `http://`로 바꿔야 로그인이 됩니다(아니면 HTTPS가 없어서 로그인 쿠키가 저장되지 않습니다):
 
 ```bash
 docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
 ```
+
+> ⚠️ `COOKIE_SECURE=false`는 와이어가드/VPN처럼 전송 구간이 이미 암호화된 네트워크에서만 쓰세요. 일반 공개 인터넷에 이 설정으로 노출하면 로그인 쿠키가 암호화 없이 오갑니다 — 공개할 때는 반드시 위 Caddy 구성(또는 npm 같은 다른 리버스 프록시)으로 HTTPS를 붙이고 이 값을 빼세요.
 
 - `api` 컨테이너는 시작할 때마다 `prisma migrate deploy`를 먼저 실행하므로(`apps/api/docker-entrypoint.sh`), 마이그레이션을 손으로 따로 돌릴 필요가 없습니다.
 - 라즈베리파이(ARM64)든 EC2(x86_64)든 **같은 Dockerfile로 그대로 빌드**됩니다 — Prisma 7의 드라이버 어댑터 방식(`@prisma/adapter-pg`)이라 아키텍처별 네이티브 엔진 바이너리를 따로 고민할 필요가 없습니다.

@@ -18,6 +18,22 @@ function isProduction(): boolean {
   return process.env.NODE_ENV === 'production';
 }
 
+/**
+ * 로그인 쿠키에 Secure 속성(HTTPS에서만 저장/전송)을 붙일지 결정한다. 기본은 운영 환경이면
+ * 무조건 켜지는 안전한 값이지만, 와이어가드처럼 이미 암호화된 사설망 안에서만 돌리는 내부
+ * 테스트 배포에서는 HTTPS 없이도 로그인이 되게 COOKIE_SECURE=false로 명시적으로 끌 수 있다.
+ * (일반 공개 인터넷에 이 값을 false로 두면 안 된다 — 그때는 COOKIE_SECURE를 아예 안 쓰거나
+ * true로 둬서 HTTPS를 강제해야 한다.)
+ */
+function isSecureCookie(): boolean {
+  // docker-compose는 .env에 값이 없어도 COOKIE_SECURE=""(빈 문자열)로 넘기기 때문에,
+  // "설정 안 함"을 undefined가 아니라 true/false가 아닌 모든 값으로 판단해야 안전한
+  // 기본값(isProduction())으로 제대로 떨어진다.
+  if (process.env.COOKIE_SECURE === 'true') return true;
+  if (process.env.COOKIE_SECURE === 'false') return false;
+  return isProduction();
+}
+
 function webOrigin(): string {
   return process.env.WEB_ORIGIN ?? DEFAULT_WEB_ORIGIN;
 }
@@ -34,7 +50,7 @@ export class AuthController {
     res.cookie(OAUTH_STATE_COOKIE, state, {
       httpOnly: true,
       sameSite: 'lax',
-      secure: isProduction(),
+      secure: isSecureCookie(),
       maxAge: OAUTH_STATE_MAX_AGE_MS,
     });
     res.redirect(this.authService.getAuthorizeUrl(state));
@@ -68,7 +84,7 @@ export class AuthController {
       res.cookie(SESSION_COOKIE, userId, {
         httpOnly: true,
         sameSite: 'lax',
-        secure: isProduction(),
+        secure: isSecureCookie(),
         signed: true,
         maxAge: SESSION_MAX_AGE_MS,
       });

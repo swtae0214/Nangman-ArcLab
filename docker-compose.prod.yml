@@ -18,6 +18,10 @@ services:
       # "${WEB_ORIGIN}/api/backend/auth/github/callback" 이어야 한다.
       GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID}
       GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET}
+      # 보통은 비워둔다(운영 환경이면 자동으로 HTTPS 전용 쿠키). 와이어가드 같은 이미 암호화된
+      # 사설망 안에서만 쓰는 내부 테스트 배포라 도메인/HTTPS가 없다면 .env.production에서
+      # COOKIE_SECURE=false 로 명시해야 로그인이 된다 — 공개 인터넷에는 절대 false로 두지 말 것.
+      COOKIE_SECURE: ${COOKIE_SECURE:-}
     ports:
       - "4000:4000"
 
