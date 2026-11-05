@@ -21,6 +21,11 @@ FROM deps AS build
 COPY packages/shared-types ./packages/shared-types
 COPY apps/api ./apps/api
 RUN pnpm --filter @nangman/shared-types build
+# prisma generate는 실제로 DB에 접속하지 않고 스키마만 보고 클라이언트 코드를 만들지만,
+# prisma.config.ts가 DATABASE_URL이 "존재하는지" 자체는 확인해서 빌드 단계에서 실패한다.
+# 이 값은 이 build 스테이지에만 있고 최종 이미지(runtime)에는 전혀 안 남는다 — 실제 접속 정보는
+# 컨테이너가 실행될 때 docker-compose.prod.yml의 environment로 넘어오는 값을 쓴다.
+ENV DATABASE_URL="postgresql://placeholder:placeholder@localhost:5432/placeholder"
 RUN pnpm --filter @nangman/api exec prisma generate
 RUN pnpm --filter @nangman/api build
 
