@@ -3,6 +3,8 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  /* 기기가 다크 모드여도 항상 라이트로 렌더링한다 — 에디터 화면은 다크 모드를 지원하지 않는다. */
+  color-scheme: light;
 }
 
 @theme inline {
@@ -26,13 +28,6 @@
   --color-console-info: #7fb0e0;
   --font-noto-kr: var(--font-noto-sans-kr);
   --font-jetbrains: var(--font-jetbrains-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {
