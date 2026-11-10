@@ -38,3 +38,14 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/*
+ * @xyflow/react의 기본 다크 테마(.react-flow.dark)는 연결선 색을 #3e3e3e로 아주 어둡게 잡아놔서
+ * 우리 캔버스 배경(dark:bg-gray-900)과 거의 구분이 안 됐다. ".dark .react-flow.dark"로 선택자
+ * 우선순위를 더 높여서(라이브러리 CSS가 나중에 로드되더라도 항상 이기도록), 더 밝은 회색으로 덮어쓴다.
+ */
+.dark .react-flow.dark {
+  --xy-edge-stroke-default: #9ca3af;
+  --xy-edge-stroke-width-default: 1.5;
+  --xy-edge-stroke-selected-default: #e5e7eb;
+}
