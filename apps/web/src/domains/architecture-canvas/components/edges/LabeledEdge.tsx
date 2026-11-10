@@ -96,7 +96,7 @@ export function LabeledEdge({
               onKeyDown={handleKeyDown}
               onClick={(event) => event.stopPropagation()}
               placeholder="라벨"
-              className="rounded border border-blue-400 bg-white px-1.5 py-0.5 text-[11px] outline-none"
+              className="rounded border border-blue-400 bg-white px-1.5 py-0.5 text-[11px] outline-none dark:bg-gray-800 dark:text-gray-100"
               style={{ width: `${Math.max(48, draft.length * 7 + 16)}px` }}
             />
           ) : (
@@ -107,7 +107,7 @@ export function LabeledEdge({
                   startEditing();
                 }}
                 title={isReadOnly ? undefined : "더블클릭해서 라벨 수정"}
-                className={`rounded border border-gray-300 bg-white px-1.5 py-0.5 text-[11px] text-gray-700 shadow-sm ${
+                className={`rounded border border-gray-300 bg-white px-1.5 py-0.5 text-[11px] text-gray-700 shadow-sm dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 ${
                   isReadOnly ? "" : "cursor-text"
                 }`}
               >

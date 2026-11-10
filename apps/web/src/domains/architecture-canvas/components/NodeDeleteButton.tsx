@@ -11,7 +11,7 @@ export function NodeDeleteButton({ nodeId }: { nodeId: string }) {
       type="button"
       title="삭제"
       aria-label="노드 삭제"
-      className="nodrag absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full border border-gray-300 bg-white text-xs leading-none text-gray-500 shadow-sm hover:border-red-400 hover:text-red-600"
+      className="nodrag absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full border border-gray-300 bg-white text-xs leading-none text-gray-500 shadow-sm hover:border-red-400 hover:text-red-600 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-400 dark:hover:border-red-500 dark:hover:text-red-400"
       onClick={(event) => {
         event.stopPropagation();
         void deleteElements({ nodes: [{ id: nodeId }] });

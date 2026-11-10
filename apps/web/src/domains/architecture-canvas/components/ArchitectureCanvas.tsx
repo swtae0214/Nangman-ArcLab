@@ -14,6 +14,7 @@ import {
   useEdgesState,
   useNodesState,
   useReactFlow,
+  type ColorMode,
   type OnConnect,
 } from "@xyflow/react";
 import { useCallback, useEffect, useRef, type DragEvent, type RefObject } from "react";
@@ -49,6 +50,8 @@ interface ArchitectureCanvasProps {
   exportContainerRef?: RefObject<HTMLDivElement | null>;
   /** true면 공유 링크로 보는 화면(7단계) — 팔레트를 숨기고 편집/드래그를 막는다. */
   readOnly?: boolean;
+  /** React Flow 자체 UI(배경/컨트롤/미니맵) 테마. 토글이 없는 화면(공유 링크 등)은 항상 light로 둔다. */
+  colorMode?: ColorMode;
 }
 
 const EMPTY_PROBLEM_NODE_IDS: ReadonlySet<string> = new Set();
@@ -162,7 +165,14 @@ function getNodeSize(node: FlowNode): { width: number; height: number } {
   };
 }
 
-function CanvasInner({ initialGraph, onGraphChange, problemNodeIds, exportContainerRef, readOnly = false }: ArchitectureCanvasProps) {
+function CanvasInner({
+  initialGraph,
+  onGraphChange,
+  problemNodeIds,
+  exportContainerRef,
+  readOnly = false,
+  colorMode = "light",
+}: ArchitectureCanvasProps) {
   const initial = graphToFlow(initialGraph);
   const [nodes, setNodes, onNodesChange] = useNodesState<FlowNode>(initial.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initial.edges);
@@ -679,9 +689,9 @@ function CanvasInner({ initialGraph, onGraphChange, problemNodeIds, exportContai
   return (
     <ProblemNodesProvider value={problemNodeIds ?? EMPTY_PROBLEM_NODE_IDS}>
       <ReadOnlyProvider value={readOnly}>
-        <div className="flex h-full w-full">
+        <div className="flex h-full w-full dark:bg-gray-900">
           {!readOnly && <ComponentPalette />}
-          <div ref={exportContainerRef} className="h-full flex-1">
+          <div ref={exportContainerRef} className="h-full flex-1 dark:bg-gray-900">
             <ReactFlow
               nodes={nodes}
               edges={edges}
@@ -701,20 +711,21 @@ function CanvasInner({ initialGraph, onGraphChange, problemNodeIds, exportContai
               defaultEdgeOptions={{ type: "labeledStep", markerEnd: { type: MarkerType.ArrowClosed } }}
               panOnDrag
               fitView
+              colorMode={colorMode}
             >
               <Background />
               <Controls showInteractive={!readOnly} />
               <MiniMap pannable zoomable />
               {!readOnly && hasSelection && (
                 <Panel position="top-right">
-                  <div className="flex items-center gap-2 rounded-md border border-gray-300 bg-white p-2 shadow-sm">
+                  <div className="flex items-center gap-2 rounded-md border border-gray-300 bg-white p-2 shadow-sm dark:border-gray-700 dark:bg-gray-800">
                     {groupableSelectedNodes.length > 0 &&
                       GROUPABLE_TYPES.map(({ type, label }) => (
                         <button
                           key={type}
                           type="button"
                           onClick={() => handleGroupSelection(type)}
-                          className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs shadow-sm hover:bg-gray-50"
+                          className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs shadow-sm hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
                         >
                           {label}
                         </button>
@@ -725,7 +736,7 @@ function CanvasInner({ initialGraph, onGraphChange, problemNodeIds, exportContai
                           key={type}
                           type="button"
                           onClick={() => handleCreateLogicalGroup(type)}
-                          className="rounded-md border border-red-300 bg-white px-2 py-1 text-xs text-red-600 shadow-sm hover:bg-red-50"
+                          className="rounded-md border border-red-300 bg-white px-2 py-1 text-xs text-red-600 shadow-sm hover:bg-red-50 dark:border-red-800 dark:bg-gray-800 dark:text-red-400 dark:hover:bg-red-950"
                         >
                           {label}
                         </button>
@@ -734,7 +745,7 @@ function CanvasInner({ initialGraph, onGraphChange, problemNodeIds, exportContai
                       <button
                         type="button"
                         onClick={handleUngroupSelection}
-                        className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs shadow-sm hover:bg-gray-50"
+                        className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs shadow-sm hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
                       >
                         그룹 해제
                       </button>
@@ -742,7 +753,7 @@ function CanvasInner({ initialGraph, onGraphChange, problemNodeIds, exportContai
                     <button
                       type="button"
                       onClick={handleDeleteSelected}
-                      className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs text-red-600 shadow-sm hover:border-red-400 hover:bg-red-50"
+                      className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs text-red-600 shadow-sm hover:border-red-400 hover:bg-red-50 dark:border-gray-600 dark:bg-gray-800 dark:text-red-400 dark:hover:border-red-800 dark:hover:bg-red-950"
                     >
                       삭제
                     </button>

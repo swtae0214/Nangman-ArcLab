@@ -29,15 +29,23 @@ export function ShareButton({ architectureId, isPublic, shareToken }: ShareButto
   if (isPublic && shareUrl) {
     return (
       <div className="flex items-center gap-1.5 text-xs">
-        <input readOnly value={shareUrl} className="w-40 rounded border border-gray-300 bg-gray-50 px-1.5 py-1 text-[11px]" />
-        <button type="button" onClick={handleCopy} className="rounded border border-gray-300 px-2 py-1 hover:bg-gray-50">
+        <input
+          readOnly
+          value={shareUrl}
+          className="w-40 rounded border border-gray-300 bg-gray-50 px-1.5 py-1 text-[11px] dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+        />
+        <button
+          type="button"
+          onClick={handleCopy}
+          className="rounded border border-gray-300 px-2 py-1 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+        >
           {copied ? "복사됨" : "복사"}
         </button>
         <button
           type="button"
           onClick={() => unshare.mutate()}
           disabled={unshare.isPending}
-          className="rounded border border-gray-300 px-2 py-1 text-red-600 hover:bg-red-50 disabled:opacity-40"
+          className="rounded border border-gray-300 px-2 py-1 text-red-600 hover:bg-red-50 disabled:opacity-40 dark:border-gray-700 dark:text-red-400 dark:hover:bg-red-950"
         >
           공유 해제
         </button>
@@ -50,7 +58,7 @@ export function ShareButton({ architectureId, isPublic, shareToken }: ShareButto
       type="button"
       onClick={() => share.mutate()}
       disabled={share.isPending}
-      className="rounded-md border border-gray-300 px-3 py-1.5 text-xs hover:bg-gray-50 disabled:opacity-40"
+      className="rounded-md border border-gray-300 px-3 py-1.5 text-xs hover:bg-gray-50 disabled:opacity-40 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
     >
       {share.isPending ? "공유 링크 만드는 중..." : "공유"}
     </button>

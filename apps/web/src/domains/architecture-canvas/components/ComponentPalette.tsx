@@ -26,21 +26,21 @@ export function ComponentPalette() {
   }, [query]);
 
   return (
-    <aside className="w-56 shrink-0 overflow-y-auto border-r border-gray-200 p-3">
+    <aside className="w-56 shrink-0 overflow-y-auto border-r border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900">
       <input
         type="text"
         value={query}
         onChange={(event) => setQuery(event.target.value)}
         placeholder="컴포넌트 검색..."
-        className="mb-3 w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm shadow-sm focus:border-blue-400 focus:outline-none"
+        className="mb-3 w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm shadow-sm focus:border-blue-400 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500"
       />
 
       {filteredSections.length === 0 ? (
-        <p className="text-xs text-gray-400">&ldquo;{query}&rdquo;에 맞는 컴포넌트가 없어요.</p>
+        <p className="text-xs text-gray-400 dark:text-gray-500">&ldquo;{query}&rdquo;에 맞는 컴포넌트가 없어요.</p>
       ) : (
         filteredSections.map(({ category, types }) => (
           <div key={category} className="mb-4">
-            <h2 className="mb-2 text-xs font-semibold uppercase text-gray-500">{category}</h2>
+            <h2 className="mb-2 text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">{category}</h2>
             <div className="flex flex-col gap-2">
               {types.map((type) => {
                 const meta = COMPONENT_META[type];
@@ -51,7 +51,7 @@ export function ComponentPalette() {
                     type="button"
                     draggable
                     onDragStart={(event) => handleDragStart(event, type)}
-                    className="flex cursor-grab items-center gap-2 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-left text-sm shadow-sm hover:bg-gray-50 active:cursor-grabbing"
+                    className="flex cursor-grab items-center gap-2 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-left text-sm shadow-sm hover:bg-gray-50 active:cursor-grabbing dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:hover:bg-gray-700"
                   >
                     <Icon size={24} />
                     <span>{meta.label}</span>
@@ -64,7 +64,7 @@ export function ComponentPalette() {
       )}
 
       {!query && (
-        <div className="space-y-1 text-xs text-gray-400">
+        <div className="space-y-1 text-xs text-gray-400 dark:text-gray-500">
           <p>캔버스로 드래그해서 배치하세요.</p>
           <p>더블클릭으로 이름 수정, 노드 위 × 또는 Delete 키로 삭제할 수 있어요.</p>
           <p>Shift+드래그로 영역을 선택하면 오른쪽 위에 묶기·삭제 버튼이 나타나요.</p>

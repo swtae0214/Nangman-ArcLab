@@ -36,8 +36,8 @@ export function GroupNode({ id, type, data, selected }: NodeProps<FlowNode>) {
 
   return (
     <div
-      className={`relative h-full w-full rounded-xl border-2 border-dashed bg-gray-50/50 ${
-        hasProblem ? "border-red-500" : borderColor
+      className={`relative h-full w-full rounded-xl border-2 border-dashed bg-gray-50/50 dark:bg-gray-800/50 ${
+        hasProblem ? "border-red-500 dark:border-red-500" : borderColor
       }`}
     >
       <NodeResizer
@@ -45,15 +45,19 @@ export function GroupNode({ id, type, data, selected }: NodeProps<FlowNode>) {
         minWidth={NESTED_GROUP_MIN_WIDTH}
         minHeight={NESTED_GROUP_MIN_HEIGHT}
         lineClassName="!border-blue-400"
-        handleClassName="!h-2.5 !w-2.5 !rounded !border !border-blue-400 !bg-white"
+        handleClassName="!h-2.5 !w-2.5 !rounded !border !border-blue-400 !bg-white dark:!bg-gray-800"
       />
       {!isReadOnly && <NodeDeleteButton nodeId={id} />}
       <div className="flex items-center gap-1.5 px-2 py-1">
         <Icon size={20} />
         {isReadOnly ? (
-          <span className="text-xs font-semibold text-gray-700">{data.label}</span>
+          <span className="text-xs font-semibold text-gray-700 dark:text-gray-200">{data.label}</span>
         ) : (
-          <EditableLabel value={data.label} onChange={handleLabelChange} className="text-xs font-semibold text-gray-700" />
+          <EditableLabel
+            value={data.label}
+            onChange={handleLabelChange}
+            className="text-xs font-semibold text-gray-700 dark:text-gray-200"
+          />
         )}
       </div>
     </div>

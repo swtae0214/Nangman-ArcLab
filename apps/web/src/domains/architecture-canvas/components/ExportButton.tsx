@@ -66,7 +66,7 @@ export function ExportButton({ targetRef, fileName }: ExportButtonProps) {
         type="button"
         onClick={() => void handleExportPng()}
         disabled={isExporting}
-        className="rounded-md border border-gray-300 px-3 py-1.5 text-xs hover:bg-gray-50 disabled:opacity-40"
+        className="rounded-md border border-gray-300 px-3 py-1.5 text-xs hover:bg-gray-50 disabled:opacity-40 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
       >
         {isExporting ? "내보내는 중..." : "PNG"}
       </button>
@@ -74,7 +74,7 @@ export function ExportButton({ targetRef, fileName }: ExportButtonProps) {
         type="button"
         onClick={() => void handleExportPdf()}
         disabled={isExporting}
-        className="rounded-md border border-gray-300 px-3 py-1.5 text-xs hover:bg-gray-50 disabled:opacity-40"
+        className="rounded-md border border-gray-300 px-3 py-1.5 text-xs hover:bg-gray-50 disabled:opacity-40 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
       >
         PDF
       </button>

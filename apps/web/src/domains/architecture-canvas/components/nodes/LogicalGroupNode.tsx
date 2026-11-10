@@ -27,12 +27,16 @@ export function LogicalGroupNode({ id, type, data }: NodeProps<FlowNode>) {
 
   return (
     <div className={`pointer-events-none h-full w-full rounded-xl border-2 ${borderColor}`}>
-      <div className="pointer-events-auto absolute -top-3 left-2 flex items-center gap-1 rounded-full border border-gray-300 bg-white px-2 py-0.5 pr-5 shadow-sm">
+      <div className="pointer-events-auto absolute -top-3 left-2 flex items-center gap-1 rounded-full border border-gray-300 bg-white px-2 py-0.5 pr-5 shadow-sm dark:border-gray-600 dark:bg-gray-800">
         <Icon size={14} />
         {isReadOnly ? (
-          <span className="text-[11px] font-semibold text-gray-700">{data.label}</span>
+          <span className="text-[11px] font-semibold text-gray-700 dark:text-gray-200">{data.label}</span>
         ) : (
-          <EditableLabel value={data.label} onChange={handleLabelChange} className="text-[11px] font-semibold text-gray-700" />
+          <EditableLabel
+            value={data.label}
+            onChange={handleLabelChange}
+            className="text-[11px] font-semibold text-gray-700 dark:text-gray-200"
+          />
         )}
         {!isReadOnly && <NodeDeleteButton nodeId={id} />}
       </div>

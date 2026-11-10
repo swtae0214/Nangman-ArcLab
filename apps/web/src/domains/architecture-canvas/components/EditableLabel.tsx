@@ -48,7 +48,7 @@ export function EditableLabel({ value, onChange, className, inputClassName }: Ed
         onBlur={commit}
         onKeyDown={handleKeyDown}
         onClick={(event) => event.stopPropagation()}
-        className={`nodrag rounded border border-blue-400 px-1 outline-none ${inputClassName ?? ""}`}
+        className={`nodrag rounded border border-blue-400 px-1 outline-none dark:bg-gray-800 dark:text-gray-100 ${inputClassName ?? ""}`}
       />
     );
   }

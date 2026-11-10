@@ -43,29 +43,29 @@ export function LeafNode({ id, type, data }: NodeProps<FlowNode>) {
 
   return (
     <div
-      className={`relative flex min-w-[110px] flex-col items-center gap-1 rounded-lg border bg-white px-3 py-2 shadow-sm ${
-        hasProblem ? "border-2 border-red-500" : "border-gray-300"
+      className={`relative flex min-w-[110px] flex-col items-center gap-1 rounded-lg border bg-white px-3 py-2 shadow-sm dark:bg-gray-800 ${
+        hasProblem ? "border-2 border-red-500 dark:border-red-500" : "border-gray-300 dark:border-gray-600"
       }`}
     >
       {!isReadOnly && <NodeDeleteButton nodeId={id} />}
       <Handle type="target" position={Position.Top} />
       <Icon size={36} />
       {isReadOnly ? (
-        <span className="text-center text-xs font-medium text-gray-800">{data.label}</span>
+        <span className="text-center text-xs font-medium text-gray-800 dark:text-gray-100">{data.label}</span>
       ) : (
         <EditableLabel
           value={data.label}
           onChange={handleLabelChange}
-          className="text-center text-xs font-medium text-gray-800"
-          inputClassName="w-full text-center text-xs"
+          className="text-center text-xs font-medium text-gray-800 dark:text-gray-100"
+          inputClassName="w-full text-center text-xs dark:bg-gray-700 dark:text-gray-100"
         />
       )}
       {canSelectPreset &&
         (isReadOnly ? (
-          currentPresetName && <span className="text-[10px] text-gray-400">{currentPresetName}</span>
+          currentPresetName && <span className="text-[10px] text-gray-400 dark:text-gray-500">{currentPresetName}</span>
         ) : (
           <select
-            className="nodrag w-full rounded border border-gray-200 bg-gray-50 px-1 py-0.5 text-[10px] text-gray-600"
+            className="nodrag w-full rounded border border-gray-200 bg-gray-50 px-1 py-0.5 text-[10px] text-gray-600 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
             value={data.presetCode ?? ""}
             onChange={(event) => handlePresetChange(event.target.value)}
           >

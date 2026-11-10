@@ -34,16 +34,19 @@ export function CapacityCalculator() {
   });
 
   return (
-    <div className="flex h-full flex-col gap-3 overflow-y-auto p-3">
-      <p className="text-xs text-gray-500">
+    <div className="flex h-full flex-col gap-3 overflow-y-auto p-3 dark:bg-gray-900">
+      <p className="text-xs text-gray-500 dark:text-gray-400">
         컴포넌트 하나(웹서버/DB/캐시 등)의 예상 지연시간·처리량을 M/M/c 큐잉 모델로 미리 계산해봐요. 아직 아키텍처
         전체를 도는 시뮬레이션은 아니에요 (5주차 예정).
       </p>
 
       <form onSubmit={onSubmit} className="flex flex-col gap-2">
-        <label className="text-xs font-medium text-gray-600">
+        <label className="text-xs font-medium text-gray-600 dark:text-gray-300">
           프리셋
-          <select {...register("presetCode")} className="mt-1 w-full rounded border border-gray-300 px-2 py-1.5 text-sm">
+          <select
+            {...register("presetCode")}
+            className="mt-1 w-full rounded border border-gray-300 px-2 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+          >
             <option value="">선택하세요</option>
             {presetsQuery.data?.map((preset) => (
               <option key={preset.code} value={preset.code}>
@@ -51,57 +54,63 @@ export function CapacityCalculator() {
               </option>
             ))}
           </select>
-          {errors.presetCode && <span className="mt-0.5 block text-[11px] text-red-500">{errors.presetCode.message}</span>}
+          {errors.presetCode && (
+            <span className="mt-0.5 block text-[11px] text-red-500 dark:text-red-400">{errors.presetCode.message}</span>
+          )}
         </label>
 
-        <label className="text-xs font-medium text-gray-600">
+        <label className="text-xs font-medium text-gray-600 dark:text-gray-300">
           인스턴스 수
           <input
             type="number"
             min={1}
             {...register("instanceCount", { valueAsNumber: true })}
-            className="mt-1 w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
+            className="mt-1 w-full rounded border border-gray-300 px-2 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
           />
           {errors.instanceCount && (
-            <span className="mt-0.5 block text-[11px] text-red-500">{errors.instanceCount.message}</span>
+            <span className="mt-0.5 block text-[11px] text-red-500 dark:text-red-400">{errors.instanceCount.message}</span>
           )}
         </label>
 
-        <label className="text-xs font-medium text-gray-600">
+        <label className="text-xs font-medium text-gray-600 dark:text-gray-300">
           예상 RPS
           <input
             type="number"
             min={0}
             step="any"
             {...register("expectedRps", { valueAsNumber: true })}
-            className="mt-1 w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
+            className="mt-1 w-full rounded border border-gray-300 px-2 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
           />
-          {errors.expectedRps && <span className="mt-0.5 block text-[11px] text-red-500">{errors.expectedRps.message}</span>}
+          {errors.expectedRps && (
+            <span className="mt-0.5 block text-[11px] text-red-500 dark:text-red-400">{errors.expectedRps.message}</span>
+          )}
         </label>
 
         <button
           type="submit"
           disabled={preview.isPending}
-          className="mt-1 rounded-md bg-black px-3 py-1.5 text-xs text-white disabled:opacity-40"
+          className="mt-1 rounded-md bg-black px-3 py-1.5 text-xs text-white disabled:opacity-40 dark:bg-gray-100 dark:text-gray-900"
         >
           {preview.isPending ? "계산 중..." : "계산하기"}
         </button>
       </form>
 
-      {preview.error && <p className="text-xs text-red-600">{preview.error.message}</p>}
+      {preview.error && <p className="text-xs text-red-600 dark:text-red-400">{preview.error.message}</p>}
 
       {preview.data && (
         <div
           className={`rounded-md border p-3 text-sm ${
-            preview.data.isSaturated ? "border-red-300 bg-red-50" : "border-emerald-300 bg-emerald-50"
+            preview.data.isSaturated
+              ? "border-red-300 bg-red-50 dark:border-red-800 dark:bg-red-950"
+              : "border-emerald-300 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950"
           }`}
         >
           {preview.data.isSaturated ? (
-            <p className="font-semibold text-red-700">⚠️ 처리 능력을 초과했어요 (포화 상태)</p>
+            <p className="font-semibold text-red-700 dark:text-red-300">⚠️ 처리 능력을 초과했어요 (포화 상태)</p>
           ) : (
-            <p className="font-semibold text-emerald-700">정상 처리 가능</p>
+            <p className="font-semibold text-emerald-700 dark:text-emerald-300">정상 처리 가능</p>
           )}
-          <dl className="mt-2 grid grid-cols-2 gap-x-2 gap-y-1 text-xs text-gray-600">
+          <dl className="mt-2 grid grid-cols-2 gap-x-2 gap-y-1 text-xs text-gray-600 dark:text-gray-300">
             <dt>이용률(ρ)</dt>
             <dd>{(preview.data.rho * 100).toFixed(1)}%</dd>
             <dt>평균 지연시간</dt>
