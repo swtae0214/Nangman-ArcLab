@@ -17,7 +17,7 @@ import {
   type ColorMode,
   type OnConnect,
 } from "@xyflow/react";
-import { useCallback, useEffect, useRef, type DragEvent, type RefObject } from "react";
+import { useCallback, useEffect, useMemo, useRef, type DragEvent, type RefObject } from "react";
 import {
   COMPONENT_META,
   DEFAULT_GROUP_HEIGHT,
@@ -30,6 +30,10 @@ import {
   LOGICAL_GROUP_TYPES,
   NESTED_GROUP_MIN_HEIGHT,
   NESTED_GROUP_MIN_WIDTH,
+  Z_INDEX_GROUP_BASE,
+  Z_INDEX_GROUP_DEPTH_STEP,
+  Z_INDEX_LEAF,
+  Z_INDEX_LOGICAL_GROUP,
 } from "../component-meta";
 import { generateId } from "@/lib/generate-id";
 import { ProblemNodesProvider } from "../problem-nodes-context";
@@ -103,6 +107,27 @@ function getAbsolutePosition(node: FlowNode, nodesById: Map<string, FlowNode>): 
     parentId = parent.parentId;
   }
   return { x, y };
+}
+
+/**
+ * 노드 종류별 z-index. 물리 컨테이너(GroupNode)는 중첩 깊이가 깊을수록(자식일수록) 위에 그려야
+ * 부모의 반투명 배경에 덮이지 않고, 논리 그룹(ASG/Target Group)은 어떤 물리 컨테이너보다도 항상
+ * 위, 실제 컴포넌트(리프 노드)는 항상 맨 위여야 가려지지 않는다.
+ */
+function computeZIndex(node: FlowNode, nodesById: Map<string, FlowNode>): number {
+  if (node.type === "GENERIC_GROUP") return 0;
+  if (LOGICAL_GROUP_TYPE_SET.has(node.type)) return Z_INDEX_LOGICAL_GROUP;
+  if (!COMPONENT_META[node.type].isGroup) return Z_INDEX_LEAF;
+
+  let depth = 0;
+  let parentId = node.parentId;
+  while (parentId) {
+    const parent = nodesById.get(parentId);
+    if (!parent) break;
+    depth += 1;
+    parentId = parent.parentId;
+  }
+  return Z_INDEX_GROUP_BASE + depth * Z_INDEX_GROUP_DEPTH_STEP;
 }
 
 /** node가 ancestorId의 후손(자식/손자/…)인지 확인한다. */
@@ -617,7 +642,6 @@ function CanvasInner({
         position: { x: 0, y: 0 },
         width: NESTED_GROUP_MIN_WIDTH,
         height: NESTED_GROUP_MIN_HEIGHT,
-        zIndex: 1000,
         data: { label: COMPONENT_META[groupType].label },
       };
 
@@ -686,6 +710,11 @@ function CanvasInner({
     [groupableSelectedNodes, setNodes],
   );
 
+  const nodesWithZIndex = useMemo(() => {
+    const nodesById = new Map(nodes.map((node) => [node.id, node]));
+    return nodes.map((node) => ({ ...node, zIndex: computeZIndex(node, nodesById) }));
+  }, [nodes]);
+
   return (
     <ProblemNodesProvider value={problemNodeIds ?? EMPTY_PROBLEM_NODE_IDS}>
       <ReadOnlyProvider value={readOnly}>
@@ -693,7 +722,7 @@ function CanvasInner({
           {!readOnly && <ComponentPalette />}
           <div ref={exportContainerRef} className="h-full flex-1 dark:bg-gray-900">
             <ReactFlow
-              nodes={nodes}
+              nodes={nodesWithZIndex}
               edges={edges}
               nodeTypes={nodeTypes}
               edgeTypes={edgeTypes}

@@ -509,6 +509,18 @@ export const NESTING_BORDER_COLORS = [
 ] as const;
 
 /**
+ * 9단계: 물리적 컨테이너(GroupNode)의 반투명 배경이 다른 노드를 가려버리는 문제 — 특히 논리적
+ * 그룹(ASG/Target Group) 이름표가 Subnet 배경에 덮여 흐릿해 보이던 문제를 겪고 나서, 노드 종류별로
+ * z-index 등급을 나눈다. 물리 컨테이너는 중첩이 깊을수록(자식일수록) 위에 그려져야 부모의 반투명
+ * 배경에 덮이지 않고, 논리 그룹은 어떤 물리 컨테이너보다도 항상 위, 실제 컴포넌트(리프 노드)는
+ * 항상 맨 위에 있어야 가려지지 않는다. 실제 계산은 ArchitectureCanvas.tsx에서 한다.
+ */
+export const Z_INDEX_GROUP_BASE = 10;
+export const Z_INDEX_GROUP_DEPTH_STEP = 10;
+export const Z_INDEX_LOGICAL_GROUP = 500;
+export const Z_INDEX_LEAF = 900;
+
+/**
  * 9단계: "논리적 그룹" — 물리적 컨테이너(VPC/Subnet 등, parentId 소속)와 달리, 멤버가 서로 다른
  * 컨테이너에 있어도 data.logicalGroupId만 공유해서 경계를 가로질러 하나로 묶여 보인다.
  * Target Group은 참고 이미지의 빨간 테두리를 그대로 따랐고, Auto Scaling Group은 실제 AWS
