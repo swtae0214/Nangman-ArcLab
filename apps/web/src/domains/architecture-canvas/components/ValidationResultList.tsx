@@ -22,27 +22,30 @@ export function ValidationResultList({ report }: { report: ArchitectureValidatio
       </div>
       <ul className="flex flex-col gap-2">
         {report.results.map((result) => (
-          <li
-            key={result.ruleCode}
-            className={`rounded-md border px-3 py-2 text-sm ${
-              result.passed
-                ? "border-gray-200 bg-white text-gray-800 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
-                : SEVERITY_STYLE[result.severity]
-            }`}
-          >
-            <div className="flex items-center justify-between gap-2">
-              <span className="font-medium">
-                {result.passed ? "✅" : "⚠️"} {result.name}
-              </span>
-              <span className="text-xs uppercase text-gray-400 dark:text-gray-500">{result.severity}</span>
-            </div>
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{result.description}</p>
-            <p className="mt-1 text-[11px] text-gray-400 dark:text-gray-500">근거: {result.sourceCitation}</p>
-            {!result.passed && result.detail.nodeIds && result.detail.nodeIds.length > 0 && (
-              <p className="mt-1 text-[11px] text-red-500 dark:text-red-400">
-                문제 노드 {result.detail.nodeIds.length}개 — 캔버스에서 빨간 테두리로 표시됩니다.
-              </p>
-            )}
+          <li key={result.ruleCode}>
+            {/* 10단계: 제목만 보이고 눌러야 설명/근거가 펼쳐지게 — 규칙이 많아지면 제목만 있어도 전체 목록이 한눈에 들어온다. */}
+            <details
+              className={`group rounded-md border px-3 py-2 text-sm ${
+                result.passed
+                  ? "border-gray-200 bg-white text-gray-800 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                  : SEVERITY_STYLE[result.severity]
+              }`}
+            >
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-2 [&::-webkit-details-marker]:hidden">
+                <span className="flex items-center gap-1.5 font-medium">
+                  <span className="text-[10px] transition-transform group-open:rotate-90">▶</span>
+                  {result.passed ? "✅" : "⚠️"} {result.name}
+                </span>
+                <span className="text-xs uppercase text-gray-400 dark:text-gray-500">{result.severity}</span>
+              </summary>
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{result.description}</p>
+              <p className="mt-1 text-[11px] text-gray-400 dark:text-gray-500">근거: {result.sourceCitation}</p>
+              {!result.passed && result.detail.nodeIds && result.detail.nodeIds.length > 0 && (
+                <p className="mt-1 text-[11px] text-red-500 dark:text-red-400">
+                  문제 노드 {result.detail.nodeIds.length}개 — 캔버스에서 빨간 테두리로 표시됩니다.
+                </p>
+              )}
+            </details>
           </li>
         ))}
       </ul>
