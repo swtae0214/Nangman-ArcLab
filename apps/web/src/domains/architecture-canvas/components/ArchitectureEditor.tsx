@@ -34,6 +34,13 @@ export function ArchitectureEditor({ id }: { id: string }) {
   const validation = useValidation(id);
   const runSimulation = useRunSimulation(id);
   const [activeTab, setActiveTab] = useState<SidePanelTab>("validation");
+  /**
+   * 10단계: 설계할 땐 오른쪽 패널(검증/용량/시뮬레이션)을 안 쓰는 경우가 많아서 접을 수 있게 했다.
+   * - "pinned": 기본값. 항상 펼쳐진 채로 캔버스 폭을 차지한다.
+   * - "collapsed": 접기 버튼을 누른 뒤. 평소엔 얇은 띠만 남고, 그 띠에 마우스를 올리면 캔버스 위에
+   *   떠서(레이아웃 폭은 그대로) 미리보기처럼 펼쳐진다. 다시 고정하고 싶으면 미리보기 안의 핀 버튼.
+   */
+  const [rightPanelMode, setRightPanelMode] = useState<"pinned" | "collapsed">("pinned");
   const exportContainerRef = useRef<HTMLDivElement>(null);
   const { theme, toggleTheme } = useEditorTheme();
 
@@ -58,6 +65,59 @@ export function ArchitectureEditor({ id }: { id: string }) {
   }, [isLoadingUser, currentUser, router]);
 
   const themeClassName = theme === "dark" ? "dark" : "";
+
+  const tabBar = (
+    <div className="flex flex-1 items-center text-xs">
+      <button
+        type="button"
+        onClick={() => setActiveTab("validation")}
+        className={`flex-1 px-2 py-2 font-medium ${
+          activeTab === "validation"
+            ? "border-b-2 border-black text-black dark:border-gray-100 dark:text-gray-100"
+            : "text-gray-400 dark:text-gray-500"
+        }`}
+      >
+        정적 검증
+      </button>
+      <button
+        type="button"
+        onClick={() => setActiveTab("capacity")}
+        className={`flex-1 px-2 py-2 font-medium ${
+          activeTab === "capacity"
+            ? "border-b-2 border-black text-black dark:border-gray-100 dark:text-gray-100"
+            : "text-gray-400 dark:text-gray-500"
+        }`}
+      >
+        용량 계산기
+      </button>
+      <button
+        type="button"
+        onClick={() => setActiveTab("simulation")}
+        className={`flex-1 px-2 py-2 font-medium ${
+          activeTab === "simulation"
+            ? "border-b-2 border-black text-black dark:border-gray-100 dark:text-gray-100"
+            : "text-gray-400 dark:text-gray-500"
+        }`}
+      >
+        시뮬레이션
+      </button>
+    </div>
+  );
+
+  const tabContent = (
+    <div className="min-h-0 flex-1">
+      {activeTab === "validation" &&
+        (validation.data ? (
+          <ValidationResultList report={validation.data} />
+        ) : (
+          <p className="p-3 text-xs text-gray-400 dark:text-gray-500">
+            {validation.isPending ? "검증 중..." : '상단의 "검증하기"를 눌러 정적 검증을 실행하세요.'}
+          </p>
+        ))}
+      {activeTab === "capacity" && <CapacityCalculator />}
+      {activeTab === "simulation" && <SimulationPanel architectureId={id} />}
+    </div>
+  );
 
   if (isLoadingUser || !currentUser || query.isLoading) {
     return (
@@ -131,55 +191,46 @@ export function ArchitectureEditor({ id }: { id: string }) {
             colorMode={theme}
           />
         </div>
-        <aside className="flex w-80 shrink-0 flex-col border-l border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
-          <div className="flex border-b border-gray-200 text-xs dark:border-gray-700">
-            <button
-              type="button"
-              onClick={() => setActiveTab("validation")}
-              className={`flex-1 px-2 py-2 font-medium ${
-                activeTab === "validation"
-                  ? "border-b-2 border-black text-black dark:border-gray-100 dark:text-gray-100"
-                  : "text-gray-400 dark:text-gray-500"
-              }`}
-            >
-              정적 검증
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab("capacity")}
-              className={`flex-1 px-2 py-2 font-medium ${
-                activeTab === "capacity"
-                  ? "border-b-2 border-black text-black dark:border-gray-100 dark:text-gray-100"
-                  : "text-gray-400 dark:text-gray-500"
-              }`}
-            >
-              용량 계산기
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab("simulation")}
-              className={`flex-1 px-2 py-2 font-medium ${
-                activeTab === "simulation"
-                  ? "border-b-2 border-black text-black dark:border-gray-100 dark:text-gray-100"
-                  : "text-gray-400 dark:text-gray-500"
-              }`}
-            >
-              시뮬레이션
-            </button>
+        {rightPanelMode === "collapsed" ? (
+          <div className="group relative w-5 shrink-0">
+            {/* 평소엔 이 얇은 띠만 보인다 — 캔버스 레이아웃 폭은 그대로 유지. */}
+            <div className="flex h-full w-5 flex-col items-center border-l border-gray-200 bg-white pt-3 dark:border-gray-700 dark:bg-gray-900">
+              <span className="text-base text-gray-400 dark:text-gray-500">‹</span>
+            </div>
+            {/* 띠에 마우스를 올리면 캔버스 위로 떠서 펼쳐지는 미리보기. 레이아웃 폭을 안 늘리려고 absolute로 띄운다. */}
+            <aside className="invisible absolute right-0 top-0 z-20 flex h-full w-80 flex-col border-l border-gray-200 bg-white opacity-0 shadow-lg transition-opacity delay-150 group-hover:visible group-hover:opacity-100 group-hover:delay-0 dark:border-gray-700 dark:bg-gray-900">
+              <div className="flex items-center border-b border-gray-200 dark:border-gray-700">
+                {tabBar}
+                <button
+                  type="button"
+                  onClick={() => setRightPanelMode("pinned")}
+                  title="패널 고정하기"
+                  aria-label="패널 고정하기"
+                  className="m-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-gray-300 bg-white text-base text-gray-500 shadow-sm hover:border-blue-400 hover:text-blue-600 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:border-blue-400 dark:hover:text-blue-400"
+                >
+                  📌
+                </button>
+              </div>
+              {tabContent}
+            </aside>
           </div>
-          <div className="min-h-0 flex-1">
-            {activeTab === "validation" &&
-              (validation.data ? (
-                <ValidationResultList report={validation.data} />
-              ) : (
-                <p className="p-3 text-xs text-gray-400 dark:text-gray-500">
-                  {validation.isPending ? "검증 중..." : '상단의 "검증하기"를 눌러 정적 검증을 실행하세요.'}
-                </p>
-              ))}
-            {activeTab === "capacity" && <CapacityCalculator />}
-            {activeTab === "simulation" && <SimulationPanel architectureId={id} />}
-          </div>
-        </aside>
+        ) : (
+          <aside className="flex w-80 shrink-0 flex-col border-l border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
+            <div className="flex items-center border-b border-gray-200 dark:border-gray-700">
+              {tabBar}
+              <button
+                type="button"
+                onClick={() => setRightPanelMode("collapsed")}
+                title="패널 접기"
+                aria-label="패널 접기"
+                className="m-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-gray-300 bg-white text-base text-gray-500 shadow-sm hover:border-blue-400 hover:text-blue-600 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:border-blue-400 dark:hover:text-blue-400"
+              >
+                ›
+              </button>
+            </div>
+            {tabContent}
+          </aside>
+        )}
       </div>
     </div>
   );
