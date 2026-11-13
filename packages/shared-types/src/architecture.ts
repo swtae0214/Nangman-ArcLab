@@ -73,6 +73,34 @@ export const COMPONENT_TYPES = [
    * 바꿈)과 달리, 멤버 노드의 parentId는 그대로 두고 data.logicalGroupId만 표시로 붙인다.
    */
   'TARGET_GROUP',
+  // 12단계: "3-Tier 위주라 EKS, SageMaker 같은 리소스가 없다"는 피드백으로 추가한 컨테이너/AI·ML 서비스.
+  'EKS',
+  'SAGEMAKER',
+  // 12단계: 같은 피드백에 이어 "실무에서 자주 쓰는 핵심 서비스 위주로 더 추가해달라"는 요청으로
+  // 보강한 서비스들. 전체 공식 아이콘(800개+) 중 아키텍처 다이어그램에서 흔히 등장하는 것만 추렸다.
+  'ECS',
+  'BEDROCK',
+  'REKOGNITION',
+  'COMPREHEND',
+  'APP_RUNNER',
+  'DYNAMODB',
+  'REDSHIFT',
+  'OPENSEARCH',
+  'GLUE',
+  'ATHENA',
+  'EMR',
+  'STEP_FUNCTIONS',
+  'EVENTBRIDGE',
+  'APPSYNC',
+  'ELASTIC_BEANSTALK',
+  'SES',
+  'IAM',
+  'KMS',
+  'CLOUDTRAIL',
+  'GLOBAL_ACCELERATOR',
+  'CODEDEPLOY',
+  'CODECOMMIT',
+  'XRAY',
   /** 11단계: 리소스에 안 걸린 자유 텍스트 — 다이어그램에 제목/설명을 달 때 쓰는 순수 주석용 노드. */
   'TEXT_BOX',
 ] as const;

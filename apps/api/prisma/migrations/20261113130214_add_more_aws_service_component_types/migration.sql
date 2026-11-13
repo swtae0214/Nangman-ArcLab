@@ -1,0 +1,24 @@
+-- AlterEnum
+ALTER TYPE "component_type" ADD VALUE 'ECS';
+ALTER TYPE "component_type" ADD VALUE 'BEDROCK';
+ALTER TYPE "component_type" ADD VALUE 'REKOGNITION';
+ALTER TYPE "component_type" ADD VALUE 'COMPREHEND';
+ALTER TYPE "component_type" ADD VALUE 'APP_RUNNER';
+ALTER TYPE "component_type" ADD VALUE 'DYNAMODB';
+ALTER TYPE "component_type" ADD VALUE 'REDSHIFT';
+ALTER TYPE "component_type" ADD VALUE 'OPENSEARCH';
+ALTER TYPE "component_type" ADD VALUE 'GLUE';
+ALTER TYPE "component_type" ADD VALUE 'ATHENA';
+ALTER TYPE "component_type" ADD VALUE 'EMR';
+ALTER TYPE "component_type" ADD VALUE 'STEP_FUNCTIONS';
+ALTER TYPE "component_type" ADD VALUE 'EVENTBRIDGE';
+ALTER TYPE "component_type" ADD VALUE 'APPSYNC';
+ALTER TYPE "component_type" ADD VALUE 'ELASTIC_BEANSTALK';
+ALTER TYPE "component_type" ADD VALUE 'SES';
+ALTER TYPE "component_type" ADD VALUE 'IAM';
+ALTER TYPE "component_type" ADD VALUE 'KMS';
+ALTER TYPE "component_type" ADD VALUE 'CLOUDTRAIL';
+ALTER TYPE "component_type" ADD VALUE 'GLOBAL_ACCELERATOR';
+ALTER TYPE "component_type" ADD VALUE 'CODEDEPLOY';
+ALTER TYPE "component_type" ADD VALUE 'CODECOMMIT';
+ALTER TYPE "component_type" ADD VALUE 'XRAY';

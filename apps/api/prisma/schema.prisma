@@ -62,6 +62,37 @@ enum ComponentType {
   ECR
   SECRETS_MANAGER
   TARGET_GROUP
+
+  // 12단계: "3-Tier 위주라 EKS, SageMaker 같은 리소스가 없다"는 피드백으로 추가한 컨테이너/AI·ML 서비스.
+  EKS
+  SAGEMAKER
+
+  // 12단계: 같은 피드백에 이어 "실무에서 자주 쓰는 핵심 서비스 위주로 더 추가해달라"는 요청으로
+  // 보강한 서비스들.
+  ECS
+  BEDROCK
+  REKOGNITION
+  COMPREHEND
+  APP_RUNNER
+  DYNAMODB
+  REDSHIFT
+  OPENSEARCH
+  GLUE
+  ATHENA
+  EMR
+  STEP_FUNCTIONS
+  EVENTBRIDGE
+  APPSYNC
+  ELASTIC_BEANSTALK
+  SES
+  IAM
+  KMS
+  CLOUDTRAIL
+  GLOBAL_ACCELERATOR
+  CODEDEPLOY
+  CODECOMMIT
+  XRAY
+
   TEXT_BOX
 
   @@map("component_type")
