@@ -43,6 +43,7 @@ import { ReadOnlyProvider } from "../read-only-context";
 import { flowToGraph, graphToFlow, type FlowEdge, type FlowNode } from "../types";
 import { COMPONENT_DRAG_DATA_FORMAT, ComponentPalette } from "./ComponentPalette";
 import { LabeledEdge } from "./edges/LabeledEdge";
+import { LayerPanel } from "./LayerPanel";
 import { nodeTypes } from "./node-types";
 
 const edgeTypes = { labeledStep: LabeledEdge };
@@ -544,6 +545,15 @@ function CanvasInner({
     void deleteElements({ nodes: selectedNodes, edges: selectedEdges });
   }, [deleteElements, selectedNodes, selectedEdges]);
 
+  /** 레이어 패널에서 이름을 클릭하면, 캔버스에서 겹쳐 있어 클릭으로 못 고르던 노드도 바로 선택된다. */
+  const handleSelectNodeFromLayerPanel = useCallback(
+    (nodeId: string) => {
+      setNodes((current) => current.map((node) => ({ ...node, selected: node.id === nodeId })));
+      setEdges((current) => current.map((edge) => ({ ...edge, selected: false })));
+    },
+    [setNodes, setEdges],
+  );
+
   /**
    * 10단계(z-order 보정): 같은 등급(같은 깊이의 물리 컨테이너끼리, 혹은 리프 노드끼리)끼리 겹칠 때
    * 어떤 걸 위로 둘지 사용자가 직접 정한다. GENERIC_GROUP(항상 0으로 바닥에 깔림)은 보정 대상에서 뺀다.
@@ -835,6 +845,7 @@ function CanvasInner({
               )}
             </ReactFlow>
           </div>
+          {!readOnly && <LayerPanel nodes={nodes} onSelectNode={handleSelectNodeFromLayerPanel} />}
         </div>
       </ReadOnlyProvider>
     </ProblemNodesProvider>
