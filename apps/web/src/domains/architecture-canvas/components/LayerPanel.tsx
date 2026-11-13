@@ -6,12 +6,18 @@ import {
   DEFAULT_LOGICAL_GROUP_BORDER_COLOR,
   LOGICAL_GROUP_BORDER_COLOR,
 } from "../component-meta";
+import { useResizableWidth } from "../hooks/useResizableWidth";
 import type { FlowNode } from "../types";
+import { ResizeHandle } from "./ResizeHandle";
 
 interface LayerPanelProps {
   nodes: FlowNode[];
   onSelectNode: (nodeId: string) => void;
 }
+
+const LAYER_PANEL_DEFAULT_WIDTH = 256;
+const LAYER_PANEL_MIN_WIDTH = 180;
+const LAYER_PANEL_MAX_WIDTH = 480;
 
 /** 부모 노드 id(최상위는 undefined) → 그 자식 노드 목록. 물리적 소속(parentId) 기준으로만 트리를 만든다. */
 function buildChildrenMap(nodes: FlowNode[]): Map<string | undefined, FlowNode[]> {
@@ -86,6 +92,12 @@ function LayerRow({
  */
 export function LayerPanel({ nodes, onSelectNode }: LayerPanelProps) {
   const [mode, setMode] = useState<"pinned" | "collapsed">("pinned");
+  const { width, handlePointerDown } = useResizableWidth({
+    initialWidth: LAYER_PANEL_DEFAULT_WIDTH,
+    minWidth: LAYER_PANEL_MIN_WIDTH,
+    maxWidth: LAYER_PANEL_MAX_WIDTH,
+    edge: "left",
+  });
 
   const nodesById = useMemo(() => new Map(nodes.map((node) => [node.id, node])), [nodes]);
   const childrenMap = useMemo(() => buildChildrenMap(nodes), [nodes]);
@@ -139,7 +151,11 @@ export function LayerPanel({ nodes, onSelectNode }: LayerPanelProps) {
   return (
     // 고정된 상태일 땐 z-30을 줘서, 오른쪽에 접혀 있는 검증/시뮬레이션 패널의 호버 미리보기(z-20)가
     // 이 레이어 패널 위를 덮지 못하게 한다.
-    <aside className="relative z-30 flex w-64 shrink-0 flex-col border-l border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
+    <aside
+      className="relative z-30 flex shrink-0 flex-col border-l border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900"
+      style={{ width }}
+    >
+      <ResizeHandle edge="left" onPointerDown={handlePointerDown} />
       {header("‹", () => setMode("collapsed"), "레이어 패널 접기")}
       <div className="min-h-0 flex-1 overflow-y-auto">{content}</div>
     </aside>

@@ -2,9 +2,15 @@
 
 import type { ComponentType } from "@nangman/shared-types";
 import { useMemo, useState, type DragEvent, type ReactNode } from "react";
-import { COMPONENT_META, COMPONENT_PALETTE_SECTIONS } from "../component-meta";
+import { COMPONENT_META, COMPONENT_PALETTE_SECTIONS, type ComponentCategory } from "../component-meta";
+import { useResizableWidth } from "../hooks/useResizableWidth";
+import { ResizeHandle } from "./ResizeHandle";
 
 export const COMPONENT_DRAG_DATA_FORMAT = "application/x-nangman-component-type";
+
+const PALETTE_DEFAULT_WIDTH = 224;
+const PALETTE_MIN_WIDTH = 180;
+const PALETTE_MAX_WIDTH = 420;
 
 /** 사이드바의 드래그 소스. ArchitectureCanvas의 onDrop이 이 dataTransfer 값을 읽는다. */
 export function ComponentPalette() {
@@ -17,6 +23,22 @@ export function ComponentPalette() {
    *   다시 "pinned"로 못 박고 싶으면 그 미리보기 안의 핀 버튼을 누르면 된다.
    */
   const [mode, setMode] = useState<"pinned" | "collapsed">("pinned");
+  const { width, handlePointerDown } = useResizableWidth({
+    initialWidth: PALETTE_DEFAULT_WIDTH,
+    minWidth: PALETTE_MIN_WIDTH,
+    maxWidth: PALETTE_MAX_WIDTH,
+    edge: "right",
+  });
+  /** 11단계: 카테고리 제목을 눌러서 접고 펼 수 있게 — 스크롤을 줄이고 싶다는 피드백. 기본은 전부 펼친 상태. */
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<ComponentCategory>>(new Set());
+  const toggleCategory = (category: ComponentCategory) => {
+    setCollapsedCategories((current) => {
+      const next = new Set(current);
+      if (next.has(category)) next.delete(category);
+      else next.add(category);
+      return next;
+    });
+  };
 
   const handleDragStart = (event: DragEvent<HTMLButtonElement>, type: ComponentType) => {
     event.dataTransfer.setData(COMPONENT_DRAG_DATA_FORMAT, type);
@@ -33,35 +55,51 @@ export function ComponentPalette() {
     })).filter((section) => section.types.length > 0);
   }, [query]);
 
+  // 검색 중일 땐 접힌 카테고리도 무시하고 결과를 그대로 보여준다 — 안 그러면 접어둔 카테고리의
+  // 컴포넌트는 검색해도 안 보여서 "검색이 안 되는 줄" 오해하기 쉽다.
+  const isSearching = query.trim() !== "";
+
   const sectionList: ReactNode =
     filteredSections.length === 0 ? (
       <p className="text-xs text-gray-400 dark:text-gray-500">&ldquo;{query}&rdquo;에 맞는 컴포넌트가 없어요.</p>
     ) : (
-      filteredSections.map(({ category, types }) => (
-        <div key={category} className="mb-4">
-          <h2 className="mb-2 text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">{category}</h2>
-          <div className="flex flex-col gap-2">
-            {types.map((type) => {
-              const meta = COMPONENT_META[type];
-              const Icon = meta.Icon;
-              return (
-                <button
-                  key={type}
-                  type="button"
-                  draggable
-                  onDragStart={(event) => handleDragStart(event, type)}
-                  // 튜토리얼 오버레이가 이 버튼을 하이라이트할 때 찾는 식별자.
-                  data-tutorial-id={`palette-component-${type}`}
-                  className="flex cursor-grab items-center gap-2 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-left text-sm shadow-sm hover:bg-gray-50 active:cursor-grabbing dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:hover:bg-gray-700"
-                >
-                  <Icon size={24} />
-                  <span>{meta.label}</span>
-                </button>
-              );
-            })}
+      filteredSections.map(({ category, types }) => {
+        const isCollapsed = !isSearching && collapsedCategories.has(category);
+        return (
+          <div key={category} className="mb-4">
+            <button
+              type="button"
+              onClick={() => toggleCategory(category)}
+              className="mb-2 flex w-full items-center gap-1 text-xs font-semibold uppercase text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+            >
+              <span className={`text-[9px] transition-transform ${isCollapsed ? "" : "rotate-90"}`}>▶</span>
+              {category}
+            </button>
+            {!isCollapsed && (
+              <div className="flex flex-col gap-2">
+                {types.map((type) => {
+                  const meta = COMPONENT_META[type];
+                  const Icon = meta.Icon;
+                  return (
+                    <button
+                      key={type}
+                      type="button"
+                      draggable
+                      onDragStart={(event) => handleDragStart(event, type)}
+                      // 튜토리얼 오버레이가 이 버튼을 하이라이트할 때 찾는 식별자.
+                      data-tutorial-id={`palette-component-${type}`}
+                      className="flex cursor-grab items-center gap-2 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-left text-sm shadow-sm hover:bg-gray-50 active:cursor-grabbing dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:hover:bg-gray-700"
+                    >
+                      <Icon size={24} />
+                      <span>{meta.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
-        </div>
-      ))
+        );
+      })
     );
 
   const tips = !query && (
@@ -120,7 +158,11 @@ export function ComponentPalette() {
 
   return (
     // 고정된 상태일 땐 z-30을 줘서, 옆에 접혀 있는 다른 패널의 호버 미리보기(z-20)가 위로 덮지 못하게 한다.
-    <aside className="relative z-30 flex w-56 shrink-0 flex-col border-r border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
+    <aside
+      className="relative z-30 flex shrink-0 flex-col border-r border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900"
+      style={{ width }}
+    >
+      <ResizeHandle edge="right" onPointerDown={handlePointerDown} />
       <div className="flex items-center gap-1.5 border-b border-gray-200 p-2 dark:border-gray-700">
         {searchInput}
         <button

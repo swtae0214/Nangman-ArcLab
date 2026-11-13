@@ -7,18 +7,24 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useCurrentUser } from "@/lib/use-current-user";
 import { useEditorTheme } from "@/lib/use-editor-theme";
 import { useArchitectureEditor } from "../hooks/useArchitectureEditor";
+import { useResizableWidth } from "../hooks/useResizableWidth";
 import { useValidation } from "../hooks/useValidation";
 import { useRunSimulation } from "../hooks/useSimulation";
 import { ArchitectureCanvas } from "./ArchitectureCanvas";
 import { CapacityCalculator } from "./CapacityCalculator";
 import { EditableLabel } from "./EditableLabel";
 import { ExportButton } from "./ExportButton";
+import { ResizeHandle } from "./ResizeHandle";
 import { ShareButton } from "./ShareButton";
 import { SimulationPanel } from "./SimulationPanel";
 import { TutorialOverlay } from "./TutorialOverlay";
 import { ValidationResultList } from "./ValidationResultList";
 
 const EMPTY_GRAPH: ArchitectureGraph = { nodes: [], edges: [] };
+
+const RIGHT_PANEL_DEFAULT_WIDTH = 320;
+const RIGHT_PANEL_MIN_WIDTH = 240;
+const RIGHT_PANEL_MAX_WIDTH = 560;
 
 const SAVE_STATUS_LABEL: Record<string, string> = {
   idle: "",
@@ -45,6 +51,12 @@ export function ArchitectureEditor({ id }: { id: string }) {
    *   떠서(레이아웃 폭은 그대로) 미리보기처럼 펼쳐진다. 다시 고정하고 싶으면 미리보기 안의 핀 버튼.
    */
   const [rightPanelMode, setRightPanelMode] = useState<"pinned" | "collapsed">("pinned");
+  const { width: rightPanelWidth, handlePointerDown: handleRightPanelPointerDown } = useResizableWidth({
+    initialWidth: RIGHT_PANEL_DEFAULT_WIDTH,
+    minWidth: RIGHT_PANEL_MIN_WIDTH,
+    maxWidth: RIGHT_PANEL_MAX_WIDTH,
+    edge: "left",
+  });
   const exportContainerRef = useRef<HTMLDivElement>(null);
   const { theme, toggleTheme } = useEditorTheme();
 
@@ -245,7 +257,11 @@ export function ArchitectureEditor({ id }: { id: string }) {
           </div>
         ) : (
           // 고정된 상태일 땐 z-30을 줘서, 왼쪽에 접혀 있는 레이어 패널의 호버 미리보기(z-20)가 이 패널 위를 덮지 못하게 한다.
-          <aside className="relative z-30 flex w-80 shrink-0 flex-col border-l border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
+          <aside
+            className="relative z-30 flex shrink-0 flex-col border-l border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900"
+            style={{ width: rightPanelWidth }}
+          >
+            <ResizeHandle edge="left" onPointerDown={handleRightPanelPointerDown} />
             <div className="flex items-center border-b border-gray-200 dark:border-gray-700">
               {tabBar}
               <button
