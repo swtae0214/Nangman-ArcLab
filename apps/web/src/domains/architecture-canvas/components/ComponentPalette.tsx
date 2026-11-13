@@ -89,8 +89,12 @@ export function ComponentPalette() {
         <div className="flex h-full w-5 flex-col items-center border-r border-gray-200 bg-white pt-3 dark:border-gray-700 dark:bg-gray-900">
           <span className="text-base text-gray-400 dark:text-gray-500">›</span>
         </div>
-        {/* 띠에 마우스를 올리면 캔버스 위로 떠서 펼쳐지는 미리보기. 레이아웃 폭을 안 늘리려고 absolute로 띄운다. */}
-        <aside className="invisible absolute left-0 top-0 z-20 flex h-full w-56 flex-col border-r border-gray-200 bg-white opacity-0 shadow-lg transition-opacity delay-150 group-hover:visible group-hover:opacity-100 group-hover:delay-0 dark:border-gray-700 dark:bg-gray-900">
+        {/*
+          띠에 마우스를 올리면 캔버스 위로 떠서 펼쳐지는 미리보기. 레이아웃 폭을 안 늘리려고 absolute로 띄운다.
+          평소엔 왼쪽으로 완전히 숨겨뒀다가(-translate-x-full) 호버하면 오른쪽(-translate-x-0)으로 슬라이드되어
+          나온다 — 너무 느리면 답답하다는 피드백이 들어올 수 있어 200ms로 짧게 잡았다.
+        */}
+        <aside className="invisible absolute left-0 top-0 z-20 flex h-full w-56 -translate-x-full flex-col border-r border-gray-200 bg-white opacity-0 shadow-lg transition-all duration-200 ease-out delay-150 group-hover:visible group-hover:translate-x-0 group-hover:opacity-100 group-hover:delay-0 dark:border-gray-700 dark:bg-gray-900">
           <div className="flex items-center gap-1.5 border-b border-gray-200 p-2 dark:border-gray-700">
             {searchInput}
             <button
@@ -113,7 +117,8 @@ export function ComponentPalette() {
   }
 
   return (
-    <aside className="flex w-56 shrink-0 flex-col border-r border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
+    // 고정된 상태일 땐 z-30을 줘서, 옆에 접혀 있는 다른 패널의 호버 미리보기(z-20)가 위로 덮지 못하게 한다.
+    <aside className="relative z-30 flex w-56 shrink-0 flex-col border-r border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
       <div className="flex items-center gap-1.5 border-b border-gray-200 p-2 dark:border-gray-700">
         {searchInput}
         <button

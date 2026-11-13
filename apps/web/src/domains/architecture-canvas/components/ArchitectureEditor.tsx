@@ -192,30 +192,36 @@ export function ArchitectureEditor({ id }: { id: string }) {
           />
         </div>
         {rightPanelMode === "collapsed" ? (
-          <div className="group relative w-5 shrink-0">
-            {/* 평소엔 이 얇은 띠만 보인다 — 캔버스 레이아웃 폭은 그대로 유지. */}
-            <div className="flex h-full w-5 flex-col items-center border-l border-gray-200 bg-white pt-3 dark:border-gray-700 dark:bg-gray-900">
+          // 10단계: 레이어 패널이 고정돼 있을 때 이 패널을 호버로 펼치면, 캔버스 위에 떠서 레이어
+          // 패널과 어색하게 겹치거나 그 일부가 가려 보이던 문제가 있었다 — 캔버스 위로 "뜨는" 대신
+          // 실제 레이아웃 폭을 늘려서 레이어 패널 바로 옆에 자연스럽게 나타나도록 바꿨다. 평소엔 얇은
+          // 손잡이(20px)만 차지하고, 호버하면 그 옆 칸이 0→320px로 넓어지며(overflow-hidden으로
+          // 가려뒀던 내용이 점점 드러나는 방식) 캔버스가 그만큼 잠깐 좁아진다.
+          <div className="group flex h-full shrink-0">
+            <div className="flex h-full w-5 shrink-0 flex-col items-center border-l border-gray-200 bg-white pt-3 dark:border-gray-700 dark:bg-gray-900">
               <span className="text-base text-gray-400 dark:text-gray-500">‹</span>
             </div>
-            {/* 띠에 마우스를 올리면 캔버스 위로 떠서 펼쳐지는 미리보기. 레이아웃 폭을 안 늘리려고 absolute로 띄운다. */}
-            <aside className="invisible absolute right-0 top-0 z-20 flex h-full w-80 flex-col border-l border-gray-200 bg-white opacity-0 shadow-lg transition-opacity delay-150 group-hover:visible group-hover:opacity-100 group-hover:delay-0 dark:border-gray-700 dark:bg-gray-900">
-              <div className="flex items-center border-b border-gray-200 dark:border-gray-700">
-                {tabBar}
-                <button
-                  type="button"
-                  onClick={() => setRightPanelMode("pinned")}
-                  title="패널 고정하기"
-                  aria-label="패널 고정하기"
-                  className="m-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-gray-300 bg-white text-base text-gray-500 shadow-sm hover:border-blue-400 hover:text-blue-600 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:border-blue-400 dark:hover:text-blue-400"
-                >
-                  📌
-                </button>
+            <div className="flex h-full w-0 shrink-0 flex-col overflow-hidden transition-[width] duration-200 ease-out delay-150 group-hover:w-80 group-hover:delay-0">
+              <div className="flex h-full w-80 shrink-0 flex-col border-l border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-900">
+                <div className="flex items-center border-b border-gray-200 dark:border-gray-700">
+                  {tabBar}
+                  <button
+                    type="button"
+                    onClick={() => setRightPanelMode("pinned")}
+                    title="패널 고정하기"
+                    aria-label="패널 고정하기"
+                    className="m-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-gray-300 bg-white text-base text-gray-500 shadow-sm hover:border-blue-400 hover:text-blue-600 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:border-blue-400 dark:hover:text-blue-400"
+                  >
+                    📌
+                  </button>
+                </div>
+                {tabContent}
               </div>
-              {tabContent}
-            </aside>
+            </div>
           </div>
         ) : (
-          <aside className="flex w-80 shrink-0 flex-col border-l border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
+          // 고정된 상태일 땐 z-30을 줘서, 왼쪽에 접혀 있는 레이어 패널의 호버 미리보기(z-20)가 이 패널 위를 덮지 못하게 한다.
+          <aside className="relative z-30 flex w-80 shrink-0 flex-col border-l border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
             <div className="flex items-center border-b border-gray-200 dark:border-gray-700">
               {tabBar}
               <button
