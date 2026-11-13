@@ -477,8 +477,11 @@ function CanvasInner({
         !meta.isGroup && !isLogicalGroup ? findLogicalGroupAt(nodes, position.x, position.y) : undefined;
 
       let nodePosition = position;
-      let size: { width: number; height: number } | undefined =
-        meta.isGroup || isLogicalGroup ? { width: DEFAULT_GROUP_WIDTH, height: DEFAULT_GROUP_HEIGHT } : undefined;
+      // 11단계: 리프 노드(웹서버/DB 등)도 직접 리사이즈할 수 있게 되면서, 그룹처럼 처음부터 실제
+      // 크기를 갖고 태어나야 한다 — 안 그러면 이름 길이에 따라 박스가 자동으로 늘어나 버린다.
+      let size: { width: number; height: number } = meta.isGroup || isLogicalGroup
+        ? { width: DEFAULT_GROUP_WIDTH, height: DEFAULT_GROUP_HEIGHT }
+        : (meta.defaultSize ?? { width: DEFAULT_LEAF_WIDTH, height: DEFAULT_LEAF_HEIGHT });
 
       if (parent) {
         const nodesById = new Map(nodes.map((node) => [node.id, node]));
@@ -498,8 +501,8 @@ function CanvasInner({
           };
         }
 
-        const nodeWidth = size?.width ?? DEFAULT_LEAF_WIDTH;
-        const nodeHeight = size?.height ?? DEFAULT_LEAF_HEIGHT;
+        const nodeWidth = size.width;
+        const nodeHeight = size.height;
         // 기존 규칙(부모 없을 때는 드롭 지점이 새 노드의 좌상단)과 동일하게, 여기서도 드롭 지점을 그대로
         // 좌상단 기준 상대좌표로 쓰고, 부모 밖으로 튀어나가지 않도록 범위만 clamp한다.
         const relativeX = position.x - parentAbs.x;
@@ -519,7 +522,7 @@ function CanvasInner({
         position: nodePosition,
         data: { label: meta.label, ...(logicalGroup ? { logicalGroupId: logicalGroup.id } : {}) },
         ...(parent ? { parentId: parent.id, extent: "parent" as const } : {}),
-        ...(size ? size : {}),
+        ...size,
       };
 
       setNodes((current) => [...current, newNode]);

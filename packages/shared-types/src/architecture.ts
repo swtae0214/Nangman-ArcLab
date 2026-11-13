@@ -73,6 +73,8 @@ export const COMPONENT_TYPES = [
    * 바꿈)과 달리, 멤버 노드의 parentId는 그대로 두고 data.logicalGroupId만 표시로 붙인다.
    */
   'TARGET_GROUP',
+  /** 11단계: 리소스에 안 걸린 자유 텍스트 — 다이어그램에 제목/설명을 달 때 쓰는 순수 주석용 노드. */
+  'TEXT_BOX',
 ] as const;
 
 export type ComponentType = (typeof COMPONENT_TYPES)[number];
@@ -101,6 +103,8 @@ export interface GraphNode {
     label: string;
     /** component_presets 카탈로그의 code (예: "ec2-t3-medium") */
     presetCode?: string;
+    /** 11단계: TEXT_BOX 전용 — 글자 크기. 다른 타입은 항상 비워둔다. */
+    fontSize?: 'sm' | 'md' | 'lg';
   };
 }
 

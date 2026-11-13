@@ -62,6 +62,7 @@ enum ComponentType {
   ECR
   SECRETS_MANAGER
   TARGET_GROUP
+  TEXT_BOX
 
   @@map("component_type")
 }

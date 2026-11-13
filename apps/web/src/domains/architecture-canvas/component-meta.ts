@@ -43,6 +43,7 @@ import {
 } from "aws-react-icons";
 import type { FC } from "react";
 import { GenericGroupIcon } from "./icons/GenericGroupIcon";
+import { TextBoxIcon } from "./icons/TextBoxIcon";
 
 export type ComponentCategory =
   | "핵심 인프라"
@@ -51,7 +52,8 @@ export type ComponentCategory =
   | "컴퓨트/메시징"
   | "네트워크 경계"
   | "데이터/스트리밍"
-  | "CI/CD";
+  | "CI/CD"
+  | "주석";
 
 export interface ComponentMeta {
   type: ComponentType;
@@ -63,6 +65,8 @@ export interface ComponentMeta {
   isSimulated: boolean;
   /** true면 팔레트에서 직접 드래그해 새로 만들 수 없다 (예: GENERIC_GROUP은 선택 후 "묶기"로만 생성). */
   hideFromPalette?: boolean;
+  /** 11단계: 이 타입만의 기본 크기가 필요할 때(예: TEXT_BOX는 보통 리프보다 넓어야 함). 없으면 DEFAULT_LEAF_WIDTH/HEIGHT를 쓴다. */
+  defaultSize?: { width: number; height: number };
 }
 
 /**
@@ -468,6 +472,16 @@ export const COMPONENT_META: Record<ComponentType, ComponentMeta> = {
     isSimulated: false,
     hideFromPalette: true,
   },
+  // 11단계: 리소스에 안 걸린 자유 텍스트 — 다이어그램 제목/메모용. 기본 크기를 리프보다 넓게 잡는다.
+  TEXT_BOX: {
+    type: "TEXT_BOX",
+    label: "텍스트 박스",
+    Icon: TextBoxIcon,
+    isGroup: false,
+    category: "주석",
+    isSimulated: false,
+    defaultSize: { width: 180, height: 90 },
+  },
 };
 
 const COMPONENT_CATEGORY_ORDER: ComponentCategory[] = [
@@ -478,6 +492,7 @@ const COMPONENT_CATEGORY_ORDER: ComponentCategory[] = [
   "데이터/스트리밍",
   "컴퓨트/메시징",
   "CI/CD",
+  "주석",
 ];
 
 /** 팔레트가 카테고리별 섹션으로 렌더링할 때 쓰는 순서. COMPONENT_META의 키 순서를 그대로 원천으로 삼는다. */
@@ -492,9 +507,25 @@ export const COMPONENT_PALETTE_SECTIONS: { category: ComponentCategory; types: C
 export const DEFAULT_GROUP_WIDTH = 360;
 export const DEFAULT_GROUP_HEIGHT = 220;
 
-/** 리프 노드는 크기를 지정하지 않아 실측(measured) 전엔 이 값으로 어림잡는다 (묶기 시 바운딩 박스 계산용). */
+/** 리프 노드(웹서버/DB 등)를 처음 캔버스에 놓을 때의 기본 크기이자, 저장된 크기가 없는 옛 데이터를 불러올 때의 기본값. */
 export const DEFAULT_LEAF_WIDTH = 110;
 export const DEFAULT_LEAF_HEIGHT = 90;
+
+/** 11단계: 리프 노드를 손으로 리사이즈할 때 허용하는 최소 크기 — 아이콘(36px)+이름표가 겨우 보일 정도. */
+export const LEAF_MIN_WIDTH = 80;
+export const LEAF_MIN_HEIGHT = 70;
+
+/** 11단계: 텍스트 박스(주석) 리사이즈 최소 크기 — 글자 한 줄 + 글자 크기 선택 칸이 겨우 보일 정도. */
+export const TEXT_BOX_MIN_WIDTH = 100;
+export const TEXT_BOX_MIN_HEIGHT = 60;
+
+/** 텍스트 박스의 "작게/보통/크게" 글자 크기 — 자유 입력 대신 고정 단계로만 고르게 해서 더 쉽게 쓰게 한다. */
+export const TEXT_BOX_FONT_SIZE_CLASSES: Record<"sm" | "md" | "lg", string> = {
+  sm: "text-xs",
+  md: "text-sm",
+  lg: "text-lg",
+};
+export const DEFAULT_TEXT_BOX_FONT_SIZE: "sm" | "md" | "lg" = "md";
 
 /** "그룹으로 묶기" 시, 선택된 노드들의 바운딩 박스 바깥으로 얼마나 여백을 둘지. */
 export const GROUP_PADDING = 48;
