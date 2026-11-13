@@ -18,19 +18,23 @@ export function evaluateSpofRule(graph: ArchitectureGraph): RuleEvaluation {
     graph.nodes.filter((node) => node.type === 'DB_PRIMARY' || node.type === 'DB_REPLICA').map((node) => node.id),
   );
 
+  // 로드밸런서나 DB가 하나라도 없으면 "그 사이의 단일 장애점"을 따질 경로 자체가 없다 — "해당 없음"으로 표시한다.
+  if (loadBalancerIds.length === 0 || databaseIds.size === 0) {
+    return { ruleCode: 'SPOF-001', passed: true, applicable: false, detail: {} };
+  }
+
   const spofNodeIds: string[] = [];
-  if (loadBalancerIds.length > 0 && databaseIds.size > 0) {
-    for (const point of articulationPoints) {
-      const stillReachable = loadBalancerIds.some((lbId) => canReachAnyExcluding(adjacency, lbId, databaseIds, point));
-      if (!stillReachable) {
-        spofNodeIds.push(point);
-      }
+  for (const point of articulationPoints) {
+    const stillReachable = loadBalancerIds.some((lbId) => canReachAnyExcluding(adjacency, lbId, databaseIds, point));
+    if (!stillReachable) {
+      spofNodeIds.push(point);
     }
   }
 
   return {
     ruleCode: 'SPOF-001',
     passed: spofNodeIds.length === 0,
+    applicable: true,
     detail: spofNodeIds.length > 0 ? { nodeIds: spofNodeIds } : {},
   };
 }

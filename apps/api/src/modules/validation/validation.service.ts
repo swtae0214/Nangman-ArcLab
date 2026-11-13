@@ -44,6 +44,7 @@ export class ValidationService {
         severity: rule?.defaultSeverity ?? 'INFO',
         sourceCitation: rule?.sourceCitation ?? '',
         passed: evaluation.passed,
+        applicable: evaluation.applicable,
         detail: evaluation.detail,
       };
     });

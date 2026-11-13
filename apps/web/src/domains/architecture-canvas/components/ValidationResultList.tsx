@@ -26,21 +26,31 @@ export function ValidationResultList({ report }: { report: ArchitectureValidatio
             {/* 10단계: 제목만 보이고 눌러야 설명/근거가 펼쳐지게 — 규칙이 많아지면 제목만 있어도 전체 목록이 한눈에 들어온다. */}
             <details
               className={`group rounded-md border px-3 py-2 text-sm ${
-                result.passed
-                  ? "border-gray-200 bg-white text-gray-800 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
-                  : SEVERITY_STYLE[result.severity]
+                !result.applicable
+                  ? "border-gray-200 bg-gray-50 text-gray-400 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-500"
+                  : result.passed
+                    ? "border-gray-200 bg-white text-gray-800 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                    : SEVERITY_STYLE[result.severity]
               }`}
             >
               <summary className="flex cursor-pointer list-none items-center justify-between gap-2 [&::-webkit-details-marker]:hidden">
                 <span className="flex items-center gap-1.5 font-medium">
                   <span className="text-[10px] transition-transform group-open:rotate-90">▶</span>
-                  {result.passed ? "✅" : "⚠️"} {result.name}
+                  {result.applicable ? (result.passed ? "✅" : "⚠️") : "➖"} {result.name}
                 </span>
-                <span className="text-xs uppercase text-gray-400 dark:text-gray-500">{result.severity}</span>
+                {result.applicable ? (
+                  <span className="text-xs uppercase text-gray-400 dark:text-gray-500">{result.severity}</span>
+                ) : (
+                  <span className="rounded border border-gray-300 px-1.5 py-0.5 text-[10px] text-gray-400 dark:border-gray-600 dark:text-gray-500">
+                    해당 없음
+                  </span>
+                )}
               </summary>
-              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{result.description}</p>
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                {result.applicable ? result.description : "이 규칙이 다루는 컴포넌트가 캔버스에 없어서, 검사할 대상이 없어요."}
+              </p>
               <p className="mt-1 text-[11px] text-gray-400 dark:text-gray-500">근거: {result.sourceCitation}</p>
-              {!result.passed && result.detail.nodeIds && result.detail.nodeIds.length > 0 && (
+              {result.applicable && !result.passed && result.detail.nodeIds && result.detail.nodeIds.length > 0 && (
                 <p className="mt-1 text-[11px] text-red-500 dark:text-red-400">
                   문제 노드 {result.detail.nodeIds.length}개 — 캔버스에서 빨간 테두리로 표시됩니다.
                 </p>

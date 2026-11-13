@@ -145,6 +145,9 @@ export class SimulationService {
         severity: result.severityAtRun,
         sourceCitation: result.rule.sourceCitation,
         passed: result.passed,
+        // 11단계: applicable은 DB에 저장되지 않는 값이라(실시간 evaluate()에서만 계산), 과거에 저장된
+        // 시뮬레이션 실행 기록을 다시 보여줄 땐 알 수 없다 — true로 기본값을 둬서 평소처럼 보이게 한다.
+        applicable: true,
         detail: result.detail as { nodeIds?: string[] },
       })),
     };

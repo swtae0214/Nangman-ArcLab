@@ -48,11 +48,12 @@ describe('evaluateSpofRule', () => {
     expect(result.detail.nodeIds).toBeUndefined();
   });
 
-  it('로드밸런서나 DB가 하나도 없으면 검사 대상이 없어 통과로 본다', () => {
+  it('로드밸런서나 DB가 하나도 없으면 "해당 없음"으로 본다', () => {
     const result = evaluateSpofRule(
       graph([{ id: 'ws1', type: 'WEB_SERVER', position: { x: 0, y: 0 }, data: { label: 'WS' } }], []),
     );
 
     expect(result.passed).toBe(true);
+    expect(result.applicable).toBe(false);
   });
 });

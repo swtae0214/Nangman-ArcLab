@@ -8,12 +8,17 @@ import type { RuleEvaluation } from './rule.types.js';
  */
 export function evaluateDbReplicaRule(graph: ArchitectureGraph): RuleEvaluation {
   const primaryIds = graph.nodes.filter((node) => node.type === 'DB_PRIMARY').map((node) => node.id);
+  // Primary가 하나도 없으면 "읽기 확장용 Replica"를 따질 대상 자체가 없다 — "해당 없음"으로 표시한다.
+  if (primaryIds.length === 0) {
+    return { ruleCode: 'DB-002', passed: true, applicable: false, detail: {} };
+  }
+
   const hasReplica = graph.nodes.some((node) => node.type === 'DB_REPLICA');
-  const passed = primaryIds.length === 0 || hasReplica;
 
   return {
     ruleCode: 'DB-002',
-    passed,
-    detail: passed ? {} : { nodeIds: primaryIds },
+    passed: hasReplica,
+    applicable: true,
+    detail: hasReplica ? {} : { nodeIds: primaryIds },
   };
 }

@@ -15,6 +15,11 @@ export function evaluateAsgRule(graph: ArchitectureGraph): RuleEvaluation {
   const nodesById = buildNodesById(graph);
   const webServers = graph.nodes.filter((node) => node.type === 'WEB_SERVER');
 
+  // 웹 서버가 하나도 없으면 ASG 구성 여부를 따질 대상 자체가 없다 — "해당 없음"으로 표시한다.
+  if (webServers.length === 0) {
+    return { ruleCode: 'ASG-001', passed: true, applicable: false, detail: {} };
+  }
+
   const notInAsg: string[] = [];
   const asgMemberCounts = new Map<string, number>();
 
@@ -47,6 +52,7 @@ export function evaluateAsgRule(graph: ArchitectureGraph): RuleEvaluation {
   return {
     ruleCode: 'ASG-001',
     passed: violatingNodeIds.length === 0,
+    applicable: true,
     detail: violatingNodeIds.length > 0 ? { nodeIds: violatingNodeIds } : {},
   };
 }
