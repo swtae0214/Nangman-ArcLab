@@ -84,6 +84,9 @@ export function LabeledEdge({
           style={{
             position: "absolute",
             pointerEvents: "all",
+            // 10단계: 라벨이 그룹 박스 등 다른 요소에 깔려 안 보인다는 피드백 — 어떤 노드(리프 최대
+            // 900)보다도 항상 위에 뜨도록 그 등급보다 큰 값을 고정으로 준다.
+            zIndex: 1000,
             transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
           }}
         >
@@ -107,7 +110,9 @@ export function LabeledEdge({
                   startEditing();
                 }}
                 title={isReadOnly ? undefined : "더블클릭해서 라벨 수정"}
-                className={`rounded border border-gray-300 bg-white px-1.5 py-0.5 text-[11px] text-gray-700 shadow-sm dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 ${
+                // 10단계: 연한 회색 테두리/글씨라 안 겹쳐도 눈에 안 띈다는 피드백 — 테두리를 더 두껍고
+                // 진하게, 글씨를 더 크고 굵게, 그림자를 더 뚜렷하게 바꿔 배경과의 대비를 키웠다.
+                className={`rounded border-2 border-gray-500 bg-white px-2 py-1 text-xs font-semibold text-gray-900 shadow-md dark:border-gray-300 dark:bg-gray-800 dark:text-gray-100 ${
                   isReadOnly ? "" : "cursor-text"
                 }`}
               >

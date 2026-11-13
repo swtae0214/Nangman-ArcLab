@@ -89,6 +89,11 @@ export interface GraphNode {
    * 가지면서도 같은 logicalGroupId를 공유해, 하나의 Target Group으로 함께 표시될 수 있다.
    */
   logicalGroupId?: string;
+  /**
+   * 10단계: 같은 z-index 등급(같은 깊이의 물리 컨테이너끼리, 혹은 리프 노드끼리) 안에서 어떤 걸
+   * 위로 둘지 사용자가 직접 정하는 보정값. "앞으로 가져오기/뒤로 보내기" 버튼으로 ±1씩 바뀐다.
+   */
+  zOrderBias?: number;
   data: {
     label: string;
     /** component_presets 카탈로그의 code (예: "ec2-t3-medium") */

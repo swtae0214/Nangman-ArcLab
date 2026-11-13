@@ -8,6 +8,8 @@ export interface FlowNodeData extends Record<string, unknown> {
   /** 9단계: Target Group(논리적 그룹) 소속. React Flow의 Node 타입에는 커스텀 최상위 필드를
    *  못 넣어서 data 안에 두고, 저장 시에는 GraphNode의 최상위 logicalGroupId로 옮긴다. */
   logicalGroupId?: string;
+  /** 10단계: 같은 z-index 등급 안에서 앞/뒤 순서를 사용자가 직접 보정하는 값. computeZIndex에서 사용. */
+  zOrderBias?: number;
 }
 
 export type FlowNode = Node<FlowNodeData, ComponentType>;
@@ -22,7 +24,12 @@ export function graphToFlow(graph: ArchitectureGraph): { nodes: FlowNode[]; edge
       type: node.type,
       position: node.position,
       ...(node.parentId ? { parentId: node.parentId, extent: "parent" as const } : {}),
-      data: { label: node.data.label, presetCode: node.data.presetCode, logicalGroupId: node.logicalGroupId },
+      data: {
+        label: node.data.label,
+        presetCode: node.data.presetCode,
+        logicalGroupId: node.logicalGroupId,
+        zOrderBias: node.zOrderBias,
+      },
       // 저장된 크기가 있으면(중첩 배치·리사이즈로 부모보다 작게 만든 그룹 등) 그걸 그대로 쓰고,
       // 없을 때만(옛 데이터, 최상위 그룹의 첫 생성 등) 기본 크기로 어림잡는다.
       ...(meta.isGroup
@@ -53,6 +60,7 @@ export function flowToGraph(nodes: FlowNode[], edges: FlowEdge[]): ArchitectureG
     ...(node.width !== undefined ? { width: node.width } : {}),
     ...(node.height !== undefined ? { height: node.height } : {}),
     ...(node.data.logicalGroupId ? { logicalGroupId: node.data.logicalGroupId } : {}),
+    ...(node.data.zOrderBias ? { zOrderBias: node.data.zOrderBias } : {}),
     data: {
       label: node.data.label,
       ...(node.data.presetCode ? { presetCode: node.data.presetCode } : {}),

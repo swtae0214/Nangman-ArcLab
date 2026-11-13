@@ -521,6 +521,14 @@ export const Z_INDEX_LOGICAL_GROUP = 500;
 export const Z_INDEX_LEAF = 900;
 
 /**
+ * 10단계: "앞으로 가져오기/뒤로 보내기" 보정값의 허용 범위. 같은 등급(같은 깊이의 물리 컨테이너끼리,
+ * 혹은 리프 노드끼리) 안에서만 순서를 바꿔야 하므로, 가장 좁은 간격인 Z_INDEX_GROUP_DEPTH_STEP(10)보다
+ * 작게 clamp해서 보정값이 다음 깊이 등급을 침범하지 않게 한다.
+ */
+export const Z_ORDER_BIAS_MIN = -5;
+export const Z_ORDER_BIAS_MAX = 5;
+
+/**
  * 9단계: "논리적 그룹" — 물리적 컨테이너(VPC/Subnet 등, parentId 소속)와 달리, 멤버가 서로 다른
  * 컨테이너에 있어도 data.logicalGroupId만 공유해서 경계를 가로질러 하나로 묶여 보인다.
  * Target Group은 참고 이미지의 빨간 테두리를 그대로 따랐고, Auto Scaling Group은 실제 AWS

@@ -47,6 +47,10 @@ export class GraphNodeDto {
   @IsString()
   logicalGroupId?: string;
 
+  @IsOptional()
+  @IsNumber()
+  zOrderBias?: number;
+
   @ValidateNested()
   @Type(() => NodeDataDto)
   data!: NodeDataDto;

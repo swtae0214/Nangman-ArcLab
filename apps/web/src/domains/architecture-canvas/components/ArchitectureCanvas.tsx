@@ -34,6 +34,8 @@ import {
   Z_INDEX_GROUP_DEPTH_STEP,
   Z_INDEX_LEAF,
   Z_INDEX_LOGICAL_GROUP,
+  Z_ORDER_BIAS_MAX,
+  Z_ORDER_BIAS_MIN,
 } from "../component-meta";
 import { generateId } from "@/lib/generate-id";
 import { ProblemNodesProvider } from "../problem-nodes-context";
@@ -115,9 +117,11 @@ function getAbsolutePosition(node: FlowNode, nodesById: Map<string, FlowNode>): 
  * 위, 실제 컴포넌트(리프 노드)는 항상 맨 위여야 가려지지 않는다.
  */
 function computeZIndex(node: FlowNode, nodesById: Map<string, FlowNode>): number {
+  const bias = node.data.zOrderBias ?? 0;
+
   if (node.type === "GENERIC_GROUP") return 0;
-  if (LOGICAL_GROUP_TYPE_SET.has(node.type)) return Z_INDEX_LOGICAL_GROUP;
-  if (!COMPONENT_META[node.type].isGroup) return Z_INDEX_LEAF;
+  if (LOGICAL_GROUP_TYPE_SET.has(node.type)) return Z_INDEX_LOGICAL_GROUP + bias;
+  if (!COMPONENT_META[node.type].isGroup) return Z_INDEX_LEAF + bias;
 
   let depth = 0;
   let parentId = node.parentId;
@@ -127,7 +131,7 @@ function computeZIndex(node: FlowNode, nodesById: Map<string, FlowNode>): number
     depth += 1;
     parentId = parent.parentId;
   }
-  return Z_INDEX_GROUP_BASE + depth * Z_INDEX_GROUP_DEPTH_STEP;
+  return Z_INDEX_GROUP_BASE + depth * Z_INDEX_GROUP_DEPTH_STEP + bias;
 }
 
 /** node가 ancestorId의 후손(자식/손자/…)인지 확인한다. */
@@ -534,10 +538,30 @@ function CanvasInner({
     .filter((node) => LOGICAL_GROUP_TYPE_SET.has(node.type))
     .map((node) => node.id);
   const hasSelection = selectedNodes.length > 0 || selectedEdges.length > 0;
+  const zOrderableSelectedNodes = selectedNodes.filter((node) => node.type !== "GENERIC_GROUP");
 
   const handleDeleteSelected = useCallback(() => {
     void deleteElements({ nodes: selectedNodes, edges: selectedEdges });
   }, [deleteElements, selectedNodes, selectedEdges]);
+
+  /**
+   * 10단계(z-order 보정): 같은 등급(같은 깊이의 물리 컨테이너끼리, 혹은 리프 노드끼리)끼리 겹칠 때
+   * 어떤 걸 위로 둘지 사용자가 직접 정한다. GENERIC_GROUP(항상 0으로 바닥에 깔림)은 보정 대상에서 뺀다.
+   */
+  const handleShiftZOrder = useCallback(
+    (delta: number) => {
+      const targetIds = new Set(selectedNodes.filter((node) => node.type !== "GENERIC_GROUP").map((node) => node.id));
+      if (targetIds.size === 0) return;
+      setNodes((current) =>
+        current.map((node) => {
+          if (!targetIds.has(node.id)) return node;
+          const nextBias = Math.min(Z_ORDER_BIAS_MAX, Math.max(Z_ORDER_BIAS_MIN, (node.data.zOrderBias ?? 0) + delta));
+          return { ...node, data: { ...node.data, zOrderBias: nextBias } };
+        }),
+      );
+    },
+    [selectedNodes, setNodes],
+  );
 
   /**
    * GENERIC_GROUP(안 보이는 병합 그룹) 멤버를 드래그하면 나머지 멤버도 같은 만큼 같이 움직인다.
@@ -770,6 +794,26 @@ function CanvasInner({
                           {label}
                         </button>
                       ))}
+                    {zOrderableSelectedNodes.length > 0 && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => handleShiftZOrder(1)}
+                          title="같은 등급(깊이) 안에서 한 칸 앞으로 가져옵니다."
+                          className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs shadow-sm hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                        >
+                          앞으로 가져오기
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleShiftZOrder(-1)}
+                          title="같은 등급(깊이) 안에서 한 칸 뒤로 보냅니다."
+                          className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs shadow-sm hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                        >
+                          뒤로 보내기
+                        </button>
+                      </>
+                    )}
                     {(selectedGroupIds.length > 0 || selectedLogicalGroupIds.length > 0) && (
                       <button
                         type="button"
