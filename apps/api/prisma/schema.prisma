@@ -12,6 +12,7 @@ datasource db {
 }
 
 enum ComponentType {
+  USER
   LOAD_BALANCER
   WEB_SERVER
   DB_PRIMARY

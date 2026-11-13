@@ -13,6 +13,9 @@ import type { RuleSeverity } from './validation.js';
  */
 export const COMPONENT_TYPES = [
   // 핵심 인프라 — 2/3단계 정적 검증·시뮬레이션 엔진이 계산에 사용하는 컴포넌트
+  // 11단계: 사용자(User)는 트래픽의 시작점을 표시하는 용도라 계산 대상은 아니지만(isSimulated:
+  // false), 파이프라인을 그릴 때 "어디서부터 흐르는지" 보여주는 게 유용하다는 피드백으로 추가.
+  'USER',
   'LOAD_BALANCER',
   'WEB_SERVER',
   'DB_PRIMARY',

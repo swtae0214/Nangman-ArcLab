@@ -39,6 +39,7 @@ import {
   ResourceAmazonVPCInternetGateway,
   ResourceAmazonVPCNATGateway,
   ResourceAWSSystemsManagerParameterStore,
+  ResourceUser,
 } from "aws-react-icons";
 import type { FC } from "react";
 import { GenericGroupIcon } from "./icons/GenericGroupIcon";
@@ -76,6 +77,15 @@ export interface ComponentMeta {
  * VPC(네트워크 경계 상자) 아이콘으로 대체했다.
  */
 export const COMPONENT_META: Record<ComponentType, ComponentMeta> = {
+  // 11단계: 트래픽이 어디서 시작되는지 표시하는 용도 — SPOF/큐잉 계산 대상은 아니라서 isSimulated: false.
+  USER: {
+    type: "USER",
+    label: "사용자 (User)",
+    Icon: ResourceUser,
+    isGroup: false,
+    category: "핵심 인프라",
+    isSimulated: false,
+  },
   LOAD_BALANCER: {
     type: "LOAD_BALANCER",
     label: "로드밸런서",
