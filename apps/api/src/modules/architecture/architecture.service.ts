@@ -8,7 +8,7 @@ import type {
   ArchitectureSummary,
   ShareArchitectureResponse,
 } from '@nangman/shared-types';
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { ValidationService } from '../validation/validation.service.js';
 import { summarizeLatestSimulationRun, summarizeValidation } from './dashboard-stats.util.js';
@@ -25,6 +25,8 @@ export class ArchitectureService {
   ) {}
 
   async create(userId: string, dto: CreateArchitectureDto): Promise<ArchitectureDetail> {
+    await this.assertNameAvailable(userId, dto.name);
+
     const created = await this.prisma.architecture.create({
       data: {
         userId,
@@ -63,6 +65,10 @@ export class ArchitectureService {
   async update(id: string, userId: string, dto: UpdateArchitectureDto): Promise<ArchitectureDetail> {
     const row = await this.findOrThrow(id);
     this.assertOwner(row, userId);
+
+    if (dto.name !== undefined && dto.name !== row.name) {
+      await this.assertNameAvailable(userId, dto.name);
+    }
 
     const updated = await this.prisma.architecture.update({
       where: { id },
@@ -118,6 +124,18 @@ export class ArchitectureService {
       throw new NotFoundException('공유된 아키텍처를 찾을 수 없습니다.');
     }
     return this.toDetail(row);
+  }
+
+  /**
+   * 11단계: 같은 계정 안에서 같은 이름의 아키텍처를 또 만들거나, 다른 아키텍처와 같은 이름으로
+   * 바꾸려는 걸 막는다. DB에도 (user_id, name) 유일성 제약을 걸어뒀지만, 그 위반은 사용자에게
+   * "500 서버 오류"처럼 보여서 — 여기서 먼저 확인하고 알아볼 수 있는 메시지로 막는다.
+   */
+  private async assertNameAvailable(userId: string, name: string): Promise<void> {
+    const existing = await this.prisma.architecture.findFirst({ where: { userId, name } });
+    if (existing) {
+      throw new ConflictException('이미 같은 이름의 아키텍처가 있어요. 다른 이름을 써주세요.');
+    }
   }
 
   private async findOrThrow(id: string): Promise<ArchitectureModel> {

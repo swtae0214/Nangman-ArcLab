@@ -117,7 +117,7 @@ model Architecture {
   user           User?           @relation(fields: [userId], references: [id], onDelete: Cascade)
   simulationRuns SimulationRun[]
 
-  @@index([userId])
+  @@unique([userId, name])
   @@map("architectures")
 }
 
