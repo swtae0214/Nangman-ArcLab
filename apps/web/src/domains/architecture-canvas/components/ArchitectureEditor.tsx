@@ -1,8 +1,9 @@
 "use client";
 
+import type { ArchitectureGraph } from "@nangman/shared-types";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useCurrentUser } from "@/lib/use-current-user";
 import { useEditorTheme } from "@/lib/use-editor-theme";
 import { useArchitectureEditor } from "../hooks/useArchitectureEditor";
@@ -14,7 +15,10 @@ import { EditableLabel } from "./EditableLabel";
 import { ExportButton } from "./ExportButton";
 import { ShareButton } from "./ShareButton";
 import { SimulationPanel } from "./SimulationPanel";
+import { TutorialOverlay } from "./TutorialOverlay";
 import { ValidationResultList } from "./ValidationResultList";
+
+const EMPTY_GRAPH: ArchitectureGraph = { nodes: [], edges: [] };
 
 const SAVE_STATUS_LABEL: Record<string, string> = {
   idle: "",
@@ -43,6 +47,24 @@ export function ArchitectureEditor({ id }: { id: string }) {
   const [rightPanelMode, setRightPanelMode] = useState<"pinned" | "collapsed">("pinned");
   const exportContainerRef = useRef<HTMLDivElement>(null);
   const { theme, toggleTheme } = useEditorTheme();
+
+  /**
+   * 11단계(온보딩 튜토리얼): 대시보드의 "튜토리얼" 링크가 새 연습용 아키텍처를 만들고
+   * ?tutorial=1로 이 화면을 열면, 오버레이가 자동으로 뜬다. router.push 직후 첫 렌더 시점엔
+   * window.location이 아직 이전 경로일 수 있어서(클라이언트 사이드 전환 타이밍), 매번 최신 쿼리를
+   * 안전하게 읽어주는 useSearchParams를 쓴다.
+   */
+  const searchParams = useSearchParams();
+  const [isTutorialOpen, setIsTutorialOpen] = useState(() => searchParams.get("tutorial") === "1");
+  // 튜토리얼의 조작 감지(드래그/연결 여부)가 그래프 내용을 실시간으로 봐야 해서, 변경될 때마다 따로 들고 있는다.
+  const [liveGraph, setLiveGraph] = useState<ArchitectureGraph>(EMPTY_GRAPH);
+  const handleGraphChangeWithTutorial = useCallback(
+    (graph: ArchitectureGraph) => {
+      handleGraphChange(graph);
+      setLiveGraph(graph);
+    },
+    [handleGraphChange],
+  );
 
   const problemNodeIds = useMemo(() => {
     const ids = new Set<string>();
@@ -175,6 +197,8 @@ export function ArchitectureEditor({ id }: { id: string }) {
               validation.mutate();
             }}
             disabled={validation.isPending}
+            // 튜토리얼 오버레이가 이 버튼을 하이라이트할 때 찾는 식별자.
+            data-tutorial-id="validate-button"
             className="rounded-md bg-black px-3 py-1.5 text-xs text-white disabled:opacity-40 dark:bg-gray-100 dark:text-gray-900"
           >
             {validation.isPending ? "검증 중..." : "검증하기"}
@@ -185,7 +209,7 @@ export function ArchitectureEditor({ id }: { id: string }) {
         <div className="min-w-0 flex-1">
           <ArchitectureCanvas
             initialGraph={query.data.graph}
-            onGraphChange={handleGraphChange}
+            onGraphChange={handleGraphChangeWithTutorial}
             problemNodeIds={problemNodeIds}
             exportContainerRef={exportContainerRef}
             colorMode={theme}
@@ -238,6 +262,13 @@ export function ArchitectureEditor({ id }: { id: string }) {
           </aside>
         )}
       </div>
+      {isTutorialOpen && (
+        <TutorialOverlay
+          graph={liveGraph}
+          hasValidated={validation.data != null}
+          onClose={() => setIsTutorialOpen(false)}
+        />
+      )}
     </div>
   );
 }

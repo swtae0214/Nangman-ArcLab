@@ -50,6 +50,8 @@ export function ComponentPalette() {
                   type="button"
                   draggable
                   onDragStart={(event) => handleDragStart(event, type)}
+                  // 튜토리얼 오버레이가 이 버튼을 하이라이트할 때 찾는 식별자.
+                  data-tutorial-id={`palette-component-${type}`}
                   className="flex cursor-grab items-center gap-2 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-left text-sm shadow-sm hover:bg-gray-50 active:cursor-grabbing dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:hover:bg-gray-700"
                 >
                   <Icon size={24} />

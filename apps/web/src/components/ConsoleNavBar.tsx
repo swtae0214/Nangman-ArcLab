@@ -3,11 +3,13 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { GITHUB_LOGIN_URL } from "@/lib/api";
+import { useCreateArchitecture } from "@/lib/use-architectures";
 import { useCurrentUser, useLogout } from "@/lib/use-current-user";
 import { UserMenu } from "./UserMenu";
 
 const GITHUB_REPO_URL = "https://github.com/swtae0214/Nangman-ArcLab";
 const README_URL = `${GITHUB_REPO_URL}/blob/main/README.md`;
+const TUTORIAL_EMPTY_GRAPH = { nodes: [], edges: [] };
 
 interface ConsoleNavBarProps {
   /**
@@ -25,9 +27,18 @@ export function ConsoleNavBar({ variant }: ConsoleNavBarProps) {
   const router = useRouter();
   const { data: user } = useCurrentUser();
   const logout = useLogout();
+  const createArchitecture = useCreateArchitecture();
 
   const handleLogout = () => {
     logout.mutate(undefined, { onSuccess: () => router.push("/") });
+  };
+
+  /** 11단계: 연습용 아키텍처를 하나 만들어서, ?tutorial=1로 열면 온보딩 오버레이가 자동으로 뜬다. */
+  const handleStartTutorial = () => {
+    createArchitecture.mutate(
+      { name: "ArcLab 튜토리얼", graph: TUTORIAL_EMPTY_GRAPH },
+      { onSuccess: (created) => router.push(`/architectures/${created.id}?tutorial=1`) },
+    );
   };
 
   return (
@@ -61,6 +72,14 @@ export function ConsoleNavBar({ variant }: ConsoleNavBarProps) {
           <a href={README_URL} target="_blank" rel="noreferrer" className="hover:text-console-accent-hover">
             문서
           </a>
+          <button
+            type="button"
+            onClick={handleStartTutorial}
+            disabled={createArchitecture.isPending}
+            className="hover:text-console-accent-hover disabled:opacity-50"
+          >
+            {createArchitecture.isPending ? "준비 중..." : "튜토리얼"}
+          </button>
         </nav>
       )}
 
