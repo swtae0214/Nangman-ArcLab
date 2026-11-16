@@ -73,8 +73,9 @@ export function LandingPage() {
             실시간으로 검증됩니다
           </h1>
           <p className="mb-[30px] max-w-[540px] text-base leading-[1.75] text-console-subtle">
-            캔버스에서 바꾼 구조가 곧바로 SPOF 검사와 M/M/c 큐잉 시뮬레이션을 거쳐 지연시간·처리량·가용성 지표로
-            돌아옵니다.
+            캔버스에서 바꾼 구조가 곧바로 SPOF 검사와 M/M/c 큐잉 시뮬레이션을 거쳐
+            <br />
+            지연시간·처리량·가용성 지표로 돌아옵니다.
           </p>
           <div className="mb-11 flex gap-3">
             <StartCta user={user} />
