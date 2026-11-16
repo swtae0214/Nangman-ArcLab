@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState } from "react";
 import type { ArchitectureDashboardSummary } from "@nangman/shared-types";
 import { ConsoleNavBar } from "@/components/ConsoleNavBar";
 import { useArchitectures, useCreateArchitecture, useDeleteArchitecture } from "@/lib/use-architectures";
@@ -10,6 +10,7 @@ import { computeDashboardAggregateStats } from "../dashboard-stats";
 import { ArchitectureCard } from "./ArchitectureCard";
 import { ArchitectureViolationsPanel } from "./ArchitectureViolationsPanel";
 import { CoreFeatureList } from "./CoreFeatureList";
+import { CreateArchitectureDialog } from "./CreateArchitectureDialog";
 import { DeleteConfirmDialog } from "./DeleteConfirmDialog";
 import { EmptyStateCard } from "./EmptyStateCard";
 import { StatCard } from "./StatCard";
@@ -27,7 +28,8 @@ function formatLatency(value: number | null): string {
 export function DashboardPage() {
   const router = useRouter();
   const { data: currentUser, isLoading: isLoadingUser } = useCurrentUser();
-  const [name, setName] = useState("");
+  const [searchKeyword, setSearchKeyword] = useState("");
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<ArchitectureDashboardSummary | null>(null);
   const { data: architectures, isLoading, error } = useArchitectures({ enabled: currentUser != null });
   const createArchitecture = useCreateArchitecture();
@@ -45,23 +47,23 @@ export function DashboardPage() {
     deleteArchitecture.mutate(pendingDelete.id, { onSuccess: () => setPendingDelete(null) });
   };
 
-  const handleCreate = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (name.trim() === "") return;
+  const handleCreate = (createdName: string) => {
     createArchitecture.mutate(
-      { name, graph: EMPTY_GRAPH },
+      { name: createdName, graph: EMPTY_GRAPH },
       {
         onSuccess: (created) => {
-          setName("");
+          setIsCreateDialogOpen(false);
           router.push(`/architectures/${created.id}`);
         },
       },
     );
   };
 
-  const errorMessage =
-    error?.message ?? createArchitecture.error?.message ?? deleteArchitecture.error?.message ?? null;
+  const errorMessage = error?.message ?? deleteArchitecture.error?.message ?? null;
   const stats = computeDashboardAggregateStats(architectures ?? []);
+  const filteredArchitectures = (architectures ?? []).filter((architecture) =>
+    architecture.name.toLowerCase().includes(searchKeyword.trim().toLowerCase()),
+  );
 
   // 로그인 확인 중이거나(깜빡임 방지) 로그인 안 돼서 곧 홈으로 리다이렉트될 거면, 대시보드 내용은 아직 안 그린다.
   if (isLoadingUser || !currentUser) {
@@ -80,21 +82,32 @@ export function DashboardPage() {
             </div>
             <h1 className="text-[27px] font-extrabold text-white">아키텍처 검증 현황</h1>
           </div>
-          <form onSubmit={handleCreate} className="flex gap-2.5">
-            <input
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              placeholder="새 아키텍처 이름"
-              className="rounded border border-console-accent/25 bg-console-panel px-3.5 py-3 text-[13.5px] text-console-fg placeholder:text-console-muted focus:border-console-accent focus:outline-none"
-            />
+          <div className="flex gap-2.5">
+            <div className="relative">
+              <svg
+                className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-console-muted"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
+                <path d="M20 20L16.5 16.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+              <input
+                value={searchKeyword}
+                onChange={(event) => setSearchKeyword(event.target.value)}
+                placeholder="아키텍처 검색..."
+                className="rounded border border-console-accent/25 bg-console-panel py-3 pl-9 pr-3.5 text-[13.5px] text-console-fg placeholder:text-console-muted focus:border-console-accent focus:outline-none"
+              />
+            </div>
             <button
-              type="submit"
-              disabled={createArchitecture.isPending}
-              className="rounded bg-console-accent px-[22px] py-3 text-[13.5px] font-bold text-console-bg hover:bg-console-accent-hover disabled:opacity-60"
+              type="button"
+              onClick={() => setIsCreateDialogOpen(true)}
+              className="rounded bg-console-accent px-[22px] py-3 text-[13.5px] font-bold text-console-bg hover:bg-console-accent-hover"
             >
               + 새 아키텍처 시작하기
             </button>
-          </form>
+          </div>
         </div>
 
         {errorMessage && <p className="px-10 pb-4 text-sm text-console-critical">{errorMessage}</p>}
@@ -116,14 +129,16 @@ export function DashboardPage() {
           </div>
           {isLoading ? (
             <p className="text-sm text-console-muted">불러오는 중...</p>
-          ) : architectures && architectures.length > 0 ? (
+          ) : !architectures || architectures.length === 0 ? (
+            <EmptyStateCard />
+          ) : filteredArchitectures.length > 0 ? (
             <div className="grid grid-cols-3 gap-4">
-              {architectures.map((architecture) => (
+              {filteredArchitectures.map((architecture) => (
                 <ArchitectureCard key={architecture.id} architecture={architecture} onDeleteRequest={setPendingDelete} />
               ))}
             </div>
           ) : (
-            <EmptyStateCard />
+            <p className="text-sm text-console-muted">&ldquo;{searchKeyword}&rdquo;와 일치하는 아키텍처가 없어요.</p>
           )}
         </div>
 
@@ -139,6 +154,15 @@ export function DashboardPage() {
           isDeleting={deleteArchitecture.isPending}
           onCancel={() => setPendingDelete(null)}
           onConfirm={handleConfirmDelete}
+        />
+      )}
+
+      {isCreateDialogOpen && (
+        <CreateArchitectureDialog
+          isCreating={createArchitecture.isPending}
+          errorMessage={createArchitecture.error?.message ?? null}
+          onCancel={() => setIsCreateDialogOpen(false)}
+          onConfirm={handleCreate}
         />
       )}
     </div>
