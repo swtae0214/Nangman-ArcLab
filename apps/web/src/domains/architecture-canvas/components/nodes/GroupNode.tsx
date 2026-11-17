@@ -1,6 +1,6 @@
 import { NodeResizer, useReactFlow, type NodeProps } from "@xyflow/react";
 import { COMPONENT_META, NESTED_GROUP_MIN_HEIGHT, NESTED_GROUP_MIN_WIDTH, NESTING_BORDER_COLORS } from "../../component-meta";
-import { resolveContainment } from "../../containment";
+import { adoptCoveredNodes, resolveContainment } from "../../containment";
 import { useProblemNodeIds } from "../../problem-nodes-context";
 import { useIsReadOnly } from "../../read-only-context";
 import type { FlowNode } from "../../types";
@@ -47,8 +47,11 @@ export function GroupNode({ id, type, data, selected }: NodeProps<FlowNode>) {
         minHeight={NESTED_GROUP_MIN_HEIGHT}
         lineClassName="!border-blue-400"
         handleClassName="!h-2.5 !w-2.5 !rounded !border !border-blue-400 !bg-white dark:!bg-gray-800"
-        // 12단계: 컨테이너를 키워서 기존 리소스를 덮거나, 줄여서 더 이상 안 덮게 됐을 때도 소속이
-        // 실제로 맞춰지게 — 리사이즈가 끝난 시점에 전체 소속을 다시 계산한다.
+        // 12단계: 컨테이너를 키우는 "도중"에 덮는 즉시 다른 노드를 흡수한다(resolveContainment처럼
+        // 이 노드 자신의 소속까지는 안 건드려서 리사이즈 중 좌표가 튀지 않는다). 리사이즈가 끝나면
+        // resolveContainment로 전체(이 노드 자신 포함, 줄어들어서 더 이상 안 덮는 경우까지)를
+        // 최종적으로 다시 맞춘다.
+        onResize={() => setNodes((nds) => adoptCoveredNodes(nds, id))}
         onResizeEnd={() => setNodes((nds) => resolveContainment(nds))}
       />
       {!isReadOnly && <NodeDeleteButton nodeId={id} />}

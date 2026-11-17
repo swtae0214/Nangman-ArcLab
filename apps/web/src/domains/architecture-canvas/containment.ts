@@ -164,3 +164,53 @@ export function sortParentsBeforeChildren(nodesList: FlowNode[]): FlowNode[] {
   for (const node of nodesList) emit(node);
   return result;
 }
+
+/**
+ * 12단계: "컨테이너를 드래그/리사이즈하는 도중에, 덮는 즉시 들어가야지 손을 떼야만 들어가는 건
+ * 버그처럼 느껴진다"는 피드백 — resolveContainment(제스처가 끝났을 때 전체를 다시 계산)와 달리,
+ * 이건 제스처가 "진행 중"일 때 매 프레임 불러도 안전하도록 범위를 좁혔다: 지금 옮기고/키우고
+ * 있는 바로 이 컨테이너(containerId)가 덮게 된 "가만히 있는 다른 노드"만 즉시 소속시키고,
+ * 컨테이너 자기 자신이나 그 노드 자신의 소속은 안 건드린다. 지금 활발히 드래그 중인 노드의
+ * parentId를 실시간으로 바꾸면 React Flow가 내부적으로 추적하는 좌표 기준이 흔들려서 드래그
+ * 도중 위치가 튀는 부작용이 생길 수 있어서, 그 최종 확정은 resolveContainment(제스처가 끝난
+ * onNodeDragStop/onResizeEnd)에게 맡긴다.
+ */
+export function adoptCoveredNodes(nodesList: FlowNode[], containerId: string): FlowNode[] {
+  const nodesById = new Map(nodesList.map((node) => [node.id, node]));
+  const container = nodesById.get(containerId);
+  if (!container) return nodesList;
+
+  const containerAbs = getAbsolutePosition(container, nodesById);
+  const containerSize = getNodeSize(container);
+  let changed = false;
+
+  const next = nodesList.map((node) => {
+    if (node.id === containerId) return node;
+    if (LOGICAL_GROUP_TYPE_SET.has(node.type)) return node;
+    if (node.parentId === containerId) return node;
+    // container가 이 노드의 후손이면(= 이 노드가 container보다 더 바깥쪽이면) 소속시키면 순환이 생긴다.
+    if (isDescendantOf(container, node.id, nodesById)) return node;
+
+    const abs = getAbsolutePosition(node, nodesById);
+    const size = getNodeSize(node);
+    const centerX = abs.x + size.width / 2;
+    const centerY = abs.y + size.height / 2;
+    const covered =
+      centerX >= containerAbs.x &&
+      centerX <= containerAbs.x + containerSize.width &&
+      centerY >= containerAbs.y &&
+      centerY <= containerAbs.y + containerSize.height;
+    if (!covered) return node;
+
+    // 지금 속한 부모가 이 컨테이너보다 더 안쪽(구체적인) 컨테이너면, 뺏지 않고 그대로 둔다.
+    if (node.parentId) {
+      const currentParent = nodesById.get(node.parentId);
+      if (currentParent && isDescendantOf(currentParent, containerId, nodesById)) return node;
+    }
+
+    changed = true;
+    return { ...node, parentId: containerId, position: { x: abs.x - containerAbs.x, y: abs.y - containerAbs.y } };
+  });
+
+  return changed ? sortParentsBeforeChildren(next) : nodesList;
+}

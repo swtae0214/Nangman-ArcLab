@@ -38,7 +38,15 @@ import {
   Z_ORDER_BIAS_MIN,
 } from "../component-meta";
 import { generateId } from "@/lib/generate-id";
-import { findGroupAt, findLogicalGroupAt, getAbsolutePosition, getNodeSize, isDescendantOf, resolveContainment } from "../containment";
+import {
+  adoptCoveredNodes,
+  findGroupAt,
+  findLogicalGroupAt,
+  getAbsolutePosition,
+  getNodeSize,
+  isDescendantOf,
+  resolveContainment,
+} from "../containment";
 import { ProblemNodesProvider } from "../problem-nodes-context";
 import { ReadOnlyProvider } from "../read-only-context";
 import { flowToGraph, graphToFlow, type FlowEdge, type FlowNode } from "../types";
@@ -550,17 +558,27 @@ function CanvasInner({
     (_event: MouseEvent | TouchEvent, node: FlowNode) => {
       const startPositions = groupDragStartPositionsRef.current;
       const draggedStart = startPositions.get(node.id);
-      if (!node.parentId || !draggedStart) return;
+      if (node.parentId && draggedStart) {
+        const delta = { x: node.position.x - draggedStart.x, y: node.position.y - draggedStart.y };
+        setNodes((current) =>
+          current.map((n) => {
+            if (n.id === node.id || n.parentId !== node.parentId) return n;
+            const start = startPositions.get(n.id);
+            if (!start) return n;
+            return { ...n, position: { x: start.x + delta.x, y: start.y + delta.y } };
+          }),
+        );
+      }
 
-      const delta = { x: node.position.x - draggedStart.x, y: node.position.y - draggedStart.y };
-      setNodes((current) =>
-        current.map((n) => {
-          if (n.id === node.id || n.parentId !== node.parentId) return n;
-          const start = startPositions.get(n.id);
-          if (!start) return n;
-          return { ...n, position: { x: start.x + delta.x, y: start.y + delta.y } };
-        }),
-      );
+      // 12단계: "컨테이너를 움직이는 중에 덮는 즉시 들어가야지, 손을 떼야만 들어가는 건 버그처럼
+      // 느껴진다"는 피드백 — 컨테이너(물리적 그룹)를 드래그하는 동안은 매 프레임 다른(가만히 있는)
+      // 노드들을 실시간으로 흡수한다. 지금 손으로 옮기고 있는 이 노드 자신의 소속은 여기서 안
+      // 건드린다 — 드래그 중인 노드 자신의 parentId가 실시간으로 바뀌면 React Flow가 내부적으로
+      // 추적하는 좌표 기준이 흔들려서 드래그 도중 위치가 튀는 부작용이 생길 수 있다(onNodeDragStop
+      // 에서 resolveContainment로 안전하게 최종 확정한다).
+      if (COMPONENT_META[node.type].isGroup) {
+        setNodes((current) => adoptCoveredNodes(current, node.id));
+      }
     },
     [setNodes],
   );
