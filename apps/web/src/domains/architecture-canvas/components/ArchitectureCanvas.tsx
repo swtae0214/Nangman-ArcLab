@@ -150,15 +150,16 @@ function isDescendantOf(node: FlowNode, ancestorId: string, nodesById: Map<strin
 }
 
 /**
- * 드롭 좌표가 어떤 그룹 노드 영역 안인지 찾는다. 여러 겹으로 중첩된 그룹(Region>AZ>VPC>Subnet)이
- * 겹쳐 있으면, 가장 바깥쪽이 아니라 가장 안쪽(가장 구체적인) 그룹을 골라야 새로 놓는 컴포넌트가
- * 의도한 컨테이너에 들어간다.
- * 기존 노드를 다른 그룹으로 다시 드래그해 옮기는 것(재부모화)까지는 다루지 않고,
- * 팔레트에서 새로 드롭할 때만 그룹 소속을 계산하는 것으로 1차 범위를 잡았다.
+ * 드롭(또는 드래그로 다시 옮긴) 좌표가 어떤 그룹 노드 영역 안인지 찾는다. 여러 겹으로 중첩된
+ * 그룹(Region>AZ>VPC>Subnet)이 겹쳐 있으면, 가장 바깥쪽이 아니라 가장 안쪽(가장 구체적인) 그룹을
+ * 골라야 의도한 컨테이너에 들어간다.
+ * excludeIds: 이미 캔버스에 있는 노드를 다시 옮길 때, 자기 자신이나 자기 자손을 새 부모로 고르면
+ * 순환 참조가 생기므로 후보에서 빼기 위한 용도(팔레트에서 새로 드롭할 때는 안 씀).
  */
-function findGroupAt(nodes: FlowNode[], x: number, y: number): FlowNode | undefined {
+function findGroupAt(nodes: FlowNode[], x: number, y: number, excludeIds?: ReadonlySet<string>): FlowNode | undefined {
   const nodesById = new Map(nodes.map((node) => [node.id, node]));
   const candidates = nodes.filter((node) => {
+    if (excludeIds?.has(node.id)) return false;
     if (!COMPONENT_META[node.type].isGroup) return false;
     const abs = getAbsolutePosition(node, nodesById);
     const width = node.width ?? DEFAULT_GROUP_WIDTH;
@@ -363,7 +364,7 @@ function CanvasInner({
         data: nextData,
         selected: true,
         position: newParentId ? node.position : { x: node.position.x + PASTE_OFFSET, y: node.position.y + PASTE_OFFSET },
-        ...(newParentId ? { parentId: newParentId, extent: "parent" as const } : {}),
+        ...(newParentId ? { parentId: newParentId } : {}),
         ...(node.width !== undefined ? { width: node.width } : {}),
         ...(node.height !== undefined ? { height: node.height } : {}),
       };
@@ -541,7 +542,7 @@ function CanvasInner({
         type,
         position: nodePosition,
         data: { label: meta.label, ...(logicalGroup ? { logicalGroupId: logicalGroup.id } : {}) },
-        ...(parent ? { parentId: parent.id, extent: "parent" as const } : {}),
+        ...(parent ? { parentId: parent.id } : {}),
         ...size,
       };
 
@@ -636,6 +637,49 @@ function CanvasInner({
           return { ...n, position: { x: start.x + delta.x, y: start.y + delta.y } };
         }),
       );
+    },
+    [setNodes],
+  );
+
+  /**
+   * 12단계: "컨테이너 박스 위로 기존 노드를 드래그해서 옮겨도 실제 소속(parentId)은 안 바뀐다"는
+   * 버그 리포트 — 지금까지는 팔레트에서 "새로" 드롭할 때만 findGroupAt으로 소속을 정했고, 이미 캔버스에
+   * 있는 노드를 드래그로 옮기는 건 다루지 않았다(위 findGroupAt 주석 참고). 드래그가 끝난 시점의
+   * 중심 좌표로 다시 소속을 계산해서, 보이는 대로 데이터도 맞춘다.
+   * ASG/Target Group(논리적 그룹)은 이번 범위에서 제외 — 수동 리사이즈 여부를 먼저 정리해야 해서 보류.
+   */
+  const onNodeDragStop = useCallback(
+    (_event: MouseEvent | TouchEvent, draggedNode: FlowNode) => {
+      if (LOGICAL_GROUP_TYPE_SET.has(draggedNode.type)) return;
+
+      setNodes((current) => {
+        const nodesById = new Map(current.map((n) => [n.id, n]));
+        const node = nodesById.get(draggedNode.id);
+        if (!node) return current;
+
+        const abs = getAbsolutePosition(node, nodesById);
+        const size = getNodeSize(node);
+        const centerX = abs.x + size.width / 2;
+        const centerY = abs.y + size.height / 2;
+
+        const excludeIds = new Set([node.id, ...current.filter((n) => isDescendantOf(n, node.id, nodesById)).map((n) => n.id)]);
+        const newParent = findGroupAt(current, centerX, centerY, excludeIds);
+        const newParentId = newParent?.id;
+
+        if (newParentId === node.parentId) return current;
+
+        const newPosition = newParent ? { x: abs.x - getAbsolutePosition(newParent, nodesById).x, y: abs.y - getAbsolutePosition(newParent, nodesById).y } : abs;
+
+        return current.map((n) => {
+          if (n.id !== node.id) return n;
+          const { parentId: _oldParentId, extent: _oldExtent, ...rest } = n;
+          return {
+            ...rest,
+            position: newPosition,
+            ...(newParentId ? { parentId: newParentId } : {}),
+          };
+        });
+      });
     },
     [setNodes],
   );
@@ -757,7 +801,6 @@ function CanvasInner({
         const reparented = targets.map((node) => ({
           ...node,
           parentId: groupId,
-          ...(isInvisible ? {} : { extent: "parent" as const }),
           position: { x: node.position.x - groupPosition.x, y: node.position.y - groupPosition.y },
           selected: false,
         }));
@@ -790,6 +833,7 @@ function CanvasInner({
               onDragOver={readOnly ? undefined : onDragOver}
               onNodeDragStart={readOnly ? undefined : onNodeDragStart}
               onNodeDrag={readOnly ? undefined : onNodeDrag}
+              onNodeDragStop={readOnly ? undefined : onNodeDragStop}
               deleteKeyCode={readOnly ? null : ["Backspace", "Delete"]}
               nodesDraggable={!readOnly}
               nodesConnectable={!readOnly}

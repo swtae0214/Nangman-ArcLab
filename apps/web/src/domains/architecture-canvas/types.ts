@@ -34,7 +34,7 @@ export function graphToFlow(graph: ArchitectureGraph): { nodes: FlowNode[]; edge
       id: node.id,
       type: node.type,
       position: node.position,
-      ...(node.parentId ? { parentId: node.parentId, extent: "parent" as const } : {}),
+      ...(node.parentId ? { parentId: node.parentId } : {}),
       data: {
         label: node.data.label,
         presetCode: node.data.presetCode,
