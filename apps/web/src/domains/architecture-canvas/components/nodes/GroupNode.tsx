@@ -1,5 +1,6 @@
 import { NodeResizer, useReactFlow, type NodeProps } from "@xyflow/react";
 import { COMPONENT_META, NESTED_GROUP_MIN_HEIGHT, NESTED_GROUP_MIN_WIDTH, NESTING_BORDER_COLORS } from "../../component-meta";
+import { resolveContainment } from "../../containment";
 import { useProblemNodeIds } from "../../problem-nodes-context";
 import { useIsReadOnly } from "../../read-only-context";
 import type { FlowNode } from "../../types";
@@ -46,6 +47,9 @@ export function GroupNode({ id, type, data, selected }: NodeProps<FlowNode>) {
         minHeight={NESTED_GROUP_MIN_HEIGHT}
         lineClassName="!border-blue-400"
         handleClassName="!h-2.5 !w-2.5 !rounded !border !border-blue-400 !bg-white dark:!bg-gray-800"
+        // 12단계: 컨테이너를 키워서 기존 리소스를 덮거나, 줄여서 더 이상 안 덮게 됐을 때도 소속이
+        // 실제로 맞춰지게 — 리사이즈가 끝난 시점에 전체 소속을 다시 계산한다.
+        onResizeEnd={() => setNodes((nds) => resolveContainment(nds))}
       />
       {!isReadOnly && <NodeDeleteButton nodeId={id} />}
       <div className="flex items-center gap-1.5 px-2 py-1">
