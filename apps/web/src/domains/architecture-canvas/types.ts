@@ -8,6 +8,7 @@ import {
   DEFAULT_LEAF_WIDTH,
   LOGICAL_GROUP_TYPES,
 } from "./component-meta";
+import { sortParentsBeforeChildren } from "./containment";
 
 const LOGICAL_GROUP_TYPE_SET = new Set<ComponentType>(LOGICAL_GROUP_TYPES);
 
@@ -61,7 +62,10 @@ export function graphToFlow(graph: ArchitectureGraph): { nodes: FlowNode[]; edge
     target: edge.target,
     ...(edge.label ? { label: edge.label } : {}),
   }));
-  return { nodes, edges };
+  // 12단계: React Flow는 부모 노드가 배열에서 자식보다 앞에 있어야 절대좌표를 올바르게 계산한다.
+  // 예전에 이 순서가 깨진 채로 저장된 그래프(또는 그 사이에 생긴 버그로 깨진 그래프)를 불러와도
+  // 화면이 멀쩡하게 보이도록, 불러올 때마다 순서를 다시 보장한다.
+  return { nodes: sortParentsBeforeChildren(nodes), edges };
 }
 
 /**

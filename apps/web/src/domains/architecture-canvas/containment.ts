@@ -131,5 +131,36 @@ export function resolveContainment(nodesList: FlowNode[]): FlowNode[] {
     const updatedNode = { ...rest, position: newPosition, ...(newParentId ? { parentId: newParentId } : {}) };
     working = working.map((n, index) => (index === i ? updatedNode : n));
   }
-  return working;
+  return sortParentsBeforeChildren(working);
+}
+
+/**
+ * 12단계: React Flow는 DOM을 평평하게(flat) 그리기 때문에, 자식 노드의 "부모 기준 상대좌표"를
+ * 화면상 올바른 절대좌표로 환산하려면 **부모 노드가 nodes 배열에서 자식보다 앞에 와야** 한다
+ * (@xyflow/react 공식 제약). 이 순서가 깨지면 겉으로는 소속(parentId)이 멀쩡한데도, 화면에는
+ * 상대좌표가 그대로 절대좌표처럼 그려져서 엉뚱한 위치에 떨어져 보인다 — 실제로 "리소스를 먼저
+ * 그리고 나중에 컨테이너로 덮으면" 새 컨테이너가 배열 맨 뒤에 추가되면서(onDrop) 이미 앞쪽에
+ * 있던 리소스보다 뒤에 와, 정확히 이 문제가 났다. resolveContainment가 끝날 때마다, 그리고
+ * 저장된 그래프를 불러올 때마다 이 순서를 다시 보장한다.
+ */
+export function sortParentsBeforeChildren(nodesList: FlowNode[]): FlowNode[] {
+  const nodesById = new Map(nodesList.map((node) => [node.id, node]));
+  const result: FlowNode[] = [];
+  const emitted = new Set<string>();
+  const visiting = new Set<string>();
+
+  function emit(node: FlowNode) {
+    if (emitted.has(node.id) || visiting.has(node.id)) return;
+    visiting.add(node.id);
+    if (node.parentId) {
+      const parent = nodesById.get(node.parentId);
+      if (parent) emit(parent);
+    }
+    visiting.delete(node.id);
+    emitted.add(node.id);
+    result.push(node);
+  }
+
+  for (const node of nodesList) emit(node);
+  return result;
 }
