@@ -59,6 +59,8 @@ interface ArchitectureCanvasProps {
   readOnly?: boolean;
   /** React Flow 자체 UI(배경/컨트롤/미니맵) 테마. 토글이 없는 화면(공유 링크 등)은 항상 light로 둔다. */
   colorMode?: ColorMode;
+  /** 12단계: "트래픽 흐름 보기"가 켜져 있을 때 강조할 엣지 id들(USER→...→DB 구간). */
+  highlightedEdgeIds?: ReadonlySet<string>;
 }
 
 const EMPTY_PROBLEM_NODE_IDS: ReadonlySet<string> = new Set();
@@ -202,10 +204,28 @@ function CanvasInner({
   exportContainerRef,
   readOnly = false,
   colorMode = "light",
+  highlightedEdgeIds,
 }: ArchitectureCanvasProps) {
   const initial = graphToFlow(initialGraph);
   const [nodes, setNodes, onNodesChange] = useNodesState<FlowNode>(initial.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initial.edges);
+
+  // 12단계: 트래픽 흐름 강조는 저장되는 데이터가 아니라 화면 표시 전용이라, edges 상태 자체는 안
+  // 건드리고 ReactFlow에 넘기기 직전에만 animated/색상을 덧씌운다.
+  const displayEdges = useMemo(() => {
+    if (!highlightedEdgeIds || highlightedEdgeIds.size === 0) return edges;
+    return edges.map((edge) =>
+      highlightedEdgeIds.has(edge.id)
+        ? {
+            ...edge,
+            style: { ...edge.style, stroke: "#16a34a", strokeWidth: 2.5 },
+            // 12단계: "선이 한번에 다 밝아지기만 하면 실제 트래픽이 어디까지 갔는지 체감이 안 된다"는
+            // 피드백 — 점선 일괄 애니메이션 대신 LabeledEdge가 선을 따라 움직이는 점(패킷)을 그리게 한다.
+            data: { ...edge.data, isTrafficFlow: true },
+          }
+        : edge,
+    );
+  }, [edges, highlightedEdgeIds]);
   const { screenToFlowPosition, deleteElements } = useReactFlow<FlowNode>();
 
   useEffect(() => {
@@ -760,7 +780,7 @@ function CanvasInner({
           <div ref={exportContainerRef} className="h-full flex-1 dark:bg-gray-900">
             <ReactFlow
               nodes={nodesWithZIndex}
-              edges={edges}
+              edges={displayEdges}
               nodeTypes={nodeTypes}
               edgeTypes={edgeTypes}
               onNodesChange={onNodesChange}

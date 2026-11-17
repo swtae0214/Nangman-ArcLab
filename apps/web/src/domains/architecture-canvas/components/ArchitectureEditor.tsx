@@ -10,6 +10,7 @@ import { useArchitectureEditor } from "../hooks/useArchitectureEditor";
 import { useResizableWidth } from "../hooks/useResizableWidth";
 import { useValidation } from "../hooks/useValidation";
 import { useRunSimulation } from "../hooks/useSimulation";
+import { computeTrafficPathEdgeIds } from "../traffic-path";
 import { ArchitectureCanvas } from "./ArchitectureCanvas";
 import { CapacityCalculator } from "./CapacityCalculator";
 import { EditableLabel } from "./EditableLabel";
@@ -21,6 +22,7 @@ import { TutorialOverlay } from "./TutorialOverlay";
 import { ValidationResultList } from "./ValidationResultList";
 
 const EMPTY_GRAPH: ArchitectureGraph = { nodes: [], edges: [] };
+const EMPTY_EDGE_IDS: ReadonlySet<string> = new Set();
 
 const RIGHT_PANEL_DEFAULT_WIDTH = 320;
 const RIGHT_PANEL_MIN_WIDTH = 240;
@@ -70,6 +72,12 @@ export function ArchitectureEditor({ id }: { id: string }) {
   const [isTutorialOpen, setIsTutorialOpen] = useState(() => searchParams.get("tutorial") === "1");
   // 튜토리얼의 조작 감지(드래그/연결 여부)가 그래프 내용을 실시간으로 봐야 해서, 변경될 때마다 따로 들고 있는다.
   const [liveGraph, setLiveGraph] = useState<ArchitectureGraph>(EMPTY_GRAPH);
+  // 12단계: 트래픽 흐름 보기 — USER부터 DB까지 실제로 이어지는 구간의 엣지만 애니메이션으로 강조한다.
+  const [showTrafficFlow, setShowTrafficFlow] = useState(false);
+  const trafficPathEdgeIds = useMemo(
+    () => (showTrafficFlow ? computeTrafficPathEdgeIds(liveGraph) : EMPTY_EDGE_IDS),
+    [showTrafficFlow, liveGraph],
+  );
   const handleGraphChangeWithTutorial = useCallback(
     (graph: ArchitectureGraph) => {
       handleGraphChange(graph);
@@ -194,6 +202,18 @@ export function ArchitectureEditor({ id }: { id: string }) {
           <span className="text-xs text-gray-400 dark:text-gray-500">{SAVE_STATUS_LABEL[saveStatus]}</span>
           <button
             type="button"
+            onClick={() => setShowTrafficFlow((prev) => !prev)}
+            title="사용자 요청이 로드밸런서·서버를 거쳐 DB까지 이동하는 구간을 강조해서 보여줘요"
+            className={`rounded-md border px-3 py-1.5 text-xs ${
+              showTrafficFlow
+                ? "border-green-600 bg-green-600 text-white hover:bg-green-700"
+                : "border-gray-300 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+            }`}
+          >
+            🚦 트래픽 흐름 보기
+          </button>
+          <button
+            type="button"
             onClick={toggleTheme}
             title={theme === "dark" ? "라이트 모드로 전환" : "다크 모드로 전환"}
             className="rounded-md border border-gray-300 px-3 py-1.5 text-xs hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
@@ -225,6 +245,7 @@ export function ArchitectureEditor({ id }: { id: string }) {
             problemNodeIds={problemNodeIds}
             exportContainerRef={exportContainerRef}
             colorMode={theme}
+            highlightedEdgeIds={trafficPathEdgeIds}
           />
         </div>
         {rightPanelMode === "collapsed" ? (

@@ -23,6 +23,7 @@ export function LabeledEdge({
   markerEnd,
   style,
   label,
+  data,
 }: EdgeProps<FlowEdge>) {
   const [edgePath, labelX, labelY] = getSmoothStepPath({
     sourceX,
@@ -36,6 +37,10 @@ export function LabeledEdge({
 
   const { setEdges } = useReactFlow<FlowNode, FlowEdge>();
   const isReadOnly = useIsReadOnly();
+  // 12단계: "트래픽 흐름 보기"로 강조된 선 위에서, 선을 따라 움직이는 점(패킷)으로 실제 도달 구간을
+  // 체감할 수 있게 한다. 점이 따라갈 경로는 바로 아래 가시 path(edgePathId)를 그대로 재사용한다.
+  const isTrafficFlow = Boolean((data as { isTrafficFlow?: boolean } | undefined)?.isTrafficFlow);
+  const edgePathId = `${id}-path`;
   const currentLabel = typeof label === "string" ? label : "";
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState(currentLabel);
@@ -64,7 +69,16 @@ export function LabeledEdge({
 
   return (
     <>
-      <path d={edgePath} fill="none" className="react-flow__edge-path" style={style} markerEnd={markerEnd} />
+      <path id={edgePathId} d={edgePath} fill="none" className="react-flow__edge-path" style={style} markerEnd={markerEnd} />
+      {isTrafficFlow && (
+        // 선 색상(#16a34a)과 같은 색이면 점이 선에 묻혀 안 보여서, 흰 배경에 두꺼운 녹색 테두리로
+        // 대비를 줬다.
+        <circle r={6} fill="white" stroke="#16a34a" strokeWidth={3}>
+          <animateMotion dur="1.4s" repeatCount="indefinite">
+            <mpath href={`#${edgePathId}`} />
+          </animateMotion>
+        </circle>
+      )}
       {!isReadOnly && (
         <path
           d={edgePath}
