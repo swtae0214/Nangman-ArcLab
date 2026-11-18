@@ -39,12 +39,13 @@ import {
 } from "../component-meta";
 import { generateId } from "@/lib/generate-id";
 import {
-  detachDirectChildren,
+  detachDescendants,
   findGroupAt,
   findLogicalGroupAt,
   getAbsolutePosition,
   getNodeSize,
   resolveContainment,
+  snapshotSubtreeParents,
 } from "../containment";
 import { ProblemNodesProvider } from "../problem-nodes-context";
 import { ReadOnlyProvider } from "../read-only-context";
@@ -541,14 +542,20 @@ function CanvasInner({
    * 드래그 중 매 프레임(onNodeDrag) 이동한 만큼(delta)을 형제들에게 그대로 적용한다.
    */
   const groupDragStartPositionsRef = useRef<Map<string, { x: number; y: number }>>(new Map());
+  // 12단계: detachDescendants로 자손을 떼어내기 "직전"의 조상-자손 관계 스냅샷. 드래그가 끝나면
+  // resolveContainment에 넘겨서, 떼어내는 동안 끊긴 연결고리를 틈타 뒤집힌 소속이 생기는 걸 막는다.
+  const draggedSubtreeSnapshotRef = useRef<Map<string, string | undefined> | null>(null);
 
   const onNodeDragStart = useCallback(
     (_event: MouseEvent | TouchEvent, node: FlowNode) => {
-      // 12단계: 컨테이너(물리적 그룹)를 옮기기 시작하면, 지금 들어 있던 자식들을 먼저 절대좌표로
-      // 떼어놓는다 — 드래그 도중 안 끌려오게 하고, 다 옮긴 뒤 resolveContainment가 그 자리에
-      // 걸리는 것만 다시 소속시키게 한다.
+      // 12단계: 컨테이너(물리적 그룹)를 옮기기 시작하면, 지금 들어 있던 자손(자식, 손자, …)을
+      // 먼저 절대좌표로 떼어놓는다 — 드래그 도중 안 끌려오게 하고, 다 옮긴 뒤 resolveContainment가
+      // 그 자리에 걸리는 것만 다시 소속시키게 한다.
       if (COMPONENT_META[node.type].isGroup) {
-        setNodes((current) => detachDirectChildren(current, node.id));
+        draggedSubtreeSnapshotRef.current = snapshotSubtreeParents(nodes, node.id);
+        setNodes((current) => detachDescendants(current, node.id));
+      } else {
+        draggedSubtreeSnapshotRef.current = null;
       }
 
       if (!node.parentId) return;
@@ -587,7 +594,9 @@ function CanvasInner({
    * 새로 덮게 된 다른 노드들의 소속까지 한 번에 맞춘다.
    */
   const onNodeDragStop = useCallback(() => {
-    setNodes((current) => resolveContainment(current));
+    const snapshot = draggedSubtreeSnapshotRef.current ?? undefined;
+    draggedSubtreeSnapshotRef.current = null;
+    setNodes((current) => resolveContainment(current, snapshot));
   }, [setNodes]);
 
   /**

@@ -106,8 +106,15 @@ export function getNodeSize(node: FlowNode): { width: number; height: number } {
  * 옮겼을 때 "A의 중심이 B 안에, 동시에 B의 중심도 A 안에" 들어가는 경우 둘이 서로를 부모로
  * 삼으려는 순환 참조가 생길 수 있다. 순서대로 처리하면, 먼저 처리된 쪽이 나중 노드의 "이미
  * 자손이 된 노드는 후보에서 제외" 규칙에 걸려 순환이 생기지 않는다.
+ *
+ * originalParentById(옵션): detachDescendants로 자손을 통째로 떼어낸 뒤 이 함수를 부를 때,
+ * 떼어내기 "직전" 상태의 parentId 스냅샷을 넘긴다. 떼어낸 순간 "A가 B의 조상이었다"는 연결고리
+ * 자체가 사라지기 때문에, 지금(떼어낸 뒤) 상태만 보면 "B가 A의 새 부모가 되는" 뒤집힌 관계를
+ * 막을 방법이 없다 — 실제로 여러 겹 중첩된 구조에서 바깥 컨테이너가 리사이즈로 작아지면서 자기
+ * 옛날 자손의 자식이 돼버리는 버그로 나타났다. 이 스냅샷으로 "제스처 시작 전에 조상-자손이었던
+ * 관계"를 따로 기억해뒀다가, 그 관계를 뒤집는 새 소속은 후보에서 제외한다.
  */
-export function resolveContainment(nodesList: FlowNode[]): FlowNode[] {
+export function resolveContainment(nodesList: FlowNode[], originalParentById?: ReadonlyMap<string, string | undefined>): FlowNode[] {
   let working = nodesList;
   for (let i = 0; i < working.length; i++) {
     const node = working[i];
@@ -120,6 +127,11 @@ export function resolveContainment(nodesList: FlowNode[]): FlowNode[] {
     const centerY = abs.y + size.height / 2;
 
     const excludeIds = new Set([node.id, ...working.filter((n) => isDescendantOf(n, node.id, nodesById)).map((n) => n.id)]);
+    if (originalParentById) {
+      for (const candidate of working) {
+        if (wasAncestorInSnapshot(node.id, candidate.id, originalParentById)) excludeIds.add(candidate.id);
+      }
+    }
     const newParent = findGroupAt(working, centerX, centerY, excludeIds);
     const newParentId = newParent?.id;
     if (newParentId === node.parentId) continue;
@@ -166,75 +178,76 @@ export function sortParentsBeforeChildren(nodesList: FlowNode[]): FlowNode[] {
 }
 
 /**
- * 12단계: "컨테이너를 드래그/리사이즈하는 도중에, 덮는 즉시 들어가야지 손을 떼야만 들어가는 건
- * 버그처럼 느껴진다"는 피드백 — resolveContainment(제스처가 끝났을 때 전체를 다시 계산)와 달리,
- * 이건 제스처가 "진행 중"일 때 매 프레임 불러도 안전하도록 범위를 좁혔다: 지금 옮기고/키우고
- * 있는 바로 이 컨테이너(containerId)가 덮게 된 "가만히 있는 다른 노드"만 즉시 소속시키고,
- * 컨테이너 자기 자신이나 그 노드 자신의 소속은 안 건드린다. 지금 활발히 드래그 중인 노드의
- * parentId를 실시간으로 바꾸면 React Flow가 내부적으로 추적하는 좌표 기준이 흔들려서 드래그
- * 도중 위치가 튀는 부작용이 생길 수 있어서, 그 최종 확정은 resolveContainment(제스처가 끝난
- * onNodeDragStop/onResizeEnd)에게 맡긴다.
+ * 12단계: "컨테이너를 옮기면 안에 있던 애들이 상대좌표 그대로 질질 끌려와서, 예전에 꼬인 좌표가
+ * 있으면 엉뚱한 데 걸쳐 보인다"는 피드백 — 컨테이너를 드래그/리사이즈로 움직이기 "시작하는 순간"
+ * 지금 들어 있던 자손(자식, 손자, …전부)을 절대좌표로 떼어놓는다(그룹 해제와 같은 방식). 드래그/
+ * 리사이즈 도중엔 아무것도 자동으로 안 붙고, 끝났을 때(resolveContainment)만 그 자리에 걸리는
+ * 것들을 다시 계산해서 새로 소속시킨다 — "지금 어디 내려놨는지"로만 깔끔하게 결정되게 하려는 것.
+ *
+ * 직계 자식만 떼어놓으면 안 된다 — 손자 이하는 그대로 둔 채로 직계 자식의 parentId만 지우면, 그
+ * 순간 "손자가 지금 움직이는 컨테이너의 자손"이라는 연결고리가 끊긴다. resolveContainment는
+ * 노드를 순서대로 처리하면서 "이미 내 자손인 건 내 새 부모 후보에서 뺀다"로 순환 참조를 막는데,
+ * 이 연결고리가 끊긴 상태에서 움직이는 컨테이너가 먼저 처리되면 자기 손자(또는 그 안의 손자)를
+ * 후보에서 못 빼서 — 바깥 컨테이너가 자기보다 훨씬 안쪽에 있던 걸 새 부모로 삼는 뒤집힌 구조가
+ * 생길 수 있다(실제로 재현된 버그). 그래서 자손 전체를 한 번에 떼어내서 이 연결고리 자체가
+ * 아예 안 생기게 한다.
  */
-export function adoptCoveredNodes(nodesList: FlowNode[], containerId: string): FlowNode[] {
-  const nodesById = new Map(nodesList.map((node) => [node.id, node]));
-  const container = nodesById.get(containerId);
-  if (!container) return nodesList;
-
-  const containerAbs = getAbsolutePosition(container, nodesById);
-  const containerSize = getNodeSize(container);
-  let changed = false;
-
-  const next = nodesList.map((node) => {
-    if (node.id === containerId) return node;
-    if (LOGICAL_GROUP_TYPE_SET.has(node.type)) return node;
-    if (node.parentId === containerId) return node;
-    // container가 이 노드의 후손이면(= 이 노드가 container보다 더 바깥쪽이면) 소속시키면 순환이 생긴다.
-    if (isDescendantOf(container, node.id, nodesById)) return node;
-
-    const abs = getAbsolutePosition(node, nodesById);
-    const size = getNodeSize(node);
-    const centerX = abs.x + size.width / 2;
-    const centerY = abs.y + size.height / 2;
-    const covered =
-      centerX >= containerAbs.x &&
-      centerX <= containerAbs.x + containerSize.width &&
-      centerY >= containerAbs.y &&
-      centerY <= containerAbs.y + containerSize.height;
-    if (!covered) return node;
-
-    // 지금 속한 부모가 이 컨테이너보다 더 안쪽(구체적인) 컨테이너면, 뺏지 않고 그대로 둔다.
-    if (node.parentId) {
-      const currentParent = nodesById.get(node.parentId);
-      if (currentParent && isDescendantOf(currentParent, containerId, nodesById)) return node;
+function collectDescendantIds(nodesList: FlowNode[], rootId: string): Set<string> {
+  const descendantIds = new Set<string>();
+  let frontier = [rootId];
+  while (frontier.length > 0) {
+    const frontierSet = new Set(frontier);
+    const nextFrontier: string[] = [];
+    for (const node of nodesList) {
+      if (node.parentId && frontierSet.has(node.parentId) && !descendantIds.has(node.id)) {
+        descendantIds.add(node.id);
+        nextFrontier.push(node.id);
+      }
     }
-
-    changed = true;
-    return { ...node, parentId: containerId, position: { x: abs.x - containerAbs.x, y: abs.y - containerAbs.y } };
-  });
-
-  return changed ? sortParentsBeforeChildren(next) : nodesList;
+    frontier = nextFrontier;
+  }
+  return descendantIds;
 }
 
 /**
- * 12단계: "컨테이너를 옮기면 안에 있던 애들이 상대좌표 그대로 질질 끌려와서, 예전에 꼬인 좌표가
- * 있으면 엉뚱한 데 걸쳐 보인다"는 피드백 — 컨테이너를 드래그/리사이즈로 움직이기 "시작하는 순간"
- * 지금 들어 있던 직계 자식들을 전부 절대좌표로 떼어놓는다(그룹 해제와 같은 방식). 드래그/리사이즈
- * 도중엔 아무것도 자동으로 안 붙고, 끝났을 때(resolveContainment)만 그 자리에 걸리는 것들을
- * 다시 계산해서 새로 소속시킨다 — "지금 어디 내려놨는지"로만 깔끔하게 결정되게 하려는 것.
- * 손자(자식의 자식)는 안 건드린다 — 자식 자신이 절대좌표가 되는 것만으로 조상 체인이 끊기지
- * 않고 그대로 유지된다.
+ * 12단계: detachDescendants로 떼어내기 "직전"의 parentId를 containerId 자신 + 모든 자손에 대해
+ * 기록해둔다. resolveContainment에 넘기면, 떼어내면서 끊어진 "조상-자손이었다"는 사실을 그 한
+ * 번의 재계산 동안만 기억해서 뒤집힌 소속이 생기는 걸 막는다.
  */
-export function detachDirectChildren(nodesList: FlowNode[], containerId: string): FlowNode[] {
+export function snapshotSubtreeParents(nodesList: FlowNode[], containerId: string): Map<string, string | undefined> {
   const nodesById = new Map(nodesList.map((node) => [node.id, node]));
-  let changed = false;
+  const snapshot = new Map<string, string | undefined>();
+  const root = nodesById.get(containerId);
+  if (root) snapshot.set(containerId, root.parentId);
+  for (const id of collectDescendantIds(nodesList, containerId)) {
+    snapshot.set(id, nodesById.get(id)?.parentId);
+  }
+  return snapshot;
+}
 
-  const next = nodesList.map((node) => {
-    if (node.parentId !== containerId) return node;
-    changed = true;
+/** node가 candidate의 (스냅샷 기준) 조상이었는지 — candidate가 node의 새 부모가 되면 뒤집힌 관계다. */
+function wasAncestorInSnapshot(nodeId: string, candidateId: string, originalParentById: ReadonlyMap<string, string | undefined>): boolean {
+  let current: string | undefined = candidateId;
+  const visited = new Set<string>();
+  while (current) {
+    const parent = originalParentById.get(current);
+    if (!parent || visited.has(parent)) return false;
+    if (parent === nodeId) return true;
+    visited.add(parent);
+    current = parent;
+  }
+  return false;
+}
+
+export function detachDescendants(nodesList: FlowNode[], containerId: string): FlowNode[] {
+  const nodesById = new Map(nodesList.map((node) => [node.id, node]));
+  const descendantIds = collectDescendantIds(nodesList, containerId);
+  if (descendantIds.size === 0) return nodesList;
+
+  return nodesList.map((node) => {
+    if (!descendantIds.has(node.id)) return node;
     const abs = getAbsolutePosition(node, nodesById);
     const { parentId: _oldParentId, ...rest } = node;
     return { ...rest, position: abs };
   });
-
-  return changed ? next : nodesList;
 }
