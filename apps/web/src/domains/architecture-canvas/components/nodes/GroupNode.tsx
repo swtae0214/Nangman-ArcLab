@@ -1,6 +1,6 @@
 import { NodeResizer, useReactFlow, type NodeProps } from "@xyflow/react";
 import { COMPONENT_META, NESTED_GROUP_MIN_HEIGHT, NESTED_GROUP_MIN_WIDTH, NESTING_BORDER_COLORS } from "../../component-meta";
-import { adoptCoveredNodes, resolveContainment } from "../../containment";
+import { detachDirectChildren, resolveContainment } from "../../containment";
 import { useProblemNodeIds } from "../../problem-nodes-context";
 import { useIsReadOnly } from "../../read-only-context";
 import type { FlowNode } from "../../types";
@@ -10,7 +10,8 @@ import { NodeDeleteButton } from "../NodeDeleteButton";
 /**
  * 컨테이너 컴포넌트들(ASG/Multi-AZ/Multi-Region/Region/VPC/Subnet 등)이 공유하는 렌더러.
  * 다른 노드를 이 영역 안으로 드롭하면 parentId가 이 노드로 설정된다 (ArchitectureCanvas 참고).
- * 삭제하면 이 그룹에 속한 자식 노드들도 React Flow가 함께 정리한다.
+ * 삭제(×)하면 이 컨테이너만 사라지고, 안에 있던 노드들은 소속만 풀린 채 그 자리에 남는다
+ * (NodeDeleteButton 참고).
  * 9단계: Region>AZ>VPC>Subnet처럼 여러 겹으로 중첩할 때 안에 더 넣을 자리가 필요해서, 모서리를
  * 끌어 직접 크기를 늘릴 수 있게 NodeResizer를 달았다(읽기 전용 화면에서는 숨김).
  * 중첩된 그룹들이 전부 같은 색이면 어디가 어느 박스인지 구분이 안 돼서, parentId 체인을 따라
@@ -47,11 +48,10 @@ export function GroupNode({ id, type, data, selected }: NodeProps<FlowNode>) {
         minHeight={NESTED_GROUP_MIN_HEIGHT}
         lineClassName="!border-blue-400"
         handleClassName="!h-2.5 !w-2.5 !rounded !border !border-blue-400 !bg-white dark:!bg-gray-800"
-        // 12단계: 컨테이너를 키우는 "도중"에 덮는 즉시 다른 노드를 흡수한다(resolveContainment처럼
-        // 이 노드 자신의 소속까지는 안 건드려서 리사이즈 중 좌표가 튀지 않는다). 리사이즈가 끝나면
-        // resolveContainment로 전체(이 노드 자신 포함, 줄어들어서 더 이상 안 덮는 경우까지)를
-        // 최종적으로 다시 맞춘다.
-        onResize={() => setNodes((nds) => adoptCoveredNodes(nds, id))}
+        // 12단계: 리사이즈를 시작하면 지금 들어 있던 자식들을 먼저 절대좌표로 떼어놓는다(드래그와
+        // 동일한 이유 — 크기가 바뀌는 도중에 안 끌려다니게). 리사이즈가 끝나면 resolveContainment가
+        // 그 최종 크기/위치에 걸리는 것만 다시 소속시킨다.
+        onResizeStart={() => setNodes((nds) => detachDirectChildren(nds, id))}
         onResizeEnd={() => setNodes((nds) => resolveContainment(nds))}
       />
       {!isReadOnly && <NodeDeleteButton nodeId={id} />}

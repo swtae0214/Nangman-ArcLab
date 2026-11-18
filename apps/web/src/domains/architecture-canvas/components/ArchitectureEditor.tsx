@@ -186,7 +186,22 @@ export function ArchitectureEditor({ id }: { id: string }) {
     <div className={`flex h-screen flex-col bg-white dark:bg-gray-900 ${themeClassName}`}>
       <header className="flex items-center justify-between border-b border-gray-200 px-4 py-2 dark:border-gray-700">
         <div className="flex items-center gap-3">
-          <Link href="/architectures" className="text-sm text-blue-600 hover:underline dark:text-blue-400">
+          <Link
+            href="/architectures"
+            // 12단계: 이 링크는 Next.js가 페이지를 다시 안 불러오고 화면만 바꾸는 클라이언트 사이드
+            // 이동이라, 브라우저의 beforeunload가 아예 안 터진다 — 저장 안 된 변경사항이 있을 때만
+            // 직접 확인창을 띄우고, 취소하면 이동 자체를 막는다.
+            onClick={(event) => {
+              if (!hasUnsavedChanges) return;
+              const shouldLeave = window.confirm("저장되지 않은 변경사항이 있어요. 그래도 나가시겠어요?");
+              if (!shouldLeave) {
+                event.preventDefault();
+                return;
+              }
+              saveNow();
+            }}
+            className="text-sm text-blue-600 hover:underline dark:text-blue-400"
+          >
             ← 목록
           </Link>
           <h1>

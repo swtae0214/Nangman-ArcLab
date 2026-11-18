@@ -214,3 +214,27 @@ export function adoptCoveredNodes(nodesList: FlowNode[], containerId: string): F
 
   return changed ? sortParentsBeforeChildren(next) : nodesList;
 }
+
+/**
+ * 12단계: "컨테이너를 옮기면 안에 있던 애들이 상대좌표 그대로 질질 끌려와서, 예전에 꼬인 좌표가
+ * 있으면 엉뚱한 데 걸쳐 보인다"는 피드백 — 컨테이너를 드래그/리사이즈로 움직이기 "시작하는 순간"
+ * 지금 들어 있던 직계 자식들을 전부 절대좌표로 떼어놓는다(그룹 해제와 같은 방식). 드래그/리사이즈
+ * 도중엔 아무것도 자동으로 안 붙고, 끝났을 때(resolveContainment)만 그 자리에 걸리는 것들을
+ * 다시 계산해서 새로 소속시킨다 — "지금 어디 내려놨는지"로만 깔끔하게 결정되게 하려는 것.
+ * 손자(자식의 자식)는 안 건드린다 — 자식 자신이 절대좌표가 되는 것만으로 조상 체인이 끊기지
+ * 않고 그대로 유지된다.
+ */
+export function detachDirectChildren(nodesList: FlowNode[], containerId: string): FlowNode[] {
+  const nodesById = new Map(nodesList.map((node) => [node.id, node]));
+  let changed = false;
+
+  const next = nodesList.map((node) => {
+    if (node.parentId !== containerId) return node;
+    changed = true;
+    const abs = getAbsolutePosition(node, nodesById);
+    const { parentId: _oldParentId, ...rest } = node;
+    return { ...rest, position: abs };
+  });
+
+  return changed ? next : nodesList;
+}
