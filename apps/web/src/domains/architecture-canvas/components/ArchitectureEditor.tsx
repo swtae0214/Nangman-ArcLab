@@ -40,7 +40,7 @@ type SidePanelTab = "validation" | "capacity" | "simulation";
 export function ArchitectureEditor({ id }: { id: string }) {
   const router = useRouter();
   const { data: currentUser, isLoading: isLoadingUser } = useCurrentUser();
-  const { query, saveStatus, handleGraphChange, handleRename } = useArchitectureEditor(id, {
+  const { query, saveStatus, hasUnsavedChanges, handleGraphChange, handleRename, saveNow } = useArchitectureEditor(id, {
     enabled: currentUser != null,
   });
   const validation = useValidation(id);
@@ -200,6 +200,15 @@ export function ArchitectureEditor({ id }: { id: string }) {
         </div>
         <div className="flex items-center gap-3">
           <span className="text-xs text-gray-400 dark:text-gray-500">{SAVE_STATUS_LABEL[saveStatus]}</span>
+          <button
+            type="button"
+            onClick={saveNow}
+            disabled={!hasUnsavedChanges}
+            title="지금 바로 저장해요 (평소엔 마지막 변경 후 2초 뒤 자동으로 저장돼요)"
+            className="rounded-md border border-gray-300 px-3 py-1.5 text-xs hover:bg-gray-50 disabled:opacity-40 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+          >
+            💾 저장
+          </button>
           <button
             type="button"
             onClick={() => setShowTrafficFlow((prev) => !prev)}
