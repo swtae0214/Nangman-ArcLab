@@ -8,7 +8,6 @@ import {
   Controls,
   MarkerType,
   MiniMap,
-  Panel,
   ReactFlow,
   ReactFlowProvider,
   useEdgesState,
@@ -54,6 +53,7 @@ import { COMPONENT_DRAG_DATA_FORMAT, ComponentPalette } from "./ComponentPalette
 import { LabeledEdge } from "./edges/LabeledEdge";
 import { LayerPanel } from "./LayerPanel";
 import { nodeTypes } from "./node-types";
+import { SelectionToolbar } from "./SelectionToolbar";
 
 const edgeTypes = { labeledStep: LabeledEdge };
 
@@ -310,6 +310,12 @@ function CanvasInner({
     setEdges((current) => [...current.map((edge) => ({ ...edge, selected: false })), ...pastedEdges]);
   }, [setNodes, setEdges]);
 
+  /** 선택 툴바의 "복제" — 복사하자마자 바로 붙여넣어서, 클립보드를 거치지 않고 한 번에 사본을 만든다. */
+  const handleDuplicate = useCallback(() => {
+    handleCopy();
+    handlePaste();
+  }, [handleCopy, handlePaste]);
+
   useEffect(() => {
     if (readOnly) return;
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -545,6 +551,18 @@ function CanvasInner({
   // 12단계: detachDescendants로 자손을 떼어내기 "직전"의 조상-자손 관계 스냅샷. 드래그가 끝나면
   // resolveContainment에 넘겨서, 떼어내는 동안 끊긴 연결고리를 틈타 뒤집힌 소속이 생기는 걸 막는다.
   const draggedSubtreeSnapshotRef = useRef<Map<string, string | undefined> | null>(null);
+  /** 플로팅 툴바가 왼쪽 컴포넌트 패널 위로 넘어가지 않도록, 캔버스 영역 경계를 재는 데 쓴다. */
+  const canvasWrapperRef = useRef<HTMLDivElement | null>(null);
+  // 매 렌더마다 새 함수를 넘기면 React가 ref를 매번 떼었다 다시 붙이는데, 그 "떼어진" 순간에
+  // 자식(SelectionToolbar)의 useLayoutEffect가 먼저 읽어버려 null을 보는 경우가 있었다. 함수
+  // 정체성을 고정해서, 마운트/언마운트 때만 붙고 떨어지게 한다.
+  const setCanvasWrapperRef = useCallback(
+    (el: HTMLDivElement | null) => {
+      canvasWrapperRef.current = el;
+      if (exportContainerRef) exportContainerRef.current = el;
+    },
+    [exportContainerRef],
+  );
 
   const onNodeDragStart = useCallback(
     (_event: MouseEvent | TouchEvent, node: FlowNode) => {
@@ -735,7 +753,7 @@ function CanvasInner({
       <ReadOnlyProvider value={readOnly}>
         <div className="flex h-full w-full dark:bg-gray-900">
           {!readOnly && <ComponentPalette />}
-          <div ref={exportContainerRef} className="h-full flex-1 dark:bg-gray-900">
+          <div ref={setCanvasWrapperRef} className="h-full flex-1 dark:bg-gray-900">
             <ReactFlow
               nodes={nodesWithZIndex}
               edges={displayEdges}
@@ -761,71 +779,28 @@ function CanvasInner({
               <Background />
               <Controls showInteractive={!readOnly} />
               <MiniMap pannable zoomable />
-              {!readOnly && hasSelection && (
-                <Panel position="top-right">
-                  <div className="flex items-center gap-2 rounded-md border border-gray-300 bg-white p-2 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-                    {groupableSelectedNodes.length > 0 &&
-                      GROUPABLE_TYPES.map(({ type, label }) => (
-                        <button
-                          key={type}
-                          type="button"
-                          onClick={() => handleGroupSelection(type)}
-                          className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs shadow-sm hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
-                        >
-                          {label}
-                        </button>
-                      ))}
-                    {logicalGroupableSelectedNodes.length > 0 &&
-                      LOGICAL_GROUPABLE_TYPES.map(({ type, label }) => (
-                        <button
-                          key={type}
-                          type="button"
-                          onClick={() => handleCreateLogicalGroup(type)}
-                          className="rounded-md border border-red-300 bg-white px-2 py-1 text-xs text-red-600 shadow-sm hover:bg-red-50 dark:border-red-800 dark:bg-gray-800 dark:text-red-400 dark:hover:bg-red-950"
-                        >
-                          {label}
-                        </button>
-                      ))}
-                    {zOrderableSelectedNodes.length > 0 && (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => handleShiftZOrder(1)}
-                          title="같은 등급(깊이) 안에서 한 칸 앞으로 가져옵니다."
-                          className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs shadow-sm hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
-                        >
-                          앞으로 가져오기
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleShiftZOrder(-1)}
-                          title="같은 등급(깊이) 안에서 한 칸 뒤로 보냅니다."
-                          className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs shadow-sm hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
-                        >
-                          뒤로 보내기
-                        </button>
-                      </>
-                    )}
-                    {(selectedGroupIds.length > 0 || selectedLogicalGroupIds.length > 0) && (
-                      <button
-                        type="button"
-                        onClick={handleUngroupSelection}
-                        className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs shadow-sm hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
-                      >
-                        그룹 해제
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={handleDeleteSelected}
-                      className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs text-red-600 shadow-sm hover:border-red-400 hover:bg-red-50 dark:border-gray-600 dark:bg-gray-800 dark:text-red-400 dark:hover:border-red-800 dark:hover:bg-red-950"
-                    >
-                      삭제
-                    </button>
-                  </div>
-                </Panel>
-              )}
             </ReactFlow>
+            {!readOnly && hasSelection && (
+              <SelectionToolbar
+                boundsRef={canvasWrapperRef}
+                nodes={nodes}
+                selectedNodes={selectedNodes}
+                selectedEdges={selectedEdges}
+                groupableSelectedNodes={groupableSelectedNodes}
+                logicalGroupableSelectedNodes={logicalGroupableSelectedNodes}
+                groupableTypes={GROUPABLE_TYPES}
+                logicalGroupableTypes={LOGICAL_GROUPABLE_TYPES}
+                hasZOrderSelection={zOrderableSelectedNodes.length > 0}
+                hasUngroupSelection={selectedGroupIds.length > 0 || selectedLogicalGroupIds.length > 0}
+                onGroup={handleGroupSelection}
+                onCreateLogicalGroup={handleCreateLogicalGroup}
+                onShiftZOrder={handleShiftZOrder}
+                onUngroup={handleUngroupSelection}
+                onDelete={handleDeleteSelected}
+                onCopy={handleCopy}
+                onDuplicate={handleDuplicate}
+              />
+            )}
           </div>
           {!readOnly && <LayerPanel nodes={nodes} onSelectNode={handleSelectNodeFromLayerPanel} />}
         </div>
