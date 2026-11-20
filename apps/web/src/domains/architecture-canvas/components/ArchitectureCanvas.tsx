@@ -5,7 +5,6 @@ import type { ArchitectureGraph, ComponentType } from "@nangman/shared-types";
 import {
   addEdge,
   Background,
-  Controls,
   MarkerType,
   MiniMap,
   ReactFlow,
@@ -13,10 +12,11 @@ import {
   useEdgesState,
   useNodesState,
   useReactFlow,
+  useStore,
   type ColorMode,
   type OnConnect,
 } from "@xyflow/react";
-import { useCallback, useEffect, useMemo, useRef, type DragEvent, type RefObject } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, type DragEvent, type RefObject } from "react";
 import {
   COMPONENT_META,
   DEFAULT_GROUP_HEIGHT,
@@ -48,10 +48,11 @@ import {
 } from "../containment";
 import { ProblemNodesProvider } from "../problem-nodes-context";
 import { ReadOnlyProvider } from "../read-only-context";
-import { flowToGraph, graphToFlow, type FlowEdge, type FlowNode } from "../types";
-import { COMPONENT_DRAG_DATA_FORMAT, ComponentPalette } from "./ComponentPalette";
+import { flowToGraph, graphToFlow, type FlowEdge, type FlowNode, type SelectedElementInfo } from "../types";
+import { CanvasToolbar, type CanvasInteractionMode } from "./CanvasToolbar";
+import { COMPONENT_DRAG_DATA_FORMAT } from "./ComponentPalette";
 import { LabeledEdge } from "./edges/LabeledEdge";
-import { LayerPanel } from "./LayerPanel";
+import { LeftSidebar } from "./LeftSidebar";
 import { nodeTypes } from "./node-types";
 import { SelectionToolbar } from "./SelectionToolbar";
 
@@ -70,6 +71,16 @@ interface ArchitectureCanvasProps {
   colorMode?: ColorMode;
   /** 12단계: "트래픽 흐름 보기"가 켜져 있을 때 강조할 엣지 id들(USER→...→DB 구간). */
   highlightedEdgeIds?: ReadonlySet<string>;
+  /** "트래픽 흐름 보기" 토글 스위치를 캔버스 좌상단에 띄울 때 쓴다 — 상태 자체는 부모(ArchitectureEditor)가 들고 있는다. */
+  showTrafficFlow?: boolean;
+  onToggleTrafficFlow?: () => void;
+  /** 노드 하나만 선택돼 있을 때(엣지 선택 없이) 우측 패널이 "요소 상세" 보기로 바뀔 수 있도록 올려보낸다. 그 외엔 null. */
+  onSelectedElementChange?: (info: SelectedElementInfo | null) => void;
+}
+
+/** 부모(ArchitectureEditor)가 "캔버스에서 보기" 같은 동작으로 특정 노드를 선택·포커스하게 해주는 핸들. */
+export interface ArchitectureCanvasHandle {
+  selectNodes: (nodeIds: string[]) => void;
 }
 
 const EMPTY_PROBLEM_NODE_IDS: ReadonlySet<string> = new Set();
@@ -128,15 +139,21 @@ function computeZIndex(node: FlowNode, nodesById: Map<string, FlowNode>): number
 }
 
 
-function CanvasInner({
-  initialGraph,
-  onGraphChange,
-  problemNodeIds,
-  exportContainerRef,
-  readOnly = false,
-  colorMode = "light",
-  highlightedEdgeIds,
-}: ArchitectureCanvasProps) {
+const CanvasInner = forwardRef<ArchitectureCanvasHandle, ArchitectureCanvasProps>(function CanvasInner(
+  {
+    initialGraph,
+    onGraphChange,
+    problemNodeIds,
+    exportContainerRef,
+    readOnly = false,
+    colorMode = "light",
+    highlightedEdgeIds,
+    showTrafficFlow,
+    onToggleTrafficFlow,
+    onSelectedElementChange,
+  }: ArchitectureCanvasProps,
+  ref,
+) {
   const initial = graphToFlow(initialGraph);
   const [nodes, setNodes, onNodesChange] = useNodesState<FlowNode>(initial.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initial.edges);
@@ -157,7 +174,12 @@ function CanvasInner({
         : edge,
     );
   }, [edges, highlightedEdgeIds]);
-  const { screenToFlowPosition, deleteElements } = useReactFlow<FlowNode>();
+  const { screenToFlowPosition, deleteElements, fitView, zoomIn, zoomOut } = useReactFlow<FlowNode>();
+  // 13단계: 캔버스 좌하단 도구모음 — 선택/손 도구 전환과 잠금 상태. 줌 배율은 react-flow 내부
+  // zustand 스토어에서 직접 읽어와야(useStore) 버튼을 눌렀을 때 화면에 바로 반영된다.
+  const [interactionMode, setInteractionMode] = useState<CanvasInteractionMode>("pan");
+  const [isLocked, setIsLocked] = useState(false);
+  const zoomPercent = Math.round(useStore((state) => state.transform[2]) * 100);
 
   useEffect(() => {
     onGraphChange(flowToGraph(nodes, edges));
@@ -507,14 +529,77 @@ function CanvasInner({
     void deleteElements({ nodes: selectedNodes, edges: selectedEdges });
   }, [deleteElements, selectedNodes, selectedEdges]);
 
-  /** 레이어 패널에서 이름을 클릭하면, 캔버스에서 겹쳐 있어 클릭으로 못 고르던 노드도 바로 선택된다. */
-  const handleSelectNodeFromLayerPanel = useCallback(
-    (nodeId: string) => {
-      setNodes((current) => current.map((node) => ({ ...node, selected: node.id === nodeId })));
+  /**
+   * 레이어 패널에서 이름을 클릭하거나, 우측 검증 패널의 "캔버스에서 보기"를 눌렀을 때 공통으로 쓰는
+   * 선택 로직 — 겹쳐 있어 클릭으로 못 고르던 노드도 여기선 바로 선택된다.
+   */
+  const selectNodesInternal = useCallback(
+    (nodeIds: string[]) => {
+      const idSet = new Set(nodeIds);
+      setNodes((current) => current.map((node) => ({ ...node, selected: idSet.has(node.id) })));
       setEdges((current) => current.map((edge) => ({ ...edge, selected: false })));
     },
     [setNodes, setEdges],
   );
+
+  const handleSelectNodeFromLayerPanel = useCallback((nodeId: string) => selectNodesInternal([nodeId]), [selectNodesInternal]);
+
+  /** 우측 패널의 "캔버스에서 보기"처럼, 부모가 특정 노드(들)를 선택하고 화면에 맞춰 보여주고 싶을 때 쓰는 통로. */
+  useImperativeHandle(
+    ref,
+    () => ({
+      selectNodes: (nodeIds: string[]) => {
+        selectNodesInternal(nodeIds);
+        if (nodeIds.length > 0) {
+          fitView({ nodes: nodeIds.map((id) => ({ id })), duration: 300, padding: 0.3 });
+        }
+      },
+    }),
+    [selectNodesInternal, fitView],
+  );
+
+  /**
+   * 노드 하나만 선택돼 있고(엣지 선택은 없이) 우측 패널이 "요소 상세" 보기로 바뀔 수 있을 때,
+   * 그 요소의 조상 경로(breadcrumb)와 입력/출력 연결을 계산해서 부모(ArchitectureEditor)에 올려보낸다.
+   * 매 렌더마다 새 객체가 만들어지므로, 내용이 실제로 달라졌을 때만 콜백을 부르도록 signature로 가드한다.
+   */
+  const primaryElementInfo: SelectedElementInfo | null = useMemo(() => {
+    if (selectedNodes.length !== 1 || selectedEdges.length !== 0) return null;
+    const node = selectedNodes[0];
+    const nodesById = new Map(nodes.map((n) => [n.id, n]));
+
+    const breadcrumb: string[] = [];
+    let parentId = node.parentId;
+    while (parentId) {
+      const ancestor = nodesById.get(parentId);
+      if (!ancestor) break;
+      breadcrumb.unshift(ancestor.data.label);
+      parentId = ancestor.parentId;
+    }
+
+    const toConnection = (otherId: string, edgeLabel: unknown) => ({
+      nodeId: otherId,
+      label: nodesById.get(otherId)?.data.label ?? otherId,
+      ...(typeof edgeLabel === "string" && edgeLabel ? { edgeLabel } : {}),
+    });
+
+    return {
+      id: node.id,
+      type: node.type,
+      label: node.data.label,
+      breadcrumb,
+      inputs: edges.filter((edge) => edge.target === node.id).map((edge) => toConnection(edge.source, edge.label)),
+      outputs: edges.filter((edge) => edge.source === node.id).map((edge) => toConnection(edge.target, edge.label)),
+    };
+  }, [selectedNodes, selectedEdges, nodes, edges]);
+
+  const lastReportedElementSignatureRef = useRef<string | null>(null);
+  useEffect(() => {
+    const signature = primaryElementInfo ? JSON.stringify(primaryElementInfo) : null;
+    if (lastReportedElementSignatureRef.current === signature) return;
+    lastReportedElementSignatureRef.current = signature;
+    onSelectedElementChange?.(primaryElementInfo);
+  });
 
   /**
    * 10단계(z-order 보정): 같은 등급(같은 깊이의 물리 컨테이너끼리, 혹은 리프 노드끼리)끼리 겹칠 때
@@ -752,8 +837,34 @@ function CanvasInner({
     <ProblemNodesProvider value={problemNodeIds ?? EMPTY_PROBLEM_NODE_IDS}>
       <ReadOnlyProvider value={readOnly}>
         <div className="flex h-full w-full dark:bg-gray-900">
-          {!readOnly && <ComponentPalette />}
-          <div ref={setCanvasWrapperRef} className="h-full flex-1 dark:bg-gray-900">
+          {!readOnly && <LeftSidebar nodes={nodes} onSelectNode={handleSelectNodeFromLayerPanel} />}
+          <div ref={setCanvasWrapperRef} className="relative h-full flex-1 dark:bg-gray-900">
+            {!readOnly && onToggleTrafficFlow && (
+              <button
+                type="button"
+                role="switch"
+                aria-checked={showTrafficFlow ?? false}
+                onClick={onToggleTrafficFlow}
+                title="사용자 요청이 로드밸런서·서버를 거쳐 DB까지 이동하는 구간을 강조해서 보여줘요"
+                className="absolute left-3 top-3 z-10 flex items-center gap-2 rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 dark:border-gray-700 dark:bg-gray-800"
+              >
+                {/*
+                  Tailwind 유틸(translate-x-*)이 빌드 타이밍에 따라 안 먹는 경우가 있어서, 토글
+                  손잡이 위치만큼은 흔들리지 않게 width/transform을 직접 숫자(px)로 계산해 인라인
+                  style로 고정한다 — 핸들이 꺼짐/켜짐 양쪽에서 항상 정확히 양 끝에 붙는다.
+                */}
+                <span
+                  className="relative shrink-0 rounded-full transition-colors"
+                  style={{ width: 36, height: 20, backgroundColor: showTrafficFlow ? "#16a34a" : "#d1d5db" }}
+                >
+                  <span
+                    className="absolute rounded-full bg-white transition-transform"
+                    style={{ width: 16, height: 16, top: 2, left: 2, transform: showTrafficFlow ? "translateX(16px)" : "translateX(0)" }}
+                  />
+                </span>
+                <span className="text-gray-600 dark:text-gray-300">트래픽 흐름 보기</span>
+              </button>
+            )}
             <ReactFlow
               nodes={nodesWithZIndex}
               edges={displayEdges}
@@ -768,18 +879,33 @@ function CanvasInner({
               onNodeDrag={readOnly ? undefined : onNodeDrag}
               onNodeDragStop={readOnly ? undefined : onNodeDragStop}
               deleteKeyCode={readOnly ? null : ["Backspace", "Delete"]}
-              nodesDraggable={!readOnly}
-              nodesConnectable={!readOnly}
+              nodesDraggable={!readOnly && !isLocked}
+              nodesConnectable={!readOnly && !isLocked}
               elementsSelectable={!readOnly}
               defaultEdgeOptions={{ type: "labeledStep", markerEnd: { type: MarkerType.ArrowClosed } }}
-              panOnDrag
+              panOnDrag={readOnly || interactionMode === "pan"}
+              selectionOnDrag={!readOnly && interactionMode === "select"}
               fitView
               colorMode={colorMode}
             >
               <Background />
-              <Controls showInteractive={!readOnly} />
               <MiniMap pannable zoomable />
             </ReactFlow>
+            <div className="pointer-events-none absolute bottom-4 left-1/2 z-10 -translate-x-1/2">
+              <CanvasToolbar
+                mode={interactionMode}
+                onModeChange={setInteractionMode}
+                zoomPercent={zoomPercent}
+                onZoomIn={() => zoomIn()}
+                onZoomOut={() => zoomOut()}
+                onFitView={() => fitView({ duration: 300 })}
+                onUndo={handleUndo}
+                onRedo={handleRedo}
+                isLocked={isLocked}
+                onToggleLock={() => setIsLocked((prev) => !prev)}
+                readOnly={readOnly}
+              />
+            </div>
             {!readOnly && hasSelection && (
               <SelectionToolbar
                 boundsRef={canvasWrapperRef}
@@ -802,17 +928,16 @@ function CanvasInner({
               />
             )}
           </div>
-          {!readOnly && <LayerPanel nodes={nodes} onSelectNode={handleSelectNodeFromLayerPanel} />}
         </div>
       </ReadOnlyProvider>
     </ProblemNodesProvider>
   );
-}
+});
 
-export function ArchitectureCanvas(props: ArchitectureCanvasProps) {
+export const ArchitectureCanvas = forwardRef<ArchitectureCanvasHandle, ArchitectureCanvasProps>(function ArchitectureCanvas(props, ref) {
   return (
     <ReactFlowProvider>
-      <CanvasInner {...props} />
+      <CanvasInner {...props} ref={ref} />
     </ReactFlowProvider>
   );
-}
+});

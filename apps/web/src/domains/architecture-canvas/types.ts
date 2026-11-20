@@ -27,6 +27,26 @@ export interface FlowNodeData extends Record<string, unknown> {
 export type FlowNode = Node<FlowNodeData, ComponentType>;
 export type FlowEdge = Edge;
 
+/** 캔버스에서 노드 하나만 선택됐을 때, 우측 패널이 "요소 상세" 보기로 바뀌면서 보여줄 정보. */
+export interface SelectedElementConnection {
+  nodeId: string;
+  label: string;
+  /** 연결선에 붙은 라벨(예: "복제")이 있으면 그대로, 없으면 비워둔다. */
+  edgeLabel?: string;
+}
+
+export interface SelectedElementInfo {
+  id: string;
+  type: ComponentType;
+  label: string;
+  /** 조상 컨테이너들의 이름을 바깥→안쪽 순서로 나열한 것 (예: ["VPC", "Private Subnet", "Multi-AZ"]). */
+  breadcrumb: string[];
+  /** 이 요소로 들어오는 연결(이 요소가 target인 엣지들). */
+  inputs: SelectedElementConnection[];
+  /** 이 요소에서 나가는 연결(이 요소가 source인 엣지들). */
+  outputs: SelectedElementConnection[];
+}
+
 /** 저장된 그래프(shared-types)를 React Flow가 다룰 수 있는 노드/엣지 배열로 변환한다. */
 export function graphToFlow(graph: ArchitectureGraph): { nodes: FlowNode[]; edges: FlowEdge[] } {
   const nodes: FlowNode[] = graph.nodes.map((node) => {

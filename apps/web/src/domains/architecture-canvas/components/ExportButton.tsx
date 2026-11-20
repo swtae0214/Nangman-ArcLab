@@ -2,7 +2,7 @@
 
 import { toCanvas } from "html-to-image";
 import { jsPDF } from "jspdf";
-import { useState, type RefObject } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 
 interface ExportButtonProps {
   targetRef: RefObject<HTMLDivElement | null>;
@@ -48,6 +48,18 @@ function patchEdgeStrokeStyles(container: HTMLElement): () => void {
 /** 7단계: 지금 보이는 캔버스 화면을 그대로 PNG/PDF로 내려받는다 (전체 팬 가능 영역이 아니라 현재 보이는 부분). */
 export function ExportButton({ targetRef, fileName }: ExportButtonProps) {
   const [isExporting, setIsExporting] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const menuContainerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!isMenuOpen) return;
+    const handlePointerDown = (event: PointerEvent) => {
+      if (menuContainerRef.current?.contains(event.target as Node)) return;
+      setIsMenuOpen(false);
+    };
+    window.addEventListener("pointerdown", handlePointerDown);
+    return () => window.removeEventListener("pointerdown", handlePointerDown);
+  }, [isMenuOpen]);
 
   const captureDataUrl = async (): Promise<string | null> => {
     const container = targetRef.current;
@@ -152,23 +164,44 @@ export function ExportButton({ targetRef, fileName }: ExportButtonProps) {
   };
 
   return (
-    <div className="flex items-center gap-1.5">
+    <div ref={menuContainerRef} className="relative">
       <button
         type="button"
-        onClick={() => void handleExportPng()}
+        onClick={() => setIsMenuOpen((open) => !open)}
         disabled={isExporting}
-        className="rounded-md border border-gray-300 px-3 py-1.5 text-xs hover:bg-gray-50 disabled:opacity-40 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+        className="flex items-center gap-1 rounded-md border border-gray-300 px-3 py-1.5 text-xs hover:bg-gray-50 disabled:opacity-40 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
       >
-        {isExporting ? "내보내는 중..." : "PNG"}
+        <span>{isExporting ? "내보내는 중..." : "내보내기"}</span>
+        {!isExporting && (
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        )}
       </button>
-      <button
-        type="button"
-        onClick={() => void handleExportPdf()}
-        disabled={isExporting}
-        className="rounded-md border border-gray-300 px-3 py-1.5 text-xs hover:bg-gray-50 disabled:opacity-40 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
-      >
-        PDF
-      </button>
+      {isMenuOpen && (
+        <div className="absolute right-0 top-full z-40 mt-1 w-32 rounded-md border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-700 dark:bg-gray-800">
+          <button
+            type="button"
+            onClick={() => {
+              setIsMenuOpen(false);
+              void handleExportPng();
+            }}
+            className="block w-full px-3 py-1.5 text-left text-xs hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-700"
+          >
+            PNG로 저장
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setIsMenuOpen(false);
+              void handleExportPdf();
+            }}
+            className="block w-full px-3 py-1.5 text-left text-xs hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-700"
+          >
+            PDF로 저장
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -11,11 +11,14 @@ import { useResizableWidth } from "../hooks/useResizableWidth";
 import { useValidation } from "../hooks/useValidation";
 import { useRunSimulation } from "../hooks/useSimulation";
 import { computeTrafficPathEdgeIds } from "../traffic-path";
-import { ArchitectureCanvas } from "./ArchitectureCanvas";
+import type { SelectedElementInfo } from "../types";
+import { ArchitectureCanvas, type ArchitectureCanvasHandle } from "./ArchitectureCanvas";
 import { CapacityCalculator } from "./CapacityCalculator";
 import { EditableLabel } from "./EditableLabel";
 import { ExportButton } from "./ExportButton";
+import { MoreMenuButton } from "./MoreMenuButton";
 import { ResizeHandle } from "./ResizeHandle";
+import { SelectionDetailPanel } from "./SelectionDetailPanel";
 import { ShareButton } from "./ShareButton";
 import { SimulationPanel } from "./SimulationPanel";
 import { TutorialOverlay } from "./TutorialOverlay";
@@ -36,6 +39,15 @@ const SAVE_STATUS_LABEL: Record<string, string> = {
 };
 
 type SidePanelTab = "validation" | "capacity" | "simulation";
+
+function formatElapsed(timestamp: number): string {
+  const diffSec = Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
+  if (diffSec < 60) return "방금 전";
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin}분 전`;
+  const diffHour = Math.floor(diffMin / 60);
+  return `${diffHour}시간 전`;
+}
 
 export function ArchitectureEditor({ id }: { id: string }) {
   const router = useRouter();
@@ -60,7 +72,21 @@ export function ArchitectureEditor({ id }: { id: string }) {
     edge: "left",
   });
   const exportContainerRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<ArchitectureCanvasHandle>(null);
+  const [selectedElementInfo, setSelectedElementInfo] = useState<SelectedElementInfo | null>(null);
   const { theme, toggleTheme } = useEditorTheme();
+
+  const handleFocusNodes = useCallback((nodeIds: string[]) => {
+    canvasRef.current?.selectNodes(nodeIds);
+  }, []);
+
+  const handleCloseSelection = useCallback(() => {
+    canvasRef.current?.selectNodes([]);
+  }, []);
+
+  const handleGoToExperiment = useCallback(() => {
+    setActiveTab("simulation");
+  }, []);
 
   /**
    * 11단계(온보딩 튜토리얼): 대시보드의 "튜토리얼" 링크가 새 연습용 아키텍처를 만들고
@@ -107,6 +133,12 @@ export function ArchitectureEditor({ id }: { id: string }) {
   }, [isLoadingUser, currentUser, router]);
 
   const themeClassName = theme === "dark" ? "dark" : "";
+  const headerStatusText = [
+    SAVE_STATUS_LABEL[saveStatus],
+    validation.submittedAt > 0 ? `${formatElapsed(validation.submittedAt)} 검증` : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   const tabBar = (
     <div className="flex flex-1 items-center text-xs">
@@ -150,15 +182,34 @@ export function ArchitectureEditor({ id }: { id: string }) {
     <div className="min-h-0 flex-1">
       {activeTab === "validation" &&
         (validation.data ? (
-          <ValidationResultList report={validation.data} />
+          <ValidationResultList
+            report={validation.data}
+            checkedAt={validation.submittedAt}
+            onFocusNodes={handleFocusNodes}
+            onGoToExperiment={handleGoToExperiment}
+          />
         ) : (
           <p className="p-3 text-xs text-gray-400 dark:text-gray-500">
-            {validation.isPending ? "검증 중..." : '상단의 "검증하기"를 눌러 정적 검증을 실행하세요.'}
+            {validation.isPending ? "검증 중..." : '상단의 "검증 실행"을 눌러 정적 검증을 실행하세요.'}
           </p>
         ))}
       {activeTab === "capacity" && <CapacityCalculator />}
       {activeTab === "simulation" && <SimulationPanel architectureId={id} />}
     </div>
+  );
+
+  // 요소를 하나 선택하면(엣지 선택 없이) 우측 패널 전체가 그 요소의 상세 보기로 바뀐다 — 선택을
+  // 풀면(SelectionDetailPanel의 × 버튼) 다시 평소의 탭(정적 검증/용량 계산기/시뮬레이션)으로 돌아온다.
+  const rightPanelBody = selectedElementInfo ? (
+    <SelectionDetailPanel
+      elementInfo={selectedElementInfo}
+      report={validation.data}
+      onFocusNodes={handleFocusNodes}
+      onClose={handleCloseSelection}
+      onGoToExperiment={handleGoToExperiment}
+    />
+  ) : (
+    tabContent
   );
 
   if (isLoadingUser || !currentUser || query.isLoading) {
@@ -204,48 +255,33 @@ export function ArchitectureEditor({ id }: { id: string }) {
           >
             ← 목록
           </Link>
-          <h1>
-            <EditableLabel
-              value={query.data.name}
-              onChange={handleRename}
-              className="text-sm font-semibold dark:text-gray-100"
-              inputClassName="text-sm font-semibold dark:bg-gray-800 dark:text-gray-100"
-            />
-          </h1>
+          <div>
+            <h1 className="flex items-center gap-2">
+              <EditableLabel
+                value={query.data.name}
+                onChange={handleRename}
+                className="text-sm font-semibold dark:text-gray-100"
+                inputClassName="text-sm font-semibold dark:bg-gray-800 dark:text-gray-100"
+              />
+              {validation.data && (
+                <span
+                  className={`rounded px-1.5 py-0.5 text-[11px] font-medium ${
+                    validation.data.passed
+                      ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+                      : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
+                  }`}
+                >
+                  {validation.data.passed ? "✓ 검증 통과" : "⚠ 검증 실패"}
+                </span>
+              )}
+            </h1>
+            {headerStatusText && <p className="text-xs text-gray-400 dark:text-gray-500">{headerStatusText}</p>}
+          </div>
         </div>
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-gray-400 dark:text-gray-500">{SAVE_STATUS_LABEL[saveStatus]}</span>
-          <button
-            type="button"
-            onClick={saveNow}
-            disabled={!hasUnsavedChanges}
-            title="지금 바로 저장해요 (평소엔 마지막 변경 후 2초 뒤 자동으로 저장돼요)"
-            className="rounded-md border border-gray-300 px-3 py-1.5 text-xs hover:bg-gray-50 disabled:opacity-40 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
-          >
-            💾 저장
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowTrafficFlow((prev) => !prev)}
-            title="사용자 요청이 로드밸런서·서버를 거쳐 DB까지 이동하는 구간을 강조해서 보여줘요"
-            className={`rounded-md border px-3 py-1.5 text-xs ${
-              showTrafficFlow
-                ? "border-green-600 bg-green-600 text-white hover:bg-green-700"
-                : "border-gray-300 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
-            }`}
-          >
-            🚦 트래픽 흐름 보기
-          </button>
-          <button
-            type="button"
-            onClick={toggleTheme}
-            title={theme === "dark" ? "라이트 모드로 전환" : "다크 모드로 전환"}
-            className="rounded-md border border-gray-300 px-3 py-1.5 text-xs hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
-          >
-            {theme === "dark" ? "☀️ 라이트 모드" : "🌙 다크 모드"}
-          </button>
-          <ExportButton targetRef={exportContainerRef} fileName={query.data.name} />
+        <div className="flex items-center gap-2">
           <ShareButton architectureId={id} isPublic={query.data.isPublic} shareToken={query.data.shareToken} />
+          <ExportButton targetRef={exportContainerRef} fileName={query.data.name} />
+          <MoreMenuButton onSave={saveNow} canSave={hasUnsavedChanges} isSaving={saveStatus === "saving"} theme={theme} onToggleTheme={toggleTheme} />
           <button
             type="button"
             onClick={() => {
@@ -255,21 +291,25 @@ export function ArchitectureEditor({ id }: { id: string }) {
             disabled={validation.isPending}
             // 튜토리얼 오버레이가 이 버튼을 하이라이트할 때 찾는 식별자.
             data-tutorial-id="validate-button"
-            className="rounded-md bg-black px-3 py-1.5 text-xs text-white disabled:opacity-40 dark:bg-gray-100 dark:text-gray-900"
+            className="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-40"
           >
-            {validation.isPending ? "검증 중..." : "검증하기"}
+            ▶ {validation.isPending ? "검증 중..." : "검증 실행"}
           </button>
         </div>
       </header>
       <div className="flex min-h-0 flex-1">
         <div className="min-w-0 flex-1">
           <ArchitectureCanvas
+            ref={canvasRef}
             initialGraph={query.data.graph}
             onGraphChange={handleGraphChangeWithTutorial}
             problemNodeIds={problemNodeIds}
             exportContainerRef={exportContainerRef}
             colorMode={theme}
             highlightedEdgeIds={trafficPathEdgeIds}
+            showTrafficFlow={showTrafficFlow}
+            onToggleTrafficFlow={() => setShowTrafficFlow((prev) => !prev)}
+            onSelectedElementChange={setSelectedElementInfo}
           />
         </div>
         {rightPanelMode === "collapsed" ? (
@@ -296,7 +336,7 @@ export function ArchitectureEditor({ id }: { id: string }) {
                     📌
                   </button>
                 </div>
-                {tabContent}
+                {rightPanelBody}
               </div>
             </div>
           </div>
@@ -319,7 +359,7 @@ export function ArchitectureEditor({ id }: { id: string }) {
                 ›
               </button>
             </div>
-            {tabContent}
+            {rightPanelBody}
           </aside>
         )}
       </div>
