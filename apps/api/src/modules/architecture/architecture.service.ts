@@ -87,6 +87,32 @@ export class ArchitectureService {
     return { id };
   }
 
+  /**
+   * 대시보드 카드의 "복제" — 그래프는 그대로 복사하고, 이름만 "(원본 이름) 사본"으로 새로 짓는다.
+   * 공유 설정(isPublic/shareToken)은 원본과 별개로 취급해 복제본은 항상 비공개로 시작한다.
+   */
+  async duplicate(id: string, userId: string): Promise<ArchitectureDetail> {
+    const row = await this.findOrThrow(id);
+    this.assertOwner(row, userId);
+
+    const name = await this.generateDuplicateName(userId, row.name);
+    const created = await this.prisma.architecture.create({
+      data: { userId, name, graphJson: row.graphJson as Prisma.InputJsonValue },
+    });
+    return this.toDetail(created);
+  }
+
+  /** "이름 사본", 그 이름도 이미 있으면 "이름 사본 2", "이름 사본 3" 순으로 비어있는 이름을 찾는다. */
+  private async generateDuplicateName(userId: string, baseName: string): Promise<string> {
+    let candidate = `${baseName} 사본`;
+    let suffix = 2;
+    while (await this.prisma.architecture.findFirst({ where: { userId, name: candidate } })) {
+      candidate = `${baseName} 사본 ${suffix}`;
+      suffix += 1;
+    }
+    return candidate;
+  }
+
   /** 공유 링크를 새로 발급(또는 재발급)하고 공개로 전환한다. 본인 소유만 가능. */
   async share(id: string, userId: string): Promise<ShareArchitectureResponse> {
     const row = await this.findOrThrow(id);

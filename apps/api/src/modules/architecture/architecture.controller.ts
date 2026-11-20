@@ -40,6 +40,11 @@ export class ArchitectureController {
     return this.architectureService.remove(id, userId);
   }
 
+  @Post(':id/duplicate')
+  duplicate(@CurrentUserId() userId: string, @Param('id') id: string): Promise<ArchitectureDetail> {
+    return this.architectureService.duplicate(id, userId);
+  }
+
   @Post(':id/share')
   share(@CurrentUserId() userId: string, @Param('id') id: string): Promise<ShareArchitectureResponse> {
     return this.architectureService.share(id, userId);

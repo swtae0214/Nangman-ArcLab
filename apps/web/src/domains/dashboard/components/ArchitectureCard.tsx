@@ -1,8 +1,16 @@
+"use client";
+
 import Link from "next/link";
+import { useState } from "react";
 import type { ArchitectureDashboardSummary } from "@nangman/shared-types";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { shareArchitecture } from "@/lib/api";
 import { formatRelativeTimeKo } from "@/lib/format-relative-time";
+import { useDuplicateArchitecture, useRenameArchitecture } from "@/lib/use-architectures";
 import { SEVERITY_BADGE_BG_STYLE, SEVERITY_TEXT_CLASS } from "@/lib/severity-colors";
+import { ArchitectureCardMenu } from "./ArchitectureCardMenu";
 import { ArchitecturePreview } from "./ArchitecturePreview";
+import { RenameArchitectureDialog } from "./RenameArchitectureDialog";
 
 interface ArchitectureCardProps {
   architecture: ArchitectureDashboardSummary;
@@ -13,19 +21,49 @@ interface ArchitectureCardProps {
 export function ArchitectureCard({ architecture, onDeleteRequest }: ArchitectureCardProps) {
   const { validation, latestSimulation } = architecture;
   const hasViolation = validation.failedCount > 0;
+  const [isRenaming, setIsRenaming] = useState(false);
+
+  const queryClient = useQueryClient();
+  const renameArchitecture = useRenameArchitecture();
+  const duplicateArchitecture = useDuplicateArchitecture();
+  const copyShareLink = useMutation({
+    mutationFn: () => shareArchitecture(architecture.id),
+    onSuccess: (result) => {
+      void navigator.clipboard.writeText(result.shareUrl);
+      void queryClient.invalidateQueries({ queryKey: ["architectures"] });
+    },
+  });
+
+  const handleCopyShareLink = () => {
+    // 이미 공유 중이면 share()를 다시 안 불러도 된다 — 다시 부르면 토큰이 새로 발급돼서
+    // 기존에 공유해둔 링크가 끊긴다.
+    if (architecture.isPublic && architecture.shareToken) {
+      void navigator.clipboard.writeText(`${window.location.origin}/shared/${architecture.shareToken}`);
+      return;
+    }
+    copyShareLink.mutate();
+  };
 
   return (
-    <div className="group overflow-hidden rounded-lg border border-console-accent/20 bg-console-panel">
+    <div className="group rounded-lg border border-console-accent/20 bg-console-panel">
       <Link href={`/architectures/${architecture.id}`}>
-        <div className="h-[120px] border-b border-console-accent/15 bg-black/20 p-2">
+        <div className="h-[120px] overflow-hidden rounded-t-lg border-b border-console-accent/15 bg-black/20 p-2">
           <ArchitecturePreview graph={architecture.graph} />
         </div>
         <div className="px-[18px] py-4">
           <div className="mb-1.5 flex items-baseline justify-between gap-2">
             <span className="truncate text-[15px] font-bold text-white">{architecture.name}</span>
-            <span className="flex-shrink-0 font-jetbrains text-[13px] font-bold text-console-accent">
-              {latestSimulation ? `${latestSimulation.estimatedAvailabilityPercent.toFixed(1)}%` : "—"}
-            </span>
+            <div className="flex flex-shrink-0 items-center gap-1.5">
+              <span className="font-jetbrains text-[13px] font-bold text-console-accent">
+                {latestSimulation ? `${latestSimulation.estimatedAvailabilityPercent.toFixed(1)}%` : "—"}
+              </span>
+              <ArchitectureCardMenu
+                onRename={() => setIsRenaming(true)}
+                onDuplicate={() => duplicateArchitecture.mutate(architecture.id)}
+                onCopyShareLink={handleCopyShareLink}
+                onDeleteRequest={() => onDeleteRequest(architecture)}
+              />
+            </div>
           </div>
           <div className="mb-3 font-jetbrains text-[11.5px] text-console-muted">
             노드 {architecture.nodeCount} · {formatRelativeTimeKo(architecture.updatedAt)} 저장
@@ -47,13 +85,18 @@ export function ArchitectureCard({ architecture, onDeleteRequest }: Architecture
           )}
         </div>
       </Link>
-      <button
-        type="button"
-        onClick={() => onDeleteRequest(architecture)}
-        className="w-full border-t border-console-accent/10 px-[18px] py-2 text-left text-[11.5px] text-console-muted opacity-0 transition-opacity hover:text-console-critical group-hover:opacity-100"
-      >
-        삭제
-      </button>
+
+      {isRenaming && (
+        <RenameArchitectureDialog
+          currentName={architecture.name}
+          isRenaming={renameArchitecture.isPending}
+          errorMessage={renameArchitecture.error?.message ?? null}
+          onCancel={() => setIsRenaming(false)}
+          onConfirm={(name) =>
+            renameArchitecture.mutate({ id: architecture.id, name }, { onSuccess: () => setIsRenaming(false) })
+          }
+        />
+      )}
     </div>
   );
 }

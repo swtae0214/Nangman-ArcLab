@@ -53,6 +53,10 @@ export function deleteArchitecture(id: string): Promise<{ id: string }> {
   return request<{ id: string }>(`/architectures/${id}`, { method: "DELETE" });
 }
 
+export function duplicateArchitecture(id: string): Promise<ArchitectureDetail> {
+  return request<ArchitectureDetail>(`/architectures/${id}/duplicate`, { method: "POST" });
+}
+
 export function getArchitecture(id: string): Promise<ArchitectureDetail> {
   return request<ArchitectureDetail>(`/architectures/${id}`);
 }
