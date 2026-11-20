@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ArchitectureDashboardSummary } from "@nangman/shared-types";
 import { formatRelativeTimeKo } from "@/lib/format-relative-time";
 import { SEVERITY_BADGE_BG_STYLE, SEVERITY_TEXT_CLASS } from "@/lib/severity-colors";
+import { ArchitecturePreview } from "./ArchitecturePreview";
 
 interface ArchitectureCardProps {
   architecture: ArchitectureDashboardSummary;
@@ -9,10 +10,6 @@ interface ArchitectureCardProps {
   onDeleteRequest: (architecture: ArchitectureDashboardSummary) => void;
 }
 
-/**
- * 카드 썸네일은 실제 캔버스 스냅샷이 아직 없어서(design_handoff_home_dashboard/README.md의
- * Assets 섹션: "실제 캔버스 스냅샷 이미지로 교체 필요") 디자인과 같은 빗금 placeholder를 쓴다.
- */
 export function ArchitectureCard({ architecture, onDeleteRequest }: ArchitectureCardProps) {
   const { validation, latestSimulation } = architecture;
   const hasViolation = validation.failedCount > 0;
@@ -20,14 +17,8 @@ export function ArchitectureCard({ architecture, onDeleteRequest }: Architecture
   return (
     <div className="group overflow-hidden rounded-lg border border-console-accent/20 bg-console-panel">
       <Link href={`/architectures/${architecture.id}`}>
-        <div
-          className="flex h-[120px] items-center justify-center border-b border-console-accent/15 font-jetbrains text-[11px] font-semibold text-console-accent"
-          style={{
-            backgroundImage:
-              "repeating-linear-gradient(45deg, rgba(90,255,158,.07) 0 8px, transparent 8px 16px)",
-          }}
-        >
-          캔버스 미리보기
+        <div className="h-[120px] border-b border-console-accent/15 bg-black/20 p-2">
+          <ArchitecturePreview graph={architecture.graph} />
         </div>
         <div className="px-[18px] py-4">
           <div className="mb-1.5 flex items-baseline justify-between gap-2">

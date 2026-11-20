@@ -193,6 +193,8 @@ export interface ArchitectureDashboardSummary extends ArchitectureSummary {
   nodeCount: number;
   validation: ArchitectureValidationSummary;
   latestSimulation: ArchitectureLatestSimulationSummary | null;
+  /** 대시보드 카드의 캔버스 미리보기를 그리는 데 쓴다 — 그래프 자체가 작아서 목록 응답에 통째로 실어도 된다. */
+  graph: ArchitectureGraph;
 }
 
 export interface CreateArchitectureRequest {

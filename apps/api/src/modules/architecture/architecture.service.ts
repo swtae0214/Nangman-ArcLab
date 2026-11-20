@@ -188,6 +188,7 @@ export class ArchitectureService {
       nodeCount: graph.nodes.length,
       validation: summarizeValidation(validationReport),
       latestSimulation: latestRun ? summarizeLatestSimulationRun(latestRun) : null,
+      graph,
     };
   }
 }
