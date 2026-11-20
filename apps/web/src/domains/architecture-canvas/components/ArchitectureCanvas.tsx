@@ -346,7 +346,16 @@ const CanvasInner = forwardRef<ArchitectureCanvasHandle, ArchitectureCanvasProps
       if (isEditableTarget) return; // 이름표 편집 중엔 입력창 자체의 되돌리기 등 기본 동작을 건드리지 않는다
 
       const isMod = event.ctrlKey || event.metaKey;
-      if (!isMod) return;
+      // 피그마처럼 V(선택 도구)/H(이동 도구)는 보조키 없이 눌렀을 때만 동작한다.
+      if (!isMod) {
+        const key = event.key.toLowerCase();
+        if (key === "v") {
+          setInteractionMode("select");
+        } else if (key === "h") {
+          setInteractionMode("pan");
+        }
+        return;
+      }
 
       const key = event.key.toLowerCase();
       if (key === "z" && event.shiftKey) {
@@ -368,7 +377,7 @@ const CanvasInner = forwardRef<ArchitectureCanvasHandle, ArchitectureCanvasProps
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [readOnly, handleUndo, handleRedo, handleCopy, handlePaste]);
+  }, [readOnly, handleUndo, handleRedo, handleCopy, handlePaste, setInteractionMode]);
 
   /**
    * 9단계: 논리적 그룹(Target Group, Auto Scaling Group)의 위치/크기는 사용자가 정하지 않고,
@@ -649,6 +658,30 @@ const CanvasInner = forwardRef<ArchitectureCanvasHandle, ArchitectureCanvasProps
     [exportContainerRef],
   );
 
+  /**
+   * 툴바의 "텍스트 박스" 도구 — 피그마의 Text 도구처럼, 팔레트까지 안 가도 바로 하나 떨어뜨린다.
+   * 지금 보이는 화면 한가운데(뷰포트 중앙)에 놓고, 바로 이름을 고칠 수 있도록 선택 도구로 바꾸고 선택해둔다.
+   */
+  const handleAddTextBoxTool = useCallback(() => {
+    const container = canvasWrapperRef.current;
+    if (!container) return;
+    const rect = container.getBoundingClientRect();
+    const meta = COMPONENT_META.TEXT_BOX;
+    const size = meta.defaultSize ?? { width: DEFAULT_LEAF_WIDTH, height: DEFAULT_LEAF_HEIGHT };
+    const center = screenToFlowPosition({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
+    const newNode: FlowNode = {
+      id: generateId(),
+      type: "TEXT_BOX",
+      position: { x: center.x - size.width / 2, y: center.y - size.height / 2 },
+      data: { label: meta.label },
+      selected: true,
+      ...size,
+    };
+    setNodes((current) => [...current.map((node) => ({ ...node, selected: false })), newNode]);
+    setEdges((current) => current.map((edge) => ({ ...edge, selected: false })));
+    setInteractionMode("select");
+  }, [screenToFlowPosition, setNodes, setEdges]);
+
   const onNodeDragStart = useCallback(
     (_event: MouseEvent | TouchEvent, node: FlowNode) => {
       // 12단계: 컨테이너(물리적 그룹)를 옮기기 시작하면, 지금 들어 있던 자손(자식, 손자, …)을
@@ -879,9 +912,9 @@ const CanvasInner = forwardRef<ArchitectureCanvasHandle, ArchitectureCanvasProps
               onNodeDrag={readOnly ? undefined : onNodeDrag}
               onNodeDragStop={readOnly ? undefined : onNodeDragStop}
               deleteKeyCode={readOnly ? null : ["Backspace", "Delete"]}
-              nodesDraggable={!readOnly && !isLocked}
-              nodesConnectable={!readOnly && !isLocked}
-              elementsSelectable={!readOnly}
+              nodesDraggable={!readOnly && !isLocked && interactionMode !== "pan"}
+              nodesConnectable={!readOnly && !isLocked && interactionMode !== "pan"}
+              elementsSelectable={!readOnly && interactionMode !== "pan"}
               defaultEdgeOptions={{ type: "labeledStep", markerEnd: { type: MarkerType.ArrowClosed } }}
               panOnDrag={readOnly || interactionMode === "pan"}
               selectionOnDrag={!readOnly && interactionMode === "select"}
@@ -903,6 +936,7 @@ const CanvasInner = forwardRef<ArchitectureCanvasHandle, ArchitectureCanvasProps
                 onRedo={handleRedo}
                 isLocked={isLocked}
                 onToggleLock={() => setIsLocked((prev) => !prev)}
+                onAddTextBox={handleAddTextBoxTool}
                 readOnly={readOnly}
               />
             </div>

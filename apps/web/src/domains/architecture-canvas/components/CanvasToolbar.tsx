@@ -13,6 +13,8 @@ interface CanvasToolbarProps {
   onRedo: () => void;
   isLocked: boolean;
   onToggleLock: () => void;
+  /** 피그마의 Text 도구처럼, 누르면 화면 가운데에 텍스트 박스를 바로 하나 놓는다. */
+  onAddTextBox: () => void;
   /** 공유 링크로 보는 읽기 전용 화면에서는 확대/축소·화면 맞춤만 남기고 편집 관련 버튼은 숨긴다. */
   readOnly?: boolean;
 }
@@ -90,6 +92,16 @@ function RedoIcon() {
   );
 }
 
+function TextBoxToolIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+      <text x="12" y="18.5" textAnchor="middle" fontFamily="Georgia, 'Times New Roman', serif" fontSize="20" fontWeight="600">
+        T
+      </text>
+    </svg>
+  );
+}
+
 function LockIcon({ locked }: { locked: boolean }) {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -115,6 +127,7 @@ export function CanvasToolbar({
   onRedo,
   isLocked,
   onToggleLock,
+  onAddTextBox,
   readOnly = false,
 }: CanvasToolbarProps) {
   return (
@@ -123,7 +136,7 @@ export function CanvasToolbar({
         <>
           <button
             type="button"
-            title="선택 도구"
+            title="이동 (V)"
             aria-pressed={mode === "select"}
             onClick={() => onModeChange("select")}
             className={mode === "select" ? ACTIVE_BUTTON_CLASS : BUTTON_CLASS}
@@ -132,12 +145,15 @@ export function CanvasToolbar({
           </button>
           <button
             type="button"
-            title="이동(손) 도구"
+            title="손 도구 (H)"
             aria-pressed={mode === "pan"}
             onClick={() => onModeChange("pan")}
             className={mode === "pan" ? ACTIVE_BUTTON_CLASS : BUTTON_CLASS}
           >
             <HandIcon />
+          </button>
+          <button type="button" title="텍스트 박스 추가" onClick={onAddTextBox} className={BUTTON_CLASS}>
+            <TextBoxToolIcon />
           </button>
           <div className={DIVIDER_CLASS} />
         </>
