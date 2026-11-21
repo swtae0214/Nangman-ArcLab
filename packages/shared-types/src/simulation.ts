@@ -88,6 +88,8 @@ export interface SimulationRunResult {
   duringFailure: SimulationPhaseResult | null;
   /** 관찰 기간 대비, 장애 구간 동안의 처리량 저하까지 반영한 가용성 추정치(%). */
   estimatedAvailabilityPercent: number;
+  /** F2: 이 실행 당시 그래프 스냅샷을 기준으로 어림잡은 월 예상 비용(USD). 가격 미지원 노드는 제외한 합계. */
+  estimatedMonthlyCostUsd: number;
   /** 프리셋 미지정 등으로 기본값/가정을 사용했을 때 알려주는 문구. */
   warnings: string[];
   /** 실패한 검증 규칙을 바탕으로 만든 개선 제안 (6단계). */
@@ -101,4 +103,6 @@ export interface SimulationRunSummary {
   expectedRps: number;
   estimatedAvailabilityPercent: number;
   validationPassed: boolean;
+  /** F2: 이 실행 당시 그래프 스냅샷을 기준으로 어림잡은 월 예상 비용(USD). 가격 미지원 노드는 제외한 합계. */
+  estimatedMonthlyCostUsd: number;
 }

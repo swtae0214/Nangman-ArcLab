@@ -1,11 +1,19 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import type { SimulationRunSummary } from "@nangman/shared-types";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { useFailureScenarios, useRunSimulation } from "../hooks/useSimulation";
+import { useFailureScenarios, useRunSimulation, useSimulationRuns } from "../hooks/useSimulation";
 
 const SECONDS_PER_DAY = 86_400;
+const MAX_COMPARE_SELECTION = 2;
+
+function formatRunTimestamp(iso: string): string {
+  const date = new Date(iso);
+  return date.toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
+}
 
 const formSchema = z.object({
   targetAvailability: z.number().min(0).max(100),
@@ -27,6 +35,19 @@ function formatLatency(ms: number | null): string {
 export function SimulationPanel({ architectureId }: { architectureId: string }) {
   const failureScenariosQuery = useFailureScenarios();
   const runSimulation = useRunSimulation(architectureId);
+  const runsQuery = useSimulationRuns(architectureId);
+  const [selectedRunIds, setSelectedRunIds] = useState<string[]>([]);
+  const toggleRunSelection = (runId: string) => {
+    setSelectedRunIds((prev) => {
+      if (prev.includes(runId)) return prev.filter((id) => id !== runId);
+      // F2: 3개 이상 고르면 비교 표가 복잡해져서, 가장 먼저 고른 것부터 밀어내고 항상 최대 2개만 유지한다.
+      const next = [...prev, runId];
+      return next.length > MAX_COMPARE_SELECTION ? next.slice(next.length - MAX_COMPARE_SELECTION) : next;
+    });
+  };
+  const selectedRuns = selectedRunIds
+    .map((runId) => runsQuery.data?.find((run) => run.id === runId))
+    .filter((run): run is SimulationRunSummary => run !== undefined);
   const {
     register,
     handleSubmit,
@@ -170,8 +191,104 @@ export function SimulationPanel({ architectureId }: { architectureId: string }) 
               ))}
             </ul>
           )}
+
+          <p className="text-xs text-gray-600 dark:text-gray-300">월 예상 비용: ${result.estimatedMonthlyCostUsd.toFixed(2)}</p>
         </div>
       )}
+
+      <div className="mt-2 flex flex-col gap-2 border-t border-gray-200 pt-3 dark:border-gray-700">
+        <p className="text-xs font-semibold text-gray-700 dark:text-gray-200">실행 이력 (최대 2개 선택해서 비교)</p>
+        {runsQuery.data && runsQuery.data.length > 0 ? (
+          <ul className="flex flex-col gap-1">
+            {runsQuery.data.map((run) => (
+              <li key={run.id}>
+                <label className="flex cursor-pointer items-center gap-2 rounded border border-gray-200 px-2 py-1.5 text-xs dark:border-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={selectedRunIds.includes(run.id)}
+                    onChange={() => toggleRunSelection(run.id)}
+                    className="shrink-0"
+                  />
+                  <span className="w-24 shrink-0 text-gray-500 dark:text-gray-400">{formatRunTimestamp(run.createdAt)}</span>
+                  <span className={run.validationPassed ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}>
+                    {run.validationPassed ? "✓" : "⚠"}
+                  </span>
+                  <span className="text-gray-600 dark:text-gray-300">가용성 {run.estimatedAvailabilityPercent.toFixed(2)}%</span>
+                  <span className="ml-auto font-medium text-gray-700 dark:text-gray-200">월 ${run.estimatedMonthlyCostUsd.toFixed(2)}</span>
+                </label>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-[11px] text-gray-400 dark:text-gray-500">아직 실행한 시뮬레이션이 없어요.</p>
+        )}
+
+        {selectedRuns.length === MAX_COMPARE_SELECTION && (
+          <div className="overflow-x-auto rounded-md border border-gray-200 dark:border-gray-700">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-gray-200 dark:border-gray-700">
+                  <th className="p-2 text-left font-medium text-gray-500 dark:text-gray-400"> </th>
+                  {selectedRuns.map((run) => (
+                    <th key={run.id} className="p-2 text-left font-medium text-gray-700 dark:text-gray-200">
+                      {formatRunTimestamp(run.createdAt)}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="border-b border-gray-100 dark:border-gray-800">
+                  <td className="p-2 text-gray-500 dark:text-gray-400">목표 가용성</td>
+                  {selectedRuns.map((run) => (
+                    <td key={run.id} className="p-2 text-gray-700 dark:text-gray-200">
+                      {run.targetAvailability}%
+                    </td>
+                  ))}
+                </tr>
+                <tr className="border-b border-gray-100 dark:border-gray-800">
+                  <td className="p-2 text-gray-500 dark:text-gray-400">추정 가용성</td>
+                  {selectedRuns.map((run) => (
+                    <td key={run.id} className="p-2 text-gray-700 dark:text-gray-200">
+                      {run.estimatedAvailabilityPercent.toFixed(3)}%
+                    </td>
+                  ))}
+                </tr>
+                <tr className="border-b border-gray-100 dark:border-gray-800">
+                  <td className="p-2 text-gray-500 dark:text-gray-400">예상 RPS</td>
+                  {selectedRuns.map((run) => (
+                    <td key={run.id} className="p-2 text-gray-700 dark:text-gray-200">
+                      {run.expectedRps}
+                    </td>
+                  ))}
+                </tr>
+                <tr className="border-b border-gray-100 dark:border-gray-800">
+                  <td className="p-2 text-gray-500 dark:text-gray-400">정적 검증</td>
+                  {selectedRuns.map((run) => (
+                    <td
+                      key={run.id}
+                      className={run.validationPassed ? "p-2 text-emerald-600 dark:text-emerald-400" : "p-2 text-red-600 dark:text-red-400"}
+                    >
+                      {run.validationPassed ? "✓ 통과" : "⚠ 실패"}
+                    </td>
+                  ))}
+                </tr>
+                <tr>
+                  <td className="p-2 font-medium text-gray-700 dark:text-gray-200">월 예상 비용</td>
+                  {selectedRuns.map((run) => (
+                    <td key={run.id} className="p-2 font-medium text-gray-700 dark:text-gray-200">
+                      ${run.estimatedMonthlyCostUsd.toFixed(2)}
+                    </td>
+                  ))}
+                </tr>
+              </tbody>
+            </table>
+            <p className="border-t border-gray-200 p-2 text-[11px] text-gray-500 dark:border-gray-700 dark:text-gray-400">
+              비용 변화: {selectedRuns[1].estimatedMonthlyCostUsd - selectedRuns[0].estimatedMonthlyCostUsd >= 0 ? "+" : ""}
+              ${(selectedRuns[1].estimatedMonthlyCostUsd - selectedRuns[0].estimatedMonthlyCostUsd).toFixed(2)}
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
