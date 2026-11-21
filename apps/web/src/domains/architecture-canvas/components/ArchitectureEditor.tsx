@@ -10,10 +10,12 @@ import { useArchitectureEditor } from "../hooks/useArchitectureEditor";
 import { useResizableWidth } from "../hooks/useResizableWidth";
 import { useValidation } from "../hooks/useValidation";
 import { useRunSimulation } from "../hooks/useSimulation";
+import type { ArchitectureCostSummary } from "../node-cost";
 import { computeTrafficPathEdgeIds } from "../traffic-path";
 import type { SelectedElementInfo } from "../types";
 import { ArchitectureCanvas, type ArchitectureCanvasHandle } from "./ArchitectureCanvas";
 import { CapacityCalculator } from "./CapacityCalculator";
+import { CostPanel } from "./CostPanel";
 import { EditableLabel } from "./EditableLabel";
 import { ExportButton } from "./ExportButton";
 import { MoreMenuButton } from "./MoreMenuButton";
@@ -38,7 +40,7 @@ const SAVE_STATUS_LABEL: Record<string, string> = {
   error: "저장 실패",
 };
 
-type SidePanelTab = "validation" | "capacity" | "simulation";
+type SidePanelTab = "validation" | "capacity" | "cost" | "simulation";
 
 function formatElapsed(timestamp: number): string {
   const diffSec = Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
@@ -113,6 +115,10 @@ export function ArchitectureEditor({ id }: { id: string }) {
   const [showTrafficFlow, setShowTrafficFlow] = useState(false);
   // 13단계: 트래픽(RPS) 표시 — USER의 평균 RPS가 분배·호출선을 타고 전파된 값을 노드마다 보여준다.
   const [showTrafficRps, setShowTrafficRps] = useState(false);
+  // F1: 비용 보기 — 캔버스 위 라벨 표시 여부 토글. 헤더 배지·"예상 비용" 탭은 이 토글과 무관하게
+  // 항상 최신 집계를 보여주므로 별도의 costSummary 상태로 ArchitectureCanvas가 올려주는 값을 받는다.
+  const [showNodeCost, setShowNodeCost] = useState(false);
+  const [costSummary, setCostSummary] = useState<ArchitectureCostSummary | null>(null);
   const trafficPathEdgeIds = useMemo(
     () => (showTrafficFlow ? computeTrafficPathEdgeIds(liveGraph) : EMPTY_EDGE_IDS),
     [showTrafficFlow, liveGraph],
@@ -179,6 +185,17 @@ export function ArchitectureEditor({ id }: { id: string }) {
       </button>
       <button
         type="button"
+        onClick={() => setActiveTab("cost")}
+        className={`flex-1 px-2 py-2 font-medium ${
+          activeTab === "cost"
+            ? "border-b-2 border-black text-black dark:border-gray-100 dark:text-gray-100"
+            : "text-gray-400 dark:text-gray-500"
+        }`}
+      >
+        예상 비용
+      </button>
+      <button
+        type="button"
         onClick={() => setActiveTab("simulation")}
         className={`flex-1 px-2 py-2 font-medium ${
           activeTab === "simulation"
@@ -207,6 +224,7 @@ export function ArchitectureEditor({ id }: { id: string }) {
           </p>
         ))}
       {activeTab === "capacity" && <CapacityCalculator />}
+      {activeTab === "cost" && <CostPanel summary={costSummary} />}
       {activeTab === "simulation" && <SimulationPanel architectureId={id} />}
     </div>
   );
@@ -289,6 +307,19 @@ export function ArchitectureEditor({ id }: { id: string }) {
                   {validation.data.passed ? "✓ 검증 통과" : "⚠ 검증 실패"}
                 </span>
               )}
+              {costSummary && costSummary.lines.length > 0 && (
+                <span
+                  title={
+                    costSummary.unresolvedCount > 0
+                      ? `가격 미지원 ${costSummary.unresolvedCount}개는 합계에서 빠져 있어요`
+                      : undefined
+                  }
+                  className="rounded bg-gray-50 px-1.5 py-0.5 text-[11px] font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-300"
+                >
+                  월 ${costSummary.totalMonthlyCostUsd.toFixed(2)} 예상
+                  {costSummary.unresolvedCount > 0 && ` (미지원 ${costSummary.unresolvedCount})`}
+                </span>
+              )}
             </h1>
             {headerStatusText && <p className="text-xs text-gray-400 dark:text-gray-500">{headerStatusText}</p>}
           </div>
@@ -326,6 +357,9 @@ export function ArchitectureEditor({ id }: { id: string }) {
             onToggleTrafficFlow={() => setShowTrafficFlow((prev) => !prev)}
             showTrafficRps={showTrafficRps}
             onToggleTrafficRps={() => setShowTrafficRps((prev) => !prev)}
+            showNodeCost={showNodeCost}
+            onToggleNodeCost={() => setShowNodeCost((prev) => !prev)}
+            onCostSummaryChange={setCostSummary}
             onSelectedElementChange={setSelectedElementInfo}
           />
         </div>

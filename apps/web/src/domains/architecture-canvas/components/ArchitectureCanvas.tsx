@@ -46,6 +46,9 @@ import {
   resolveContainment,
   snapshotSubtreeParents,
 } from "../containment";
+import { useComponentPresets } from "../hooks/useCapacityCalculator";
+import { summarizeArchitectureCost, type ArchitectureCostSummary } from "../node-cost";
+import { NodeCostProvider } from "../node-cost-context";
 import { ProblemNodesProvider } from "../problem-nodes-context";
 import { ReadOnlyProvider } from "../read-only-context";
 import { computeNodeRps, inferEdgeKind } from "../traffic-rps";
@@ -80,6 +83,11 @@ interface ArchitectureCanvasProps {
   /** "트래픽(RPS) 표시" 토글 — USER 노드의 평균 RPS가 전파된 값을 각 노드 아래에 띄운다. */
   showTrafficRps?: boolean;
   onToggleTrafficRps?: () => void;
+  /** "비용 보기" 토글 — 프리셋에 가격 데이터가 있는 노드 아래에 월 예상 비용을 띄운다. */
+  showNodeCost?: boolean;
+  onToggleNodeCost?: () => void;
+  /** F1: 과금 대상 노드들의 월 비용 집계 — 헤더 배지·"예상 비용" 탭이 쓸 수 있도록 매번 올려보낸다. */
+  onCostSummaryChange?: (summary: ArchitectureCostSummary) => void;
   /** 노드 하나만 선택돼 있을 때(엣지 선택 없이) 우측 패널이 "요소 상세" 보기로 바뀔 수 있도록 올려보낸다. 그 외엔 null. */
   onSelectedElementChange?: (info: SelectedElementInfo | null) => void;
 }
@@ -164,6 +172,9 @@ const CanvasInner = forwardRef<ArchitectureCanvasHandle, ArchitectureCanvasProps
     onToggleTrafficFlow,
     showTrafficRps,
     onToggleTrafficRps,
+    showNodeCost,
+    onToggleNodeCost,
+    onCostSummaryChange,
     onSelectedElementChange,
   }: ArchitectureCanvasProps,
   ref,
@@ -177,6 +188,21 @@ const CanvasInner = forwardRef<ArchitectureCanvasHandle, ArchitectureCanvasProps
     if (!showTrafficRps) return EMPTY_RPS_BY_NODE_ID;
     return computeNodeRps(flowToGraph(nodes, edges)).rpsByNodeId;
   }, [showTrafficRps, nodes, edges]);
+
+  // F1: "비용 보기" 토글과는 무관하게 늘 계산해 둔다 — 헤더 배지·"예상 비용" 탭은 토글 상태와
+  // 상관없이 항상 최신 합계를 보여줘야 해서다(토글은 캔버스 위 라벨 표시 여부만 결정한다).
+  const presetsQuery = useComponentPresets();
+  const costSummary = useMemo(
+    () => summarizeArchitectureCost(nodes, presetsQuery.data ?? []),
+    [nodes, presetsQuery.data],
+  );
+  const lastReportedCostSignatureRef = useRef<string | null>(null);
+  useEffect(() => {
+    const signature = JSON.stringify(costSummary);
+    if (lastReportedCostSignatureRef.current === signature) return;
+    lastReportedCostSignatureRef.current = signature;
+    onCostSummaryChange?.(costSummary);
+  });
 
   // 12단계: 트래픽 흐름 강조는 저장되는 데이터가 아니라 화면 표시 전용이라, edges 상태 자체는 안
   // 건드리고 ReactFlow에 넘기기 직전에만 animated/색상을 덧씌운다.
@@ -921,6 +947,7 @@ const CanvasInner = forwardRef<ArchitectureCanvasHandle, ArchitectureCanvasProps
     <ProblemNodesProvider value={problemNodeIds ?? EMPTY_PROBLEM_NODE_IDS}>
       <ReadOnlyProvider value={readOnly}>
         <TrafficRpsProvider value={rpsByNodeId}>
+        <NodeCostProvider value={showNodeCost ?? false}>
         <div className="flex h-full w-full dark:bg-gray-900">
           {!readOnly && <LeftSidebar nodes={nodes} onSelectNode={handleSelectNodeFromLayerPanel} />}
           <div ref={setCanvasWrapperRef} className="relative h-full flex-1 dark:bg-gray-900">
@@ -940,6 +967,15 @@ const CanvasInner = forwardRef<ArchitectureCanvasHandle, ArchitectureCanvasProps
                 label="트래픽(RPS) 표시"
                 title="사용자(USER) 노드의 평균 RPS가 분배·호출선을 타고 각 요소까지 흘러간 값을 노드 아래에 보여줘요"
                 className="left-3 top-12"
+              />
+            )}
+            {!readOnly && onToggleNodeCost && (
+              <ToggleSwitch
+                checked={showNodeCost ?? false}
+                onToggle={onToggleNodeCost}
+                label="비용 보기"
+                title="프리셋에 가격 데이터가 있는 노드 아래에 월 예상 비용을 보여줘요"
+                className="left-3 top-[84px]"
               />
             )}
             <ReactFlow
@@ -1007,6 +1043,7 @@ const CanvasInner = forwardRef<ArchitectureCanvasHandle, ArchitectureCanvasProps
             )}
           </div>
         </div>
+        </NodeCostProvider>
         </TrafficRpsProvider>
       </ReadOnlyProvider>
     </ProblemNodesProvider>

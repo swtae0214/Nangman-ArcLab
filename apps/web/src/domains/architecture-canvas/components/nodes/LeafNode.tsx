@@ -2,6 +2,7 @@ import type { ComponentType } from "@nangman/shared-types";
 import { Handle, NodeResizer, Position, useReactFlow, type NodeProps } from "@xyflow/react";
 import { COMPONENT_META, LEAF_MIN_HEIGHT, LEAF_MIN_WIDTH } from "../../component-meta";
 import { useComponentPresets } from "../../hooks/useCapacityCalculator";
+import { useShowNodeCost } from "../../node-cost-context";
 import { useProblemNodeIds } from "../../problem-nodes-context";
 import { useIsReadOnly } from "../../read-only-context";
 import { useTrafficRpsByNodeId } from "../../traffic-rps-context";
@@ -26,6 +27,8 @@ export function LeafNode({ id, type, data, selected }: NodeProps<FlowNode>) {
   const isReadOnly = useIsReadOnly();
   const presetsQuery = useComponentPresets();
   const trafficRps = useTrafficRpsByNodeId().get(id);
+  const showNodeCost = useShowNodeCost();
+  const monthlyCostUsd = presetsQuery.data?.find((preset) => preset.code === data.presetCode)?.monthlyCostUsd;
 
   const handleLabelChange = (label: string) => {
     setNodes((nodes) => nodes.map((node) => (node.id === id ? { ...node, data: { ...node.data, label } } : node)));
@@ -96,9 +99,18 @@ export function LeafNode({ id, type, data, selected }: NodeProps<FlowNode>) {
           ))}
         <Handle type="source" position={Position.Bottom} />
       </div>
-      {trafficRps !== undefined && (
-        <div className="absolute left-1/2 top-full z-10 mt-1 -translate-x-1/2 rounded border border-gray-300 bg-white px-1.5 py-0.5 text-[10px] font-medium text-gray-600 shadow-sm dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300">
-          {Math.round(trafficRps)}
+      {(trafficRps !== undefined || (showNodeCost && monthlyCostUsd !== undefined)) && (
+        <div className="absolute left-1/2 top-full z-10 mt-1 flex -translate-x-1/2 flex-col items-center gap-0.5">
+          {trafficRps !== undefined && (
+            <div className="rounded border border-gray-300 bg-white px-1.5 py-0.5 text-[10px] font-medium text-gray-600 shadow-sm dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300">
+              {Math.round(trafficRps)}
+            </div>
+          )}
+          {showNodeCost && monthlyCostUsd !== undefined && (
+            <div className="whitespace-nowrap rounded border border-gray-300 bg-white px-1.5 py-0.5 text-[10px] font-medium text-gray-600 shadow-sm dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300">
+              월 ${monthlyCostUsd.toFixed(2)}
+            </div>
+          )}
         </div>
       )}
     </div>
