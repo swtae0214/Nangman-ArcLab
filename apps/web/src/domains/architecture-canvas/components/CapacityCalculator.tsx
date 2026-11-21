@@ -36,8 +36,8 @@ export function CapacityCalculator() {
   return (
     <div className="flex h-full flex-col gap-3 overflow-y-auto p-3 dark:bg-gray-900">
       <p className="text-xs text-gray-500 dark:text-gray-400">
-        컴포넌트 하나(웹서버/DB/캐시 등)의 예상 지연시간·처리량을 M/M/c 큐잉 모델로 미리 계산해봐요. 아직 아키텍처
-        전체를 도는 시뮬레이션은 아니에요 (5주차 예정).
+        컴포넌트 하나(웹서버/DB/캐시 등)의 예상 지연시간·처리량을 M/M/c 큐잉 모델로 미리 계산해봐요. 아키텍처
+        전체를 도는 시뮬레이션은 &ldquo;시뮬레이션&rdquo; 탭에서 할 수 있어요.
       </p>
 
       <form onSubmit={onSubmit} className="flex flex-col gap-2">
