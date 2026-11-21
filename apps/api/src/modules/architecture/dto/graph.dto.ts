@@ -1,6 +1,6 @@
 import { COMPONENT_TYPES, type ComponentType } from '@nangman/shared-types';
 import { Type } from 'class-transformer';
-import { IsArray, IsIn, IsNumber, IsOptional, IsString, MaxLength, ValidateNested } from 'class-validator';
+import { IsArray, IsBoolean, IsIn, IsNumber, IsOptional, IsString, MaxLength, ValidateNested } from 'class-validator';
 
 const TEXT_BOX_FONT_SIZES = ['sm', 'md', 'lg'] as const;
 const TRAFFIC_EDGE_KINDS = ['distribution', 'call', 'replication'] as const;
@@ -40,6 +40,25 @@ export class NodeDataDto {
   @IsOptional()
   @IsNumber()
   entryPeakMultiplier?: number;
+
+  // F4: USER(입구) 노드 전용 — CDN/LOAD_BALANCER 사용량 기반 비용 계산이 공통으로 쓰는 평균 응답 크기(KB).
+  @IsOptional()
+  @IsNumber()
+  entryAvgResponseSizeKb?: number;
+
+  // F4: CDN(CloudFront) 전용 — 캐시 적중률(%).
+  @IsOptional()
+  @IsNumber()
+  cdnCacheHitRatioPercent?: number;
+
+  // F4: LOAD_BALANCER(ALB) 전용 — 연결 재사용(keep-alive) 여부 / 연결당 평균 요청 수.
+  @IsOptional()
+  @IsBoolean()
+  albConnectionReuse?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  albRequestsPerConnection?: number;
 }
 
 export class GraphNodeDto {

@@ -153,7 +153,12 @@ export function computeNodeRps(graph: ArchitectureGraph, options?: { peak?: bool
 
     let computedFromUpstream = 0;
     for (const edge of incoming) {
-      const upstreamRps = rpsByNodeId.get(edge.source) ?? 0;
+      const sourceNode = nodesById.get(edge.source);
+      // F4: CDN은 캐시가 맞든 틀리든 뷰어에게 응답은 다 내려주지만(= CDN 자신의 rpsByNodeId 값은
+      // 그대로 둔다), origin(뒷단)으로는 캐시에 못 맞힌 비율만큼만 흘려보낸다 — 그래서 CDN에서
+      // 나가는 선을 탈 때만 이 비율을 곱하고, rpsByNodeId 자체는 건드리지 않는다.
+      const cdnPassThroughRatio = sourceNode?.type === "CDN" ? 1 - (sourceNode.data.cdnCacheHitRatioPercent ?? 0) / 100 : 1;
+      const upstreamRps = (rpsByNodeId.get(edge.source) ?? 0) * cdnPassThroughRatio;
       const kind = inferEdgeKind(edge, nodesById, edgesBySourceId);
       if (kind === "distribution") {
         const siblings = (edgesBySourceId.get(edge.source) ?? []).filter(

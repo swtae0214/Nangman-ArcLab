@@ -135,4 +135,18 @@ describe("computeNodeRps", () => {
     expect(result.cyclicEdgeIds.size).toBe(1);
     expect(result.rpsByNodeId.get("a")).toBe(10);
   });
+
+  it("F4: CDN은 자기 자신에 도착한 RPS는 그대로 두고, origin(뒷단)으로는 캐시 적중률만큼 줄여서 흘려보낸다", () => {
+    const graph: ArchitectureGraph = {
+      nodes: [
+        node("user", "USER", { entryAvgRps: 120 }),
+        node("cdn", "CDN", { cdnCacheHitRatioPercent: 80 }),
+        node("lb", "LOAD_BALANCER"),
+      ],
+      edges: [edge("e1", "user", "cdn"), edge("e2", "cdn", "lb")],
+    };
+    const { rpsByNodeId } = computeNodeRps(graph);
+    expect(rpsByNodeId.get("cdn")).toBe(120);
+    expect(rpsByNodeId.get("lb")).toBeCloseTo(24, 5);
+  });
 });

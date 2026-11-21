@@ -6,6 +6,8 @@ import { COMPONENT_META } from "../component-meta";
 import { COST_RELEVANT_TYPES } from "../node-cost";
 import type { SelectedElementConnection, SelectedElementInfo } from "../types";
 import { RULE_RELATED_COMPONENT_TYPES, SEVERITY_ICON, SEVERITY_PILL_STYLE } from "../validation-style";
+import { CdnInspectorSection } from "./CdnInspectorSection";
+import { LoadBalancerInspectorSection } from "./LoadBalancerInspectorSection";
 import { WhatIfRemovePanel } from "./WhatIfRemovePanel";
 
 interface SelectionDetailPanelProps {
@@ -17,8 +19,12 @@ interface SelectionDetailPanelProps {
   onFocusNodes: (nodeIds: string[]) => void;
   onClose: () => void;
   onGoToExperiment: () => void;
-  onUpdateEntryTraffic: (nodeId: string, patch: { entryAvgRps?: number; entryPeakMultiplier?: number }) => void;
+  onUpdateEntryTraffic: (nodeId: string, patch: { entryAvgRps?: number; entryPeakMultiplier?: number; entryAvgResponseSizeKb?: number }) => void;
   onUpdateEdgeTraffic: (edgeIds: string[], patch: { distributionWeight?: number; callsPerRequest?: number }) => void;
+  onUpdateUsageBasedCostSettings: (
+    nodeId: string,
+    patch: { cdnCacheHitRatioPercent?: number; albConnectionReuse?: boolean; albRequestsPerConnection?: number },
+  ) => void;
 }
 
 interface ConnectionGroup {
@@ -125,6 +131,7 @@ export function SelectionDetailPanel({
   onGoToExperiment,
   onUpdateEntryTraffic,
   onUpdateEdgeTraffic,
+  onUpdateUsageBasedCostSettings,
 }: SelectionDetailPanelProps) {
   const meta = COMPONENT_META[elementInfo.type];
   const Icon = meta.Icon;
@@ -222,8 +229,34 @@ export function SelectionDetailPanel({
                 배
               </span>
             </label>
+            <label className="flex items-center justify-between gap-2 text-xs text-gray-600 dark:text-gray-300">
+              평균 응답 크기
+              <span className="flex items-center gap-1" title="CDN·로드밸런서의 비용 계산이 공통으로 쓰는 가정이에요">
+                <input
+                  type="number"
+                  min={0}
+                  step="any"
+                  value={elementInfo.entryAvgResponseSizeKb ?? ""}
+                  onChange={(event) =>
+                    onUpdateEntryTraffic(elementInfo.id, {
+                      entryAvgResponseSizeKb: event.target.value === "" ? undefined : Number(event.target.value),
+                    })
+                  }
+                  className="w-20 rounded border border-gray-300 px-2 py-1 text-right text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+                />
+                KB
+              </span>
+            </label>
           </div>
         </div>
+      )}
+
+      {elementInfo.type === "CDN" && (
+        <CdnInspectorSection elementInfo={elementInfo} onUpdateUsageBasedCostSettings={onUpdateUsageBasedCostSettings} />
+      )}
+
+      {elementInfo.type === "LOAD_BALANCER" && (
+        <LoadBalancerInspectorSection elementInfo={elementInfo} onUpdateUsageBasedCostSettings={onUpdateUsageBasedCostSettings} />
       )}
 
       {(inputGroups.length > 0 || outputGroups.length > 0) && (

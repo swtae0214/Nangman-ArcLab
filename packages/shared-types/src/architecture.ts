@@ -142,6 +142,17 @@ export interface GraphNode {
     entryAvgRps?: number;
     /** USER(입구) 노드 전용 — "피크 때는 평상시의 몇 배인가" 배수. 기본값은 1(배수 없음). */
     entryPeakMultiplier?: number;
+    /**
+     * USER(입구) 노드 전용 — 평균 응답 크기(KB). CDN의 "월 전송량", LOAD_BALANCER의 LCU 처리
+     * 데이터 차원처럼, 전체 트래픽에 공통으로 적용되는 가정이라 입구 하나에만 저장해 재사용한다.
+     */
+    entryAvgResponseSizeKb?: number;
+    /** CDN(CloudFront) 전용 — 캐시 적중률(%). 이 비율만큼은 origin(뒷단)으로 전파되지 않는다. */
+    cdnCacheHitRatioPercent?: number;
+    /** LOAD_BALANCER(ALB) 전용 — 연결을 재사용(keep-alive)하는지. 기본값은 true로 간주한다. */
+    albConnectionReuse?: boolean;
+    /** LOAD_BALANCER(ALB) 전용 — albConnectionReuse가 true일 때, 연결 하나당 평균 요청 수. */
+    albRequestsPerConnection?: number;
   };
 }
 

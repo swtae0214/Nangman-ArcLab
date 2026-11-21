@@ -90,13 +90,23 @@ export function ArchitectureEditor({ id }: { id: string }) {
     setActiveTab("simulation");
   }, []);
 
-  const handleUpdateEntryTraffic = useCallback((nodeId: string, patch: { entryAvgRps?: number; entryPeakMultiplier?: number }) => {
-    canvasRef.current?.updateEntryTraffic(nodeId, patch);
-  }, []);
+  const handleUpdateEntryTraffic = useCallback(
+    (nodeId: string, patch: { entryAvgRps?: number; entryPeakMultiplier?: number; entryAvgResponseSizeKb?: number }) => {
+      canvasRef.current?.updateEntryTraffic(nodeId, patch);
+    },
+    [],
+  );
 
   const handleUpdateEdgeTraffic = useCallback(
     (edgeIds: string[], patch: { distributionWeight?: number; callsPerRequest?: number }) => {
       canvasRef.current?.updateEdgeTraffic(edgeIds, patch);
+    },
+    [],
+  );
+
+  const handleUpdateUsageBasedCostSettings = useCallback(
+    (nodeId: string, patch: { cdnCacheHitRatioPercent?: number; albConnectionReuse?: boolean; albRequestsPerConnection?: number }) => {
+      canvasRef.current?.updateUsageBasedCostSettings(nodeId, patch);
     },
     [],
   );
@@ -242,6 +252,7 @@ export function ArchitectureEditor({ id }: { id: string }) {
       onGoToExperiment={handleGoToExperiment}
       onUpdateEntryTraffic={handleUpdateEntryTraffic}
       onUpdateEdgeTraffic={handleUpdateEdgeTraffic}
+      onUpdateUsageBasedCostSettings={handleUpdateUsageBasedCostSettings}
     />
   ) : (
     tabContent

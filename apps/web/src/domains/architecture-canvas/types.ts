@@ -28,6 +28,14 @@ export interface FlowNodeData extends Record<string, unknown> {
   entryAvgRps?: number;
   /** 13단계: USER(입구) 노드 전용 — 피크 배수. */
   entryPeakMultiplier?: number;
+  /** F4: USER(입구) 노드 전용 — CDN/LOAD_BALANCER 비용 계산이 공통으로 쓰는 평균 응답 크기(KB). */
+  entryAvgResponseSizeKb?: number;
+  /** F4: CDN 전용 — 캐시 적중률(%). */
+  cdnCacheHitRatioPercent?: number;
+  /** F4: LOAD_BALANCER 전용 — 연결 재사용(keep-alive) 여부. */
+  albConnectionReuse?: boolean;
+  /** F4: LOAD_BALANCER 전용 — 연결 재사용 시, 연결당 평균 요청 수. */
+  albRequestsPerConnection?: number;
 }
 
 export type FlowNode = Node<FlowNodeData, ComponentType>;
@@ -70,6 +78,16 @@ export interface SelectedElementInfo {
   entryAvgRps?: number;
   /** USER(입구) 노드일 때만 값이 있다 — "피크 때는 평균의 몇 배인가" 배수. */
   entryPeakMultiplier?: number;
+  /** F4: USER(입구) 노드일 때만 값이 있다 — CDN/LOAD_BALANCER 비용 계산이 공유하는 평균 응답 크기(KB). */
+  entryAvgResponseSizeKb?: number;
+  /** F4: 트래픽 전파 엔진이 계산한, 이 노드에 도착하는 RPS(현재 그래프 기준, 토글과 무관하게 항상 계산됨). */
+  computedRps?: number;
+  /** F4: CDN 노드일 때만 값이 있다 — 캐시 적중률(%). */
+  cdnCacheHitRatioPercent?: number;
+  /** F4: LOAD_BALANCER 노드일 때만 값이 있다 — 연결 재사용(keep-alive) 여부. */
+  albConnectionReuse?: boolean;
+  /** F4: LOAD_BALANCER 노드일 때만 값이 있다 — 연결 재사용 시, 연결당 평균 요청 수. */
+  albRequestsPerConnection?: number;
 }
 
 /** 저장된 그래프(shared-types)를 React Flow가 다룰 수 있는 노드/엣지 배열로 변환한다. */
@@ -90,6 +108,10 @@ export function graphToFlow(graph: ArchitectureGraph): { nodes: FlowNode[]; edge
         trafficOverrideRps: node.data.trafficOverrideRps,
         entryAvgRps: node.data.entryAvgRps,
         entryPeakMultiplier: node.data.entryPeakMultiplier,
+        entryAvgResponseSizeKb: node.data.entryAvgResponseSizeKb,
+        cdnCacheHitRatioPercent: node.data.cdnCacheHitRatioPercent,
+        albConnectionReuse: node.data.albConnectionReuse,
+        albRequestsPerConnection: node.data.albRequestsPerConnection,
       },
       // 저장된 크기가 있으면(중첩 배치·리사이즈로 부모보다 작게 만든 그룹/리프 등) 그걸 그대로 쓰고,
       // 없을 때만(옛 데이터, 최초 생성 등) 기본 크기로 어림잡는다. 논리적 그룹(Target Group/ASG)은
@@ -143,6 +165,10 @@ export function flowToGraph(nodes: FlowNode[], edges: FlowEdge[]): ArchitectureG
       ...(node.data.trafficOverrideRps != null ? { trafficOverrideRps: node.data.trafficOverrideRps } : {}),
       ...(node.data.entryAvgRps != null ? { entryAvgRps: node.data.entryAvgRps } : {}),
       ...(node.data.entryPeakMultiplier != null ? { entryPeakMultiplier: node.data.entryPeakMultiplier } : {}),
+      ...(node.data.entryAvgResponseSizeKb != null ? { entryAvgResponseSizeKb: node.data.entryAvgResponseSizeKb } : {}),
+      ...(node.data.cdnCacheHitRatioPercent != null ? { cdnCacheHitRatioPercent: node.data.cdnCacheHitRatioPercent } : {}),
+      ...(node.data.albConnectionReuse != null ? { albConnectionReuse: node.data.albConnectionReuse } : {}),
+      ...(node.data.albRequestsPerConnection != null ? { albRequestsPerConnection: node.data.albRequestsPerConnection } : {}),
     },
   }));
   const graphEdges: GraphEdge[] = edges.map((edge) => ({

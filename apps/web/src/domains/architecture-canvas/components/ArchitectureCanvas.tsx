@@ -95,8 +95,13 @@ interface ArchitectureCanvasProps {
 /** 부모(ArchitectureEditor)가 "캔버스에서 보기" 같은 동작으로 특정 노드를 선택·포커스하게 해주는 핸들. */
 export interface ArchitectureCanvasHandle {
   selectNodes: (nodeIds: string[]) => void;
-  /** USER(입구) 노드의 평균 RPS/피크 배수를 우측 패널에서 바로 고칠 수 있게 해주는 통로. */
-  updateEntryTraffic: (nodeId: string, patch: { entryAvgRps?: number; entryPeakMultiplier?: number }) => void;
+  /** USER(입구) 노드의 평균 RPS/피크 배수/평균 응답 크기를 우측 패널에서 바로 고칠 수 있게 해주는 통로. */
+  updateEntryTraffic: (nodeId: string, patch: { entryAvgRps?: number; entryPeakMultiplier?: number; entryAvgResponseSizeKb?: number }) => void;
+  /** F4: CDN 캐시 적중률/LOAD_BALANCER 연결 재사용 설정을 우측 패널에서 바로 고칠 수 있게 해주는 통로. */
+  updateUsageBasedCostSettings: (
+    nodeId: string,
+    patch: { cdnCacheHitRatioPercent?: number; albConnectionReuse?: boolean; albRequestsPerConnection?: number },
+  ) => void;
   /** 연결(엣지)의 분배 가중치·호출 횟수를 우측 패널의 "연결" 섹션에서 바로 고칠 수 있게 해주는 통로.
    *  edgeIds를 여러 개 주면(묶여서 보이던 연결들) 한 번에 같은 값으로 맞춘다. */
   updateEdgeTraffic: (edgeIds: string[], patch: { distributionWeight?: number; callsPerRequest?: number }) => void;
@@ -183,18 +188,18 @@ const CanvasInner = forwardRef<ArchitectureCanvasHandle, ArchitectureCanvasProps
   const [nodes, setNodes, onNodesChange] = useNodesState<FlowNode>(initial.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initial.edges);
 
-  // "트래픽(RPS) 표시"가 켜져 있을 때만 계산한다 — 꺼져 있으면 빈 Map이라 LeafNode가 아무것도 안 그린다.
-  const rpsByNodeId = useMemo(() => {
-    if (!showTrafficRps) return EMPTY_RPS_BY_NODE_ID;
-    return computeNodeRps(flowToGraph(nodes, edges)).rpsByNodeId;
-  }, [showTrafficRps, nodes, edges]);
+  // F4: CDN/LOAD_BALANCER의 사용량 기반 비용도 RPS가 있어야 계산되기 때문에, "트래픽(RPS) 표시"
+  // 토글과 무관하게 항상 계산해 둔다. 캔버스 위 라벨 표시만 토글로 켜고 끈다(showTrafficRps가 꺼져
+  // 있으면 LeafNode에는 빈 Map을 내려줘서 아무것도 안 그리게 한다).
+  const computedRpsByNodeId = useMemo(() => computeNodeRps(flowToGraph(nodes, edges)).rpsByNodeId, [nodes, edges]);
+  const rpsByNodeId = showTrafficRps ? computedRpsByNodeId : EMPTY_RPS_BY_NODE_ID;
 
   // F1: "비용 보기" 토글과는 무관하게 늘 계산해 둔다 — 헤더 배지·"예상 비용" 탭은 토글 상태와
   // 상관없이 항상 최신 합계를 보여줘야 해서다(토글은 캔버스 위 라벨 표시 여부만 결정한다).
   const presetsQuery = useComponentPresets();
   const costSummary = useMemo(
-    () => summarizeArchitectureCost(nodes, presetsQuery.data ?? []),
-    [nodes, presetsQuery.data],
+    () => summarizeArchitectureCost(nodes, presetsQuery.data ?? [], computedRpsByNodeId),
+    [nodes, presetsQuery.data, computedRpsByNodeId],
   );
   const lastReportedCostSignatureRef = useRef<string | null>(null);
   useEffect(() => {
@@ -612,6 +617,9 @@ const CanvasInner = forwardRef<ArchitectureCanvasHandle, ArchitectureCanvasProps
       updateEntryTraffic: (nodeId, patch) => {
         setNodes((current) => current.map((node) => (node.id === nodeId ? { ...node, data: { ...node.data, ...patch } } : node)));
       },
+      updateUsageBasedCostSettings: (nodeId, patch) => {
+        setNodes((current) => current.map((node) => (node.id === nodeId ? { ...node, data: { ...node.data, ...patch } } : node)));
+      },
       updateEdgeTraffic: (edgeIds, patch) => {
         const idSet = new Set(edgeIds);
         setEdges((current) => current.map((edge) => (idSet.has(edge.id) ? { ...edge, data: { ...edge.data, ...patch } } : edge)));
@@ -673,11 +681,17 @@ const CanvasInner = forwardRef<ArchitectureCanvasHandle, ArchitectureCanvasProps
       breadcrumb,
       inputs: edges.filter((edge) => edge.target === node.id).map(toConnection),
       outputs: edges.filter((edge) => edge.source === node.id).map(toConnection),
-      ...(node.type === "USER"
-        ? { entryAvgRps: node.data.entryAvgRps, entryPeakMultiplier: node.data.entryPeakMultiplier }
+      computedRps: computedRpsByNodeId.get(node.id),
+      // CDN/LOAD_BALANCER의 사용량 기반 비용 계산이 공유하는 전역 가정이라, USER가 아니어도 항상
+      // "지금 그래프의 입구 노드가 가진 값"을 찾아서 내려준다(입구가 여러 개면 첫 번째 것을 쓴다).
+      entryAvgResponseSizeKb: nodes.find((candidate) => candidate.type === "USER")?.data.entryAvgResponseSizeKb,
+      ...(node.type === "USER" ? { entryAvgRps: node.data.entryAvgRps, entryPeakMultiplier: node.data.entryPeakMultiplier } : {}),
+      ...(node.type === "CDN" ? { cdnCacheHitRatioPercent: node.data.cdnCacheHitRatioPercent } : {}),
+      ...(node.type === "LOAD_BALANCER"
+        ? { albConnectionReuse: node.data.albConnectionReuse, albRequestsPerConnection: node.data.albRequestsPerConnection }
         : {}),
     };
-  }, [selectedNodes, selectedEdges, nodes, edges]);
+  }, [selectedNodes, selectedEdges, nodes, edges, computedRpsByNodeId]);
 
   const lastReportedElementSignatureRef = useRef<string | null>(null);
   useEffect(() => {
