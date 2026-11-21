@@ -111,6 +111,10 @@ export function ArchitectureEditor({ id }: { id: string }) {
     [],
   );
 
+  const handleUpdateCapacitySettings = useCallback((nodeId: string, patch: { instanceCount?: number }) => {
+    canvasRef.current?.updateCapacitySettings(nodeId, patch);
+  }, []);
+
   /**
    * 11단계(온보딩 튜토리얼): 대시보드의 "튜토리얼" 링크가 새 연습용 아키텍처를 만들고
    * ?tutorial=1로 이 화면을 열면, 오버레이가 자동으로 뜬다. router.push 직후 첫 렌더 시점엔
@@ -253,6 +257,7 @@ export function ArchitectureEditor({ id }: { id: string }) {
       onUpdateEntryTraffic={handleUpdateEntryTraffic}
       onUpdateEdgeTraffic={handleUpdateEdgeTraffic}
       onUpdateUsageBasedCostSettings={handleUpdateUsageBasedCostSettings}
+      onUpdateCapacitySettings={handleUpdateCapacitySettings}
     />
   ) : (
     tabContent

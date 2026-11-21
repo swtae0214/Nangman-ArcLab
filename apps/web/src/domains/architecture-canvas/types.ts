@@ -36,6 +36,8 @@ export interface FlowNodeData extends Record<string, unknown> {
   albConnectionReuse?: boolean;
   /** F4: LOAD_BALANCER 전용 — 연결 재사용 시, 연결당 평균 요청 수. */
   albRequestsPerConnection?: number;
+  /** F4: 프리셋 선택 가능 타입 전용 — 같은 프리셋을 몇 대 쓰는지(용량 계산 + 비용 둘 다에 쓰임). 기본값 1. */
+  instanceCount?: number;
 }
 
 export type FlowNode = Node<FlowNodeData, ComponentType>;
@@ -88,6 +90,10 @@ export interface SelectedElementInfo {
   albConnectionReuse?: boolean;
   /** F4: LOAD_BALANCER 노드일 때만 값이 있다 — 연결 재사용 시, 연결당 평균 요청 수. */
   albRequestsPerConnection?: number;
+  /** F4: 프리셋 선택 가능 타입(WEB_SERVER/DB_PRIMARY/DB_REPLICA/CACHE) 노드일 때만 값이 있다. */
+  presetCode?: string;
+  /** F4: 위와 같은 타입 전용 — 같은 프리셋을 몇 대 쓰는지. */
+  instanceCount?: number;
 }
 
 /** 저장된 그래프(shared-types)를 React Flow가 다룰 수 있는 노드/엣지 배열로 변환한다. */
@@ -112,6 +118,7 @@ export function graphToFlow(graph: ArchitectureGraph): { nodes: FlowNode[]; edge
         cdnCacheHitRatioPercent: node.data.cdnCacheHitRatioPercent,
         albConnectionReuse: node.data.albConnectionReuse,
         albRequestsPerConnection: node.data.albRequestsPerConnection,
+        instanceCount: node.data.instanceCount,
       },
       // 저장된 크기가 있으면(중첩 배치·리사이즈로 부모보다 작게 만든 그룹/리프 등) 그걸 그대로 쓰고,
       // 없을 때만(옛 데이터, 최초 생성 등) 기본 크기로 어림잡는다. 논리적 그룹(Target Group/ASG)은
@@ -169,6 +176,7 @@ export function flowToGraph(nodes: FlowNode[], edges: FlowEdge[]): ArchitectureG
       ...(node.data.cdnCacheHitRatioPercent != null ? { cdnCacheHitRatioPercent: node.data.cdnCacheHitRatioPercent } : {}),
       ...(node.data.albConnectionReuse != null ? { albConnectionReuse: node.data.albConnectionReuse } : {}),
       ...(node.data.albRequestsPerConnection != null ? { albRequestsPerConnection: node.data.albRequestsPerConnection } : {}),
+      ...(node.data.instanceCount != null ? { instanceCount: node.data.instanceCount } : {}),
     },
   }));
   const graphEdges: GraphEdge[] = edges.map((edge) => ({

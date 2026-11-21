@@ -59,6 +59,11 @@ export class NodeDataDto {
   @IsOptional()
   @IsNumber()
   albRequestsPerConnection?: number;
+
+  // F4: 프리셋 선택 가능 타입 전용 — 같은 프리셋을 몇 대 쓰는지(용량 계산 + 비용 둘 다에 쓰임).
+  @IsOptional()
+  @IsNumber()
+  instanceCount?: number;
 }
 
 export class GraphNodeDto {

@@ -13,8 +13,9 @@ export function estimateMonthlyCostUsd(graph: ArchitectureGraph, presets: Compon
   let total = 0;
   for (const node of graph.nodes) {
     if (!COST_RELEVANT_TYPES.has(node.type)) continue;
-    const monthlyCostUsd = node.data.presetCode ? presetsByCode.get(node.data.presetCode)?.monthlyCostUsd : undefined;
-    if (monthlyCostUsd !== undefined) total += monthlyCostUsd;
+    const presetMonthlyCostUsd = node.data.presetCode ? presetsByCode.get(node.data.presetCode)?.monthlyCostUsd : undefined;
+    // F4: 인스턴스 수를 지정했으면(기본값 1) 프리셋 단가에 그만큼 곱한다.
+    if (presetMonthlyCostUsd !== undefined) total += presetMonthlyCostUsd * (node.data.instanceCount ?? 1);
   }
   return Math.round(total * 100) / 100;
 }

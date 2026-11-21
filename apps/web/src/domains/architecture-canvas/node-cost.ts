@@ -2,8 +2,11 @@ import type { ComponentPresetCatalogItem, ComponentType } from "@nangman/shared-
 import type { FlowNode } from "./types";
 import { computeAlbCost, computeCdnCost } from "./usage-based-cost";
 
+/** 5단계 큐잉 엔진이 M/M/c 계산 대상으로 삼는, 프리셋(인스턴스 크기)을 직접 고를 수 있는 타입. */
+export const PRESET_SELECTABLE_TYPES: ComponentType[] = ["WEB_SERVER", "DB_PRIMARY", "DB_REPLICA", "CACHE"];
+
 /** 실제로 AWS 요금이 붙는(=프리셋을 고를 수 있거나 앞으로 고를 수 있게 될) 컴포넌트 타입. */
-export const COST_RELEVANT_TYPES: ComponentType[] = ["WEB_SERVER", "DB_PRIMARY", "DB_REPLICA", "CACHE", "LOAD_BALANCER", "CDN"];
+export const COST_RELEVANT_TYPES: ComponentType[] = [...PRESET_SELECTABLE_TYPES, "LOAD_BALANCER", "CDN"];
 
 export interface NodeCostLine {
   nodeId: string;
@@ -73,7 +76,12 @@ export function summarizeArchitectureCost(
   for (const node of nodes) {
     if (!node.type || !COST_RELEVANT_TYPES.includes(node.type)) continue;
     const preset = node.data.presetCode ? presetsByCode.get(node.data.presetCode) : undefined;
-    const monthlyCostUsd = preset?.monthlyCostUsd ?? getUsageBasedMonthlyCostUsd(node, nodes, rpsByNodeId);
+    // F4: 인스턴스 수를 지정했으면(기본값 1) 프리셋 단가에 그만큼 곱한다 — LB/CDN의 사용량 기반
+    // 비용에는 "인스턴스 수" 개념이 없어서 영향받지 않는다.
+    const monthlyCostUsd =
+      preset?.monthlyCostUsd !== undefined
+        ? preset.monthlyCostUsd * (node.data.instanceCount ?? 1)
+        : getUsageBasedMonthlyCostUsd(node, nodes, rpsByNodeId);
     lines.push({
       nodeId: node.id,
       label: node.data.label,

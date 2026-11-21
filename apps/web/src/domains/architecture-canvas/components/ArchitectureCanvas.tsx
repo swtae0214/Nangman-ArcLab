@@ -47,7 +47,7 @@ import {
   snapshotSubtreeParents,
 } from "../containment";
 import { useComponentPresets } from "../hooks/useCapacityCalculator";
-import { summarizeArchitectureCost, type ArchitectureCostSummary } from "../node-cost";
+import { PRESET_SELECTABLE_TYPES, summarizeArchitectureCost, type ArchitectureCostSummary } from "../node-cost";
 import { NodeCostProvider } from "../node-cost-context";
 import { ProblemNodesProvider } from "../problem-nodes-context";
 import { ReadOnlyProvider } from "../read-only-context";
@@ -102,6 +102,8 @@ export interface ArchitectureCanvasHandle {
     nodeId: string,
     patch: { cdnCacheHitRatioPercent?: number; albConnectionReuse?: boolean; albRequestsPerConnection?: number },
   ) => void;
+  /** F4: 프리셋 선택 가능 타입의 인스턴스 수를 우측 패널(용량 섹션)에서 바로 고칠 수 있게 해주는 통로. */
+  updateCapacitySettings: (nodeId: string, patch: { instanceCount?: number }) => void;
   /** 연결(엣지)의 분배 가중치·호출 횟수를 우측 패널의 "연결" 섹션에서 바로 고칠 수 있게 해주는 통로.
    *  edgeIds를 여러 개 주면(묶여서 보이던 연결들) 한 번에 같은 값으로 맞춘다. */
   updateEdgeTraffic: (edgeIds: string[], patch: { distributionWeight?: number; callsPerRequest?: number }) => void;
@@ -620,6 +622,9 @@ const CanvasInner = forwardRef<ArchitectureCanvasHandle, ArchitectureCanvasProps
       updateUsageBasedCostSettings: (nodeId, patch) => {
         setNodes((current) => current.map((node) => (node.id === nodeId ? { ...node, data: { ...node.data, ...patch } } : node)));
       },
+      updateCapacitySettings: (nodeId, patch) => {
+        setNodes((current) => current.map((node) => (node.id === nodeId ? { ...node, data: { ...node.data, ...patch } } : node)));
+      },
       updateEdgeTraffic: (edgeIds, patch) => {
         const idSet = new Set(edgeIds);
         setEdges((current) => current.map((edge) => (idSet.has(edge.id) ? { ...edge, data: { ...edge.data, ...patch } } : edge)));
@@ -689,6 +694,9 @@ const CanvasInner = forwardRef<ArchitectureCanvasHandle, ArchitectureCanvasProps
       ...(node.type === "CDN" ? { cdnCacheHitRatioPercent: node.data.cdnCacheHitRatioPercent } : {}),
       ...(node.type === "LOAD_BALANCER"
         ? { albConnectionReuse: node.data.albConnectionReuse, albRequestsPerConnection: node.data.albRequestsPerConnection }
+        : {}),
+      ...(PRESET_SELECTABLE_TYPES.includes(node.type)
+        ? { presetCode: node.data.presetCode, instanceCount: node.data.instanceCount }
         : {}),
     };
   }, [selectedNodes, selectedEdges, nodes, edges, computedRpsByNodeId]);

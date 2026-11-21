@@ -1,7 +1,7 @@
-import type { ComponentType } from "@nangman/shared-types";
 import { Handle, NodeResizer, Position, useReactFlow, type NodeProps } from "@xyflow/react";
 import { COMPONENT_META, LEAF_MIN_HEIGHT, LEAF_MIN_WIDTH } from "../../component-meta";
 import { useComponentPresets } from "../../hooks/useCapacityCalculator";
+import { PRESET_SELECTABLE_TYPES } from "../../node-cost";
 import { useShowNodeCost } from "../../node-cost-context";
 import { useProblemNodeIds } from "../../problem-nodes-context";
 import { useIsReadOnly } from "../../read-only-context";
@@ -9,9 +9,6 @@ import { useTrafficRpsByNodeId } from "../../traffic-rps-context";
 import type { FlowNode } from "../../types";
 import { EditableLabel } from "../EditableLabel";
 import { NodeDeleteButton } from "../NodeDeleteButton";
-
-/** 5단계 큐잉 엔진이 실제로 M/M/c를 계산하는 타입만 프리셋을 고를 수 있게 한다. */
-const PRESET_SELECTABLE_TYPES: ComponentType[] = ["WEB_SERVER", "DB_PRIMARY", "DB_REPLICA", "CACHE"];
 
 /**
  * 리프(비-그룹) 컴포넌트 6종(LB/WebServer/DB Primary·Replica/Cache/CDN)이 공유하는 렌더러.

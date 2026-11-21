@@ -3,9 +3,10 @@
 import type { ArchitectureGraph, ArchitectureValidationReport } from "@nangman/shared-types";
 import { useMemo } from "react";
 import { COMPONENT_META } from "../component-meta";
-import { COST_RELEVANT_TYPES } from "../node-cost";
+import { COST_RELEVANT_TYPES, PRESET_SELECTABLE_TYPES } from "../node-cost";
 import type { SelectedElementConnection, SelectedElementInfo } from "../types";
 import { RULE_RELATED_COMPONENT_TYPES, SEVERITY_ICON, SEVERITY_PILL_STYLE } from "../validation-style";
+import { CapacityInspectorSection } from "./CapacityInspectorSection";
 import { CdnInspectorSection } from "./CdnInspectorSection";
 import { LoadBalancerInspectorSection } from "./LoadBalancerInspectorSection";
 import { WhatIfRemovePanel } from "./WhatIfRemovePanel";
@@ -25,6 +26,7 @@ interface SelectionDetailPanelProps {
     nodeId: string,
     patch: { cdnCacheHitRatioPercent?: number; albConnectionReuse?: boolean; albRequestsPerConnection?: number },
   ) => void;
+  onUpdateCapacitySettings: (nodeId: string, patch: { instanceCount?: number }) => void;
 }
 
 interface ConnectionGroup {
@@ -132,6 +134,7 @@ export function SelectionDetailPanel({
   onUpdateEntryTraffic,
   onUpdateEdgeTraffic,
   onUpdateUsageBasedCostSettings,
+  onUpdateCapacitySettings,
 }: SelectionDetailPanelProps) {
   const meta = COMPONENT_META[elementInfo.type];
   const Icon = meta.Icon;
@@ -257,6 +260,10 @@ export function SelectionDetailPanel({
 
       {elementInfo.type === "LOAD_BALANCER" && (
         <LoadBalancerInspectorSection elementInfo={elementInfo} onUpdateUsageBasedCostSettings={onUpdateUsageBasedCostSettings} />
+      )}
+
+      {PRESET_SELECTABLE_TYPES.includes(elementInfo.type) && (
+        <CapacityInspectorSection elementInfo={elementInfo} onUpdateCapacitySettings={onUpdateCapacitySettings} />
       )}
 
       {(inputGroups.length > 0 || outputGroups.length > 0) && (
