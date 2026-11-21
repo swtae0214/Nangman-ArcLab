@@ -14,7 +14,6 @@ import type { ArchitectureCostSummary } from "../node-cost";
 import { computeTrafficPathEdgeIds } from "../traffic-path";
 import type { SelectedElementInfo } from "../types";
 import { ArchitectureCanvas, type ArchitectureCanvasHandle } from "./ArchitectureCanvas";
-import { CapacityCalculator } from "./CapacityCalculator";
 import { CostPanel } from "./CostPanel";
 import { EditableLabel } from "./EditableLabel";
 import { ExportButton } from "./ExportButton";
@@ -40,7 +39,7 @@ const SAVE_STATUS_LABEL: Record<string, string> = {
   error: "저장 실패",
 };
 
-type SidePanelTab = "validation" | "capacity" | "cost" | "simulation";
+type SidePanelTab = "validation" | "cost" | "simulation";
 
 function formatElapsed(timestamp: number): string {
   const diffSec = Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
@@ -188,17 +187,6 @@ export function ArchitectureEditor({ id }: { id: string }) {
       </button>
       <button
         type="button"
-        onClick={() => setActiveTab("capacity")}
-        className={`flex-1 px-2 py-2 font-medium ${
-          activeTab === "capacity"
-            ? "border-b-2 border-black text-black dark:border-gray-100 dark:text-gray-100"
-            : "text-gray-400 dark:text-gray-500"
-        }`}
-      >
-        용량 계산기
-      </button>
-      <button
-        type="button"
         onClick={() => setActiveTab("cost")}
         className={`flex-1 px-2 py-2 font-medium ${
           activeTab === "cost"
@@ -237,14 +225,13 @@ export function ArchitectureEditor({ id }: { id: string }) {
             {validation.isPending ? "검증 중..." : '상단의 "검증 실행"을 눌러 정적 검증을 실행하세요.'}
           </p>
         ))}
-      {activeTab === "capacity" && <CapacityCalculator />}
       {activeTab === "cost" && <CostPanel summary={costSummary} />}
       {activeTab === "simulation" && <SimulationPanel architectureId={id} />}
     </div>
   );
 
   // 요소를 하나 선택하면(엣지 선택 없이) 우측 패널 전체가 그 요소의 상세 보기로 바뀐다 — 선택을
-  // 풀면(SelectionDetailPanel의 × 버튼) 다시 평소의 탭(정적 검증/용량 계산기/시뮬레이션)으로 돌아온다.
+  // 풀면(SelectionDetailPanel의 × 버튼) 다시 평소의 탭(정적 검증/예상 비용/시뮬레이션)으로 돌아온다.
   const rightPanelBody = selectedElementInfo ? (
     <SelectionDetailPanel
       architectureId={id}
