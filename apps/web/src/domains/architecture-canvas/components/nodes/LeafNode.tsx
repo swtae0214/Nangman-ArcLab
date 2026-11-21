@@ -4,6 +4,7 @@ import { COMPONENT_META, LEAF_MIN_HEIGHT, LEAF_MIN_WIDTH } from "../../component
 import { useComponentPresets } from "../../hooks/useCapacityCalculator";
 import { useProblemNodeIds } from "../../problem-nodes-context";
 import { useIsReadOnly } from "../../read-only-context";
+import { useTrafficRpsByNodeId } from "../../traffic-rps-context";
 import type { FlowNode } from "../../types";
 import { EditableLabel } from "../EditableLabel";
 import { NodeDeleteButton } from "../NodeDeleteButton";
@@ -24,6 +25,7 @@ export function LeafNode({ id, type, data, selected }: NodeProps<FlowNode>) {
   const hasProblem = useProblemNodeIds().has(id);
   const isReadOnly = useIsReadOnly();
   const presetsQuery = useComponentPresets();
+  const trafficRps = useTrafficRpsByNodeId().get(id);
 
   const handleLabelChange = (label: string) => {
     setNodes((nodes) => nodes.map((node) => (node.id === id ? { ...node, data: { ...node.data, label } } : node)));
@@ -94,6 +96,11 @@ export function LeafNode({ id, type, data, selected }: NodeProps<FlowNode>) {
           ))}
         <Handle type="source" position={Position.Bottom} />
       </div>
+      {trafficRps !== undefined && (
+        <div className="absolute left-1/2 top-full z-10 mt-1 -translate-x-1/2 rounded border border-gray-300 bg-white px-1.5 py-0.5 text-[10px] font-medium text-gray-600 shadow-sm dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300">
+          {Math.round(trafficRps)}
+        </div>
+      )}
     </div>
   );
 }

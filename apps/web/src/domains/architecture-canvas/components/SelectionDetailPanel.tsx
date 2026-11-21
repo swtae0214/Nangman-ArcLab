@@ -12,21 +12,61 @@ interface SelectionDetailPanelProps {
   onFocusNodes: (nodeIds: string[]) => void;
   onClose: () => void;
   onGoToExperiment: () => void;
+  onUpdateEntryTraffic: (nodeId: string, patch: { entryAvgRps?: number; entryPeakMultiplier?: number }) => void;
+  onUpdateEdgeTraffic: (edgeIds: string[], patch: { distributionWeight?: number; callsPerRequest?: number }) => void;
 }
 
-/** 같은 (이름, 연결 라벨) 조합을 묶어서 "웹 서버 ×2" 처럼 보여준다. */
-function groupConnections(connections: SelectedElementConnection[]) {
-  const groups = new Map<string, { label: string; edgeLabel?: string; count: number }>();
+interface ConnectionGroup {
+  edgeIds: string[];
+  label: string;
+  edgeLabel?: string;
+  kind: SelectedElementConnection["kind"];
+  value?: number;
+}
+
+/**
+ * 이름이 같고, 엣지 종류·값까지 전부 같을 때만 "웹 서버 ×2"처럼 묶는다 — 하나라도 다르면
+ * (예: 분배 비율이 70/30으로 다르면) 묶음을 풀어서 각자 따로 보여준다.
+ */
+function groupConnections(connections: SelectedElementConnection[]): ConnectionGroup[] {
+  const groups = new Map<string, ConnectionGroup>();
   for (const connection of connections) {
-    const key = `${connection.label}__${connection.edgeLabel ?? ""}`;
+    const key = `${connection.label}__${connection.edgeLabel ?? ""}__${connection.kind}__${connection.value ?? ""}`;
     const existing = groups.get(key);
-    if (existing) existing.count += 1;
-    else groups.set(key, { label: connection.label, edgeLabel: connection.edgeLabel, count: 1 });
+    if (existing) existing.edgeIds.push(connection.edgeId);
+    else
+      groups.set(key, {
+        edgeIds: [connection.edgeId],
+        label: connection.label,
+        edgeLabel: connection.edgeLabel,
+        kind: connection.kind,
+        value: connection.value,
+      });
   }
   return Array.from(groups.values());
 }
 
-function ConnectionRow({ arrow, group }: { arrow: "←" | "→"; group: { label: string; edgeLabel?: string; count: number } }) {
+const TRAFFIC_KIND_LABEL: Record<SelectedElementConnection["kind"], string> = {
+  distribution: "분배",
+  call: "호출",
+  replication: "복제",
+};
+
+function ConnectionRow({
+  arrow,
+  group,
+  onUpdateEdgeTraffic,
+}: {
+  arrow: "←" | "→";
+  group: ConnectionGroup;
+  onUpdateEdgeTraffic: (edgeIds: string[], patch: { distributionWeight?: number; callsPerRequest?: number }) => void;
+}) {
+  const handleValueChange = (raw: string) => {
+    const nextValue = raw === "" ? undefined : Number(raw);
+    if (group.kind === "distribution") onUpdateEdgeTraffic(group.edgeIds, { distributionWeight: nextValue });
+    else if (group.kind === "call") onUpdateEdgeTraffic(group.edgeIds, { callsPerRequest: nextValue });
+  };
+
   return (
     <div className="flex items-center justify-between gap-2 rounded-lg border border-gray-200 px-3 py-2.5 dark:border-gray-700">
       <span className="flex min-w-0 items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
@@ -34,9 +74,28 @@ function ConnectionRow({ arrow, group }: { arrow: "←" | "→"; group: { label:
           {arrow}
         </span>
         <span className="truncate">{group.label}</span>
-        {group.count > 1 && <span className="shrink-0 text-xs text-gray-400 dark:text-gray-500">×{group.count}</span>}
+        {group.edgeIds.length > 1 && <span className="shrink-0 text-xs text-gray-400 dark:text-gray-500">×{group.edgeIds.length}</span>}
       </span>
-      {group.edgeLabel && <span className="shrink-0 whitespace-nowrap text-xs text-gray-400 dark:text-gray-500">{group.edgeLabel}</span>}
+      <span className="flex shrink-0 items-center gap-1.5">
+        {/* edgeLabel(장식용 텍스트)이 바로 옆 종류 배지랑 같은 문구면("복제" 등) 중복으로 두 번 안 보이게 한다. */}
+        {group.edgeLabel && group.edgeLabel !== TRAFFIC_KIND_LABEL[group.kind] && (
+          <span className="whitespace-nowrap text-xs text-gray-400 dark:text-gray-500">{group.edgeLabel}</span>
+        )}
+        <span className="whitespace-nowrap rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-500 dark:bg-gray-700 dark:text-gray-400">
+          {TRAFFIC_KIND_LABEL[group.kind]}
+        </span>
+        {group.kind !== "replication" && (
+          <input
+            type="number"
+            min={0}
+            step="any"
+            value={group.value ?? ""}
+            onChange={(event) => handleValueChange(event.target.value)}
+            title={group.kind === "distribution" ? "같은 그룹 안에서의 상대적 가중치" : "요청 1건당 평균 호출 횟수"}
+            className="w-14 rounded border border-gray-300 px-1.5 py-0.5 text-right text-xs dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+          />
+        )}
+      </span>
     </div>
   );
 }
@@ -51,7 +110,15 @@ function CheckCircleIcon({ ok }: { ok: boolean }) {
   );
 }
 
-export function SelectionDetailPanel({ elementInfo, report, onFocusNodes, onClose, onGoToExperiment }: SelectionDetailPanelProps) {
+export function SelectionDetailPanel({
+  elementInfo,
+  report,
+  onFocusNodes,
+  onClose,
+  onGoToExperiment,
+  onUpdateEntryTraffic,
+  onUpdateEdgeTraffic,
+}: SelectionDetailPanelProps) {
   const meta = COMPONENT_META[elementInfo.type];
   const Icon = meta.Icon;
   const inputGroups = useMemo(() => groupConnections(elementInfo.inputs), [elementInfo.inputs]);
@@ -108,15 +175,59 @@ export function SelectionDetailPanel({ elementInfo, report, onFocusNodes, onClos
         <p className="text-sm text-gray-500 dark:text-gray-400">{elementInfo.breadcrumb.join(" › ")}</p>
       )}
 
+      {elementInfo.type === "USER" && (
+        <div>
+          <p className="mb-2 text-sm font-semibold text-gray-900 dark:text-gray-100">트래픽 입구</p>
+          <div className="flex flex-col gap-2 rounded-lg border border-gray-200 p-3 dark:border-gray-700">
+            <label className="flex items-center justify-between gap-2 text-xs text-gray-600 dark:text-gray-300">
+              평균 요청 수
+              <span className="flex items-center gap-1">
+                <input
+                  type="number"
+                  min={0}
+                  step="any"
+                  value={elementInfo.entryAvgRps ?? ""}
+                  onChange={(event) =>
+                    onUpdateEntryTraffic(elementInfo.id, {
+                      entryAvgRps: event.target.value === "" ? undefined : Number(event.target.value),
+                    })
+                  }
+                  className="w-20 rounded border border-gray-300 px-2 py-1 text-right text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+                />
+                RPS
+              </span>
+            </label>
+            <label className="flex items-center justify-between gap-2 text-xs text-gray-600 dark:text-gray-300">
+              피크 때는 평균의 몇 배인가요?
+              <span className="flex items-center gap-1">
+                <input
+                  type="number"
+                  min={1}
+                  step="any"
+                  value={elementInfo.entryPeakMultiplier ?? ""}
+                  onChange={(event) =>
+                    onUpdateEntryTraffic(elementInfo.id, {
+                      entryPeakMultiplier: event.target.value === "" ? undefined : Number(event.target.value),
+                    })
+                  }
+                  className="w-20 rounded border border-gray-300 px-2 py-1 text-right text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+                />
+                배
+              </span>
+            </label>
+          </div>
+        </div>
+      )}
+
       {(inputGroups.length > 0 || outputGroups.length > 0) && (
         <div>
           <p className="mb-2 text-sm font-semibold text-gray-900 dark:text-gray-100">연결</p>
           <div className="flex flex-col gap-2">
             {inputGroups.map((group, index) => (
-              <ConnectionRow key={`in-${index}`} arrow="←" group={group} />
+              <ConnectionRow key={`in-${index}`} arrow="←" group={group} onUpdateEdgeTraffic={onUpdateEdgeTraffic} />
             ))}
             {outputGroups.map((group, index) => (
-              <ConnectionRow key={`out-${index}`} arrow="→" group={group} />
+              <ConnectionRow key={`out-${index}`} arrow="→" group={group} onUpdateEdgeTraffic={onUpdateEdgeTraffic} />
             ))}
           </div>
         </div>

@@ -133,6 +133,15 @@ export interface GraphNode {
     presetCode?: string;
     /** 11단계: TEXT_BOX 전용 — 글자 크기. 다른 타입은 항상 비워둔다. */
     fontSize?: 'sm' | 'md' | 'lg';
+    /**
+     * 트래픽 전파 — 이 노드를 "윗단과 끊어진 별도 입구"로 취급하고, 들어오는 요청선이 있어도
+     * 그 합과 비교해 경고만 띄울 뿐 이 값을 그대로 쓴다. 지우면 다시 윗단 계산을 따른다.
+     */
+    trafficOverrideRps?: number;
+    /** USER(입구) 노드 전용 — 평상시 평균 RPS. 입구가 아닌 노드는 항상 비워둔다. */
+    entryAvgRps?: number;
+    /** USER(입구) 노드 전용 — "피크 때는 평상시의 몇 배인가" 배수. 기본값은 1(배수 없음). */
+    entryPeakMultiplier?: number;
   };
 }
 
@@ -142,6 +151,17 @@ export interface GraphEdge {
   target: string;
   /** 10단계: 연결선 위에 다는 설명 텍스트 (예: "이미지 업로드", "폴링"). 없으면 라벨 없이 그려진다. */
   label?: string;
+  /**
+   * 트래픽 전파 — 보통은 저장하지 않고 (출발 노드에서 같은 도착 타입으로 가는 선이 몇 개인지로)
+   * 매번 새로 추정한다. 그 추정이 틀렸을 때만 사용자가 직접 골라서 여기 저장한다.
+   * "distribution"(분배, 형제끼리 트래픽을 나눠 가짐) / "call"(호출, 요청 1건당 독립적으로 n번 부름)
+   * / "replication"(복제, 트래픽이 아니라 데이터 동기화 — 전파·순환 검사에서 제외).
+   */
+  trafficKindOverride?: 'distribution' | 'call' | 'replication';
+  /** kind가 "distribution"일 때 — 같은 그룹(형제) 안에서의 상대적 가중치. 기본값 1. */
+  distributionWeight?: number;
+  /** kind가 "call"일 때 — 요청 1건당 이 선을 타는 평균 횟수(예: 쓰기 0.6회). 기본값 1. */
+  callsPerRequest?: number;
 }
 
 export interface ArchitectureGraph {

@@ -48,6 +48,8 @@ import {
 } from "../containment";
 import { ProblemNodesProvider } from "../problem-nodes-context";
 import { ReadOnlyProvider } from "../read-only-context";
+import { computeNodeRps, inferEdgeKind } from "../traffic-rps";
+import { TrafficRpsProvider } from "../traffic-rps-context";
 import { flowToGraph, graphToFlow, type FlowEdge, type FlowNode, type SelectedElementInfo } from "../types";
 import { CanvasToolbar, type CanvasInteractionMode } from "./CanvasToolbar";
 import { COMPONENT_DRAG_DATA_FORMAT } from "./ComponentPalette";
@@ -55,6 +57,7 @@ import { LabeledEdge } from "./edges/LabeledEdge";
 import { LeftSidebar } from "./LeftSidebar";
 import { nodeTypes } from "./node-types";
 import { SelectionToolbar } from "./SelectionToolbar";
+import { ToggleSwitch } from "./ToggleSwitch";
 
 const edgeTypes = { labeledStep: LabeledEdge };
 
@@ -74,6 +77,9 @@ interface ArchitectureCanvasProps {
   /** "트래픽 흐름 보기" 토글 스위치를 캔버스 좌상단에 띄울 때 쓴다 — 상태 자체는 부모(ArchitectureEditor)가 들고 있는다. */
   showTrafficFlow?: boolean;
   onToggleTrafficFlow?: () => void;
+  /** "트래픽(RPS) 표시" 토글 — USER 노드의 평균 RPS가 전파된 값을 각 노드 아래에 띄운다. */
+  showTrafficRps?: boolean;
+  onToggleTrafficRps?: () => void;
   /** 노드 하나만 선택돼 있을 때(엣지 선택 없이) 우측 패널이 "요소 상세" 보기로 바뀔 수 있도록 올려보낸다. 그 외엔 null. */
   onSelectedElementChange?: (info: SelectedElementInfo | null) => void;
 }
@@ -81,9 +87,15 @@ interface ArchitectureCanvasProps {
 /** 부모(ArchitectureEditor)가 "캔버스에서 보기" 같은 동작으로 특정 노드를 선택·포커스하게 해주는 핸들. */
 export interface ArchitectureCanvasHandle {
   selectNodes: (nodeIds: string[]) => void;
+  /** USER(입구) 노드의 평균 RPS/피크 배수를 우측 패널에서 바로 고칠 수 있게 해주는 통로. */
+  updateEntryTraffic: (nodeId: string, patch: { entryAvgRps?: number; entryPeakMultiplier?: number }) => void;
+  /** 연결(엣지)의 분배 가중치·호출 횟수를 우측 패널의 "연결" 섹션에서 바로 고칠 수 있게 해주는 통로.
+   *  edgeIds를 여러 개 주면(묶여서 보이던 연결들) 한 번에 같은 값으로 맞춘다. */
+  updateEdgeTraffic: (edgeIds: string[], patch: { distributionWeight?: number; callsPerRequest?: number }) => void;
 }
 
 const EMPTY_PROBLEM_NODE_IDS: ReadonlySet<string> = new Set();
+const EMPTY_RPS_BY_NODE_ID: ReadonlyMap<string, number> = new Map();
 
 /** 물리적 그룹(parentId 소속을 바꾸는 진짜 컨테이너) — 선택한 노드들을 그 안으로 옮긴다. */
 const GROUPABLE_TYPES: { type: ComponentType; label: string }[] = [
@@ -150,6 +162,8 @@ const CanvasInner = forwardRef<ArchitectureCanvasHandle, ArchitectureCanvasProps
     highlightedEdgeIds,
     showTrafficFlow,
     onToggleTrafficFlow,
+    showTrafficRps,
+    onToggleTrafficRps,
     onSelectedElementChange,
   }: ArchitectureCanvasProps,
   ref,
@@ -157,6 +171,12 @@ const CanvasInner = forwardRef<ArchitectureCanvasHandle, ArchitectureCanvasProps
   const initial = graphToFlow(initialGraph);
   const [nodes, setNodes, onNodesChange] = useNodesState<FlowNode>(initial.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initial.edges);
+
+  // "트래픽(RPS) 표시"가 켜져 있을 때만 계산한다 — 꺼져 있으면 빈 Map이라 LeafNode가 아무것도 안 그린다.
+  const rpsByNodeId = useMemo(() => {
+    if (!showTrafficRps) return EMPTY_RPS_BY_NODE_ID;
+    return computeNodeRps(flowToGraph(nodes, edges)).rpsByNodeId;
+  }, [showTrafficRps, nodes, edges]);
 
   // 12단계: 트래픽 흐름 강조는 저장되는 데이터가 아니라 화면 표시 전용이라, edges 상태 자체는 안
   // 건드리고 ReactFlow에 넘기기 직전에만 animated/색상을 덧씌운다.
@@ -563,8 +583,15 @@ const CanvasInner = forwardRef<ArchitectureCanvasHandle, ArchitectureCanvasProps
           fitView({ nodes: nodeIds.map((id) => ({ id })), duration: 300, padding: 0.3 });
         }
       },
+      updateEntryTraffic: (nodeId, patch) => {
+        setNodes((current) => current.map((node) => (node.id === nodeId ? { ...node, data: { ...node.data, ...patch } } : node)));
+      },
+      updateEdgeTraffic: (edgeIds, patch) => {
+        const idSet = new Set(edgeIds);
+        setEdges((current) => current.map((edge) => (idSet.has(edge.id) ? { ...edge, data: { ...edge.data, ...patch } } : edge)));
+      },
     }),
-    [selectNodesInternal, fitView],
+    [selectNodesInternal, fitView, setNodes, setEdges],
   );
 
   /**
@@ -586,19 +613,43 @@ const CanvasInner = forwardRef<ArchitectureCanvasHandle, ArchitectureCanvasProps
       parentId = ancestor.parentId;
     }
 
-    const toConnection = (otherId: string, edgeLabel: unknown) => ({
-      nodeId: otherId,
-      label: nodesById.get(otherId)?.data.label ?? otherId,
-      ...(typeof edgeLabel === "string" && edgeLabel ? { edgeLabel } : {}),
-    });
+    // 엣지 종류(분배/호출/복제) 추정은 shared GraphNode/GraphEdge 모양을 기대해서, 지금 React Flow
+    // 상태를 그 모양으로 한 번 바꿔서 넘긴다 — "트래픽(RPS) 표시" 계산과 같은 변환을 한 번 더 쓰는
+    // 셈이지만, 요소 상세 패널을 열 때만(선택이 바뀔 때만) 도는 거라 가볍다.
+    const graphSnapshot = flowToGraph(nodes, edges);
+    const graphNodesById = new Map(graphSnapshot.nodes.map((n) => [n.id, n]));
+    const graphEdgesBySourceId = new Map<string, (typeof graphSnapshot.edges)[number][]>();
+    for (const graphEdge of graphSnapshot.edges) {
+      const list = graphEdgesBySourceId.get(graphEdge.source) ?? [];
+      list.push(graphEdge);
+      graphEdgesBySourceId.set(graphEdge.source, list);
+    }
+
+    const toConnection = (edge: FlowEdge) => {
+      const otherId = edge.source === node.id ? edge.target : edge.source;
+      const graphEdge = graphSnapshot.edges.find((e) => e.id === edge.id);
+      const kind = graphEdge ? inferEdgeKind(graphEdge, graphNodesById, graphEdgesBySourceId) : "call";
+      const value = kind === "distribution" ? (graphEdge?.distributionWeight ?? 1) : kind === "call" ? (graphEdge?.callsPerRequest ?? 1) : undefined;
+      return {
+        edgeId: edge.id,
+        nodeId: otherId,
+        label: nodesById.get(otherId)?.data.label ?? otherId,
+        ...(typeof edge.label === "string" && edge.label ? { edgeLabel: edge.label } : {}),
+        kind,
+        value,
+      };
+    };
 
     return {
       id: node.id,
       type: node.type,
       label: node.data.label,
       breadcrumb,
-      inputs: edges.filter((edge) => edge.target === node.id).map((edge) => toConnection(edge.source, edge.label)),
-      outputs: edges.filter((edge) => edge.source === node.id).map((edge) => toConnection(edge.target, edge.label)),
+      inputs: edges.filter((edge) => edge.target === node.id).map(toConnection),
+      outputs: edges.filter((edge) => edge.source === node.id).map(toConnection),
+      ...(node.type === "USER"
+        ? { entryAvgRps: node.data.entryAvgRps, entryPeakMultiplier: node.data.entryPeakMultiplier }
+        : {}),
     };
   }, [selectedNodes, selectedEdges, nodes, edges]);
 
@@ -869,34 +920,27 @@ const CanvasInner = forwardRef<ArchitectureCanvasHandle, ArchitectureCanvasProps
   return (
     <ProblemNodesProvider value={problemNodeIds ?? EMPTY_PROBLEM_NODE_IDS}>
       <ReadOnlyProvider value={readOnly}>
+        <TrafficRpsProvider value={rpsByNodeId}>
         <div className="flex h-full w-full dark:bg-gray-900">
           {!readOnly && <LeftSidebar nodes={nodes} onSelectNode={handleSelectNodeFromLayerPanel} />}
           <div ref={setCanvasWrapperRef} className="relative h-full flex-1 dark:bg-gray-900">
             {!readOnly && onToggleTrafficFlow && (
-              <button
-                type="button"
-                role="switch"
-                aria-checked={showTrafficFlow ?? false}
-                onClick={onToggleTrafficFlow}
+              <ToggleSwitch
+                checked={showTrafficFlow ?? false}
+                onToggle={onToggleTrafficFlow}
+                label="트래픽 흐름 보기"
                 title="사용자 요청이 로드밸런서·서버를 거쳐 DB까지 이동하는 구간을 강조해서 보여줘요"
-                className="absolute left-3 top-3 z-10 flex items-center gap-2 rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 dark:border-gray-700 dark:bg-gray-800"
-              >
-                {/*
-                  Tailwind 유틸(translate-x-*)이 빌드 타이밍에 따라 안 먹는 경우가 있어서, 토글
-                  손잡이 위치만큼은 흔들리지 않게 width/transform을 직접 숫자(px)로 계산해 인라인
-                  style로 고정한다 — 핸들이 꺼짐/켜짐 양쪽에서 항상 정확히 양 끝에 붙는다.
-                */}
-                <span
-                  className="relative shrink-0 rounded-full transition-colors"
-                  style={{ width: 36, height: 20, backgroundColor: showTrafficFlow ? "#16a34a" : "#d1d5db" }}
-                >
-                  <span
-                    className="absolute rounded-full bg-white transition-transform"
-                    style={{ width: 16, height: 16, top: 2, left: 2, transform: showTrafficFlow ? "translateX(16px)" : "translateX(0)" }}
-                  />
-                </span>
-                <span className="text-gray-600 dark:text-gray-300">트래픽 흐름 보기</span>
-              </button>
+                className="left-3 top-3"
+              />
+            )}
+            {!readOnly && onToggleTrafficRps && (
+              <ToggleSwitch
+                checked={showTrafficRps ?? false}
+                onToggle={onToggleTrafficRps}
+                label="트래픽(RPS) 표시"
+                title="사용자(USER) 노드의 평균 RPS가 분배·호출선을 타고 각 요소까지 흘러간 값을 노드 아래에 보여줘요"
+                className="left-3 top-12"
+              />
             )}
             <ReactFlow
               nodes={nodesWithZIndex}
@@ -963,6 +1007,7 @@ const CanvasInner = forwardRef<ArchitectureCanvasHandle, ArchitectureCanvasProps
             )}
           </div>
         </div>
+        </TrafficRpsProvider>
       </ReadOnlyProvider>
     </ProblemNodesProvider>
   );

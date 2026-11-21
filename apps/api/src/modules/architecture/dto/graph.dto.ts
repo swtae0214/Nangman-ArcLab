@@ -3,6 +3,7 @@ import { Type } from 'class-transformer';
 import { IsArray, IsIn, IsNumber, IsOptional, IsString, MaxLength, ValidateNested } from 'class-validator';
 
 const TEXT_BOX_FONT_SIZES = ['sm', 'md', 'lg'] as const;
+const TRAFFIC_EDGE_KINDS = ['distribution', 'call', 'replication'] as const;
 
 export class PositionDto {
   @IsNumber()
@@ -25,6 +26,20 @@ export class NodeDataDto {
   @IsOptional()
   @IsIn(TEXT_BOX_FONT_SIZES)
   fontSize?: (typeof TEXT_BOX_FONT_SIZES)[number];
+
+  // 13단계: 트래픽 전파 — 이 노드를 "윗단과 끊어진 별도 입구"로 취급하는 직접 지정 RPS.
+  @IsOptional()
+  @IsNumber()
+  trafficOverrideRps?: number;
+
+  // 13단계: USER(입구) 노드 전용 — 평상시 평균 RPS / 피크 배수.
+  @IsOptional()
+  @IsNumber()
+  entryAvgRps?: number;
+
+  @IsOptional()
+  @IsNumber()
+  entryPeakMultiplier?: number;
 }
 
 export class GraphNodeDto {
@@ -77,6 +92,19 @@ export class GraphEdgeDto {
   @IsString()
   @MaxLength(100)
   label?: string;
+
+  // 13단계: 엣지 종류는 보통 저장하지 않고 매번 추정한다 — 그 추정이 틀렸을 때만 사용자가 직접 골라 저장한다.
+  @IsOptional()
+  @IsIn(TRAFFIC_EDGE_KINDS)
+  trafficKindOverride?: (typeof TRAFFIC_EDGE_KINDS)[number];
+
+  @IsOptional()
+  @IsNumber()
+  distributionWeight?: number;
+
+  @IsOptional()
+  @IsNumber()
+  callsPerRequest?: number;
 }
 
 export class ArchitectureGraphDto {

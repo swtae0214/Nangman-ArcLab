@@ -22,17 +22,38 @@ export interface FlowNodeData extends Record<string, unknown> {
   zOrderBias?: number;
   /** 11단계: TEXT_BOX 전용 — 글자 크기. 다른 타입은 항상 비워둔다. */
   fontSize?: "sm" | "md" | "lg";
+  /** 13단계: 이 노드를 "윗단과 끊어진 별도 입구"로 취급하는 직접 지정 RPS. */
+  trafficOverrideRps?: number;
+  /** 13단계: USER(입구) 노드 전용 — 평상시 평균 RPS. */
+  entryAvgRps?: number;
+  /** 13단계: USER(입구) 노드 전용 — 피크 배수. */
+  entryPeakMultiplier?: number;
 }
 
 export type FlowNode = Node<FlowNodeData, ComponentType>;
-export type FlowEdge = Edge;
+
+export interface FlowEdgeData extends Record<string, unknown> {
+  /** 13단계: 보통은 저장 안 하고 매번 추정하는 엣지 종류 — 그 추정이 틀렸을 때만 사용자가 직접 골라 저장한다. */
+  trafficKindOverride?: "distribution" | "call" | "replication";
+  /** kind가 "distribution"일 때 — 같은 그룹(형제) 안에서의 상대적 가중치. 기본값 1. */
+  distributionWeight?: number;
+  /** kind가 "call"일 때 — 요청 1건당 이 선을 타는 평균 횟수. 기본값 1. */
+  callsPerRequest?: number;
+}
+
+export type FlowEdge = Edge<FlowEdgeData>;
 
 /** 캔버스에서 노드 하나만 선택됐을 때, 우측 패널이 "요소 상세" 보기로 바뀌면서 보여줄 정보. */
 export interface SelectedElementConnection {
+  edgeId: string;
   nodeId: string;
   label: string;
   /** 연결선에 붙은 라벨(예: "복제")이 있으면 그대로, 없으면 비워둔다. */
   edgeLabel?: string;
+  /** 추정(또는 사용자가 직접 고른) 엣지 종류. */
+  kind: "distribution" | "call" | "replication";
+  /** kind별로 의미 있는 값만 채워진다 — distribution=가중치, call=요청당 횟수, replication=없음(undefined). */
+  value?: number;
 }
 
 export interface SelectedElementInfo {
@@ -45,6 +66,10 @@ export interface SelectedElementInfo {
   inputs: SelectedElementConnection[];
   /** 이 요소에서 나가는 연결(이 요소가 source인 엣지들). */
   outputs: SelectedElementConnection[];
+  /** USER(입구) 노드일 때만 값이 있다 — 평상시 평균 RPS. */
+  entryAvgRps?: number;
+  /** USER(입구) 노드일 때만 값이 있다 — "피크 때는 평균의 몇 배인가" 배수. */
+  entryPeakMultiplier?: number;
 }
 
 /** 저장된 그래프(shared-types)를 React Flow가 다룰 수 있는 노드/엣지 배열로 변환한다. */
@@ -62,6 +87,9 @@ export function graphToFlow(graph: ArchitectureGraph): { nodes: FlowNode[]; edge
         logicalGroupId: node.logicalGroupId,
         zOrderBias: node.zOrderBias,
         fontSize: node.data.fontSize,
+        trafficOverrideRps: node.data.trafficOverrideRps,
+        entryAvgRps: node.data.entryAvgRps,
+        entryPeakMultiplier: node.data.entryPeakMultiplier,
       },
       // 저장된 크기가 있으면(중첩 배치·리사이즈로 부모보다 작게 만든 그룹/리프 등) 그걸 그대로 쓰고,
       // 없을 때만(옛 데이터, 최초 생성 등) 기본 크기로 어림잡는다. 논리적 그룹(Target Group/ASG)은
@@ -81,6 +109,11 @@ export function graphToFlow(graph: ArchitectureGraph): { nodes: FlowNode[]; edge
     source: edge.source,
     target: edge.target,
     ...(edge.label ? { label: edge.label } : {}),
+    data: {
+      trafficKindOverride: edge.trafficKindOverride,
+      distributionWeight: edge.distributionWeight,
+      callsPerRequest: edge.callsPerRequest,
+    },
   }));
   // 12단계: React Flow는 부모 노드가 배열에서 자식보다 앞에 있어야 절대좌표를 올바르게 계산한다.
   // 예전에 이 순서가 깨진 채로 저장된 그래프(또는 그 사이에 생긴 버그로 깨진 그래프)를 불러와도
@@ -107,6 +140,9 @@ export function flowToGraph(nodes: FlowNode[], edges: FlowEdge[]): ArchitectureG
       label: node.data.label,
       ...(node.data.presetCode ? { presetCode: node.data.presetCode } : {}),
       ...(node.data.fontSize ? { fontSize: node.data.fontSize } : {}),
+      ...(node.data.trafficOverrideRps != null ? { trafficOverrideRps: node.data.trafficOverrideRps } : {}),
+      ...(node.data.entryAvgRps != null ? { entryAvgRps: node.data.entryAvgRps } : {}),
+      ...(node.data.entryPeakMultiplier != null ? { entryPeakMultiplier: node.data.entryPeakMultiplier } : {}),
     },
   }));
   const graphEdges: GraphEdge[] = edges.map((edge) => ({
@@ -114,6 +150,9 @@ export function flowToGraph(nodes: FlowNode[], edges: FlowEdge[]): ArchitectureG
     source: edge.source,
     target: edge.target,
     ...(typeof edge.label === "string" && edge.label ? { label: edge.label } : {}),
+    ...(edge.data?.trafficKindOverride ? { trafficKindOverride: edge.data.trafficKindOverride } : {}),
+    ...(edge.data?.distributionWeight != null ? { distributionWeight: edge.data.distributionWeight } : {}),
+    ...(edge.data?.callsPerRequest != null ? { callsPerRequest: edge.data.callsPerRequest } : {}),
   }));
   return { nodes: graphNodes, edges: graphEdges };
 }

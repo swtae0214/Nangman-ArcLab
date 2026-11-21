@@ -88,6 +88,17 @@ export function ArchitectureEditor({ id }: { id: string }) {
     setActiveTab("simulation");
   }, []);
 
+  const handleUpdateEntryTraffic = useCallback((nodeId: string, patch: { entryAvgRps?: number; entryPeakMultiplier?: number }) => {
+    canvasRef.current?.updateEntryTraffic(nodeId, patch);
+  }, []);
+
+  const handleUpdateEdgeTraffic = useCallback(
+    (edgeIds: string[], patch: { distributionWeight?: number; callsPerRequest?: number }) => {
+      canvasRef.current?.updateEdgeTraffic(edgeIds, patch);
+    },
+    [],
+  );
+
   /**
    * 11단계(온보딩 튜토리얼): 대시보드의 "튜토리얼" 링크가 새 연습용 아키텍처를 만들고
    * ?tutorial=1로 이 화면을 열면, 오버레이가 자동으로 뜬다. router.push 직후 첫 렌더 시점엔
@@ -100,6 +111,8 @@ export function ArchitectureEditor({ id }: { id: string }) {
   const [liveGraph, setLiveGraph] = useState<ArchitectureGraph>(EMPTY_GRAPH);
   // 12단계: 트래픽 흐름 보기 — USER부터 DB까지 실제로 이어지는 구간의 엣지만 애니메이션으로 강조한다.
   const [showTrafficFlow, setShowTrafficFlow] = useState(false);
+  // 13단계: 트래픽(RPS) 표시 — USER의 평균 RPS가 분배·호출선을 타고 전파된 값을 노드마다 보여준다.
+  const [showTrafficRps, setShowTrafficRps] = useState(false);
   const trafficPathEdgeIds = useMemo(
     () => (showTrafficFlow ? computeTrafficPathEdgeIds(liveGraph) : EMPTY_EDGE_IDS),
     [showTrafficFlow, liveGraph],
@@ -207,6 +220,8 @@ export function ArchitectureEditor({ id }: { id: string }) {
       onFocusNodes={handleFocusNodes}
       onClose={handleCloseSelection}
       onGoToExperiment={handleGoToExperiment}
+      onUpdateEntryTraffic={handleUpdateEntryTraffic}
+      onUpdateEdgeTraffic={handleUpdateEdgeTraffic}
     />
   ) : (
     tabContent
@@ -309,6 +324,8 @@ export function ArchitectureEditor({ id }: { id: string }) {
             highlightedEdgeIds={trafficPathEdgeIds}
             showTrafficFlow={showTrafficFlow}
             onToggleTrafficFlow={() => setShowTrafficFlow((prev) => !prev)}
+            showTrafficRps={showTrafficRps}
+            onToggleTrafficRps={() => setShowTrafficRps((prev) => !prev)}
             onSelectedElementChange={setSelectedElementInfo}
           />
         </div>
