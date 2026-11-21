@@ -19,6 +19,8 @@ export interface NodeRpsResult {
   overrideMismatches: NodeRpsOverrideMismatch[];
   /** 순환이 감지돼 이번 계산에서 끊어낸(=전파에서 제외한) 엣지 id들. */
   cyclicEdgeIds: Set<string>;
+  /** F4: 전파에 쓴 위상 순서(입구에 가까운 노드부터) — "값이 흘러가는 모습" 같은 화면이 재사용한다. */
+  order: string[];
 }
 
 /**
@@ -190,5 +192,5 @@ export function computeNodeRps(graph: ArchitectureGraph, options?: { peak?: bool
     rpsByNodeId.set(nodeId, computedFromUpstream);
   }
 
-  return { rpsByNodeId, overrideMismatches, cyclicEdgeIds };
+  return { rpsByNodeId, overrideMismatches, cyclicEdgeIds, order };
 }

@@ -10,9 +10,10 @@
  *   ("Hong Kong, Indonesia, Philippines, Singapore, South Korea, Taiwan, Thailand, Malaysia, and Vietnam" 열 — 대한민국 포함)
  */
 
-const SECONDS_PER_MONTH = 30 * 24 * 60 * 60;
+/** "전체 트래픽" 패널의 월 요청 수/전송량 계산도 CDN 비용 계산과 같은 가정(30일)을 쓰므로 함께 내보낸다. */
+export const SECONDS_PER_MONTH = 30 * 24 * 60 * 60;
 /** 이 파일의 GB 계산은 모두 10진 단위(1GB = 1,000,000KB)를 쓴다 — AWS 가격표 예시 계산과 같은 방식. */
-const KB_PER_GB = 1_000_000;
+export const KB_PER_GB = 1_000_000;
 
 // ── ALB(Application Load Balancer) ──────────────────────────────────────────
 

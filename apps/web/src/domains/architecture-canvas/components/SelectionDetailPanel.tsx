@@ -8,6 +8,7 @@ import type { SelectedElementConnection, SelectedElementInfo } from "../types";
 import { RULE_RELATED_COMPONENT_TYPES, SEVERITY_ICON, SEVERITY_PILL_STYLE } from "../validation-style";
 import { CapacityInspectorSection } from "./CapacityInspectorSection";
 import { CdnInspectorSection } from "./CdnInspectorSection";
+import { computeGlobalMonthlyFigures, GlobalTrafficSummarySection } from "./GlobalTrafficSummarySection";
 import { LoadBalancerInspectorSection } from "./LoadBalancerInspectorSection";
 import { WhatIfRemovePanel } from "./WhatIfRemovePanel";
 
@@ -35,6 +36,12 @@ interface ConnectionGroup {
   edgeLabel?: string;
   kind: SelectedElementConnection["kind"];
   value?: number;
+  /**
+   * F4: "값이 달라서 따로 보여주는" 호출(call) 연결이 정확히 2개일 때만 채워진다 — 다른 쪽 값을
+   * 이 그룹에도 그대로 적용할 수 있게 해주는 지름길. 3개 이상으로 값이 갈리면(어느 쪽을 기준으로
+   * 맞출지 애매해서) 안 보여준다.
+   */
+  siblingApply?: { label: string; targetEdgeIds: string[]; value: number };
 }
 
 /**
@@ -59,6 +66,18 @@ function groupConnections(connections: SelectedElementConnection[]): ConnectionG
   return Array.from(groups.values());
 }
 
+/** groupConnections가 쪼개놓은 그룹들 중, 값만 다른 호출(call) 연결 쌍에 siblingApply를 채워 넣는다. */
+function withCallSiblingApply(groups: ConnectionGroup[]): ConnectionGroup[] {
+  const callGroups = groups.filter((group) => group.kind === "call" && group.value !== undefined);
+  return groups.map((group) => {
+    if (group.kind !== "call" || group.value === undefined) return group;
+    const others = callGroups.filter((candidate) => candidate !== group && candidate.value !== group.value);
+    if (others.length !== 1) return group;
+    const [other] = others;
+    return { ...group, siblingApply: { label: other.label, targetEdgeIds: [...group.edgeIds, ...other.edgeIds], value: group.value } };
+  });
+}
+
 const TRAFFIC_KIND_LABEL: Record<SelectedElementConnection["kind"], string> = {
   distribution: "분배",
   call: "호출",
@@ -81,34 +100,45 @@ function ConnectionRow({
   };
 
   return (
-    <div className="flex items-center justify-between gap-2 rounded-lg border border-gray-200 px-3 py-2.5 dark:border-gray-700">
-      <span className="flex min-w-0 items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-300">
-          {arrow}
+    <div className="flex flex-col gap-1 rounded-lg border border-gray-200 px-3 py-2.5 dark:border-gray-700">
+      <div className="flex items-center justify-between gap-2">
+        <span className="flex min-w-0 items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-300">
+            {arrow}
+          </span>
+          <span className="truncate">{group.label}</span>
+          {group.edgeIds.length > 1 && <span className="shrink-0 text-xs text-gray-400 dark:text-gray-500">×{group.edgeIds.length}</span>}
         </span>
-        <span className="truncate">{group.label}</span>
-        {group.edgeIds.length > 1 && <span className="shrink-0 text-xs text-gray-400 dark:text-gray-500">×{group.edgeIds.length}</span>}
-      </span>
-      <span className="flex shrink-0 items-center gap-1.5">
-        {/* edgeLabel(장식용 텍스트)이 바로 옆 종류 배지랑 같은 문구면("복제" 등) 중복으로 두 번 안 보이게 한다. */}
-        {group.edgeLabel && group.edgeLabel !== TRAFFIC_KIND_LABEL[group.kind] && (
-          <span className="whitespace-nowrap text-xs text-gray-400 dark:text-gray-500">{group.edgeLabel}</span>
-        )}
-        <span className="whitespace-nowrap rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-500 dark:bg-gray-700 dark:text-gray-400">
-          {TRAFFIC_KIND_LABEL[group.kind]}
+        <span className="flex shrink-0 items-center gap-1.5">
+          {/* edgeLabel(장식용 텍스트)이 바로 옆 종류 배지랑 같은 문구면("복제" 등) 중복으로 두 번 안 보이게 한다. */}
+          {group.edgeLabel && group.edgeLabel !== TRAFFIC_KIND_LABEL[group.kind] && (
+            <span className="whitespace-nowrap text-xs text-gray-400 dark:text-gray-500">{group.edgeLabel}</span>
+          )}
+          <span className="whitespace-nowrap rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-500 dark:bg-gray-700 dark:text-gray-400">
+            {TRAFFIC_KIND_LABEL[group.kind]}
+          </span>
+          {group.kind !== "replication" && (
+            <input
+              type="number"
+              min={0}
+              step="any"
+              value={group.value ?? ""}
+              onChange={(event) => handleValueChange(event.target.value)}
+              title={group.kind === "distribution" ? "같은 그룹 안에서의 상대적 가중치" : "요청 1건당 평균 호출 횟수"}
+              className="w-14 rounded border border-gray-300 px-1.5 py-0.5 text-right text-xs dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+            />
+          )}
         </span>
-        {group.kind !== "replication" && (
-          <input
-            type="number"
-            min={0}
-            step="any"
-            value={group.value ?? ""}
-            onChange={(event) => handleValueChange(event.target.value)}
-            title={group.kind === "distribution" ? "같은 그룹 안에서의 상대적 가중치" : "요청 1건당 평균 호출 횟수"}
-            className="w-14 rounded border border-gray-300 px-1.5 py-0.5 text-right text-xs dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
-          />
-        )}
-      </span>
+      </div>
+      {group.siblingApply && (
+        <button
+          type="button"
+          onClick={() => onUpdateEdgeTraffic(group.siblingApply!.targetEdgeIds, { callsPerRequest: group.siblingApply!.value })}
+          className="self-start pl-9 text-[11px] text-blue-600 hover:underline dark:text-blue-400"
+        >
+          {group.siblingApply.label}에도 {group.siblingApply.value} 적용
+        </button>
+      )}
     </div>
   );
 }
@@ -138,8 +168,8 @@ export function SelectionDetailPanel({
 }: SelectionDetailPanelProps) {
   const meta = COMPONENT_META[elementInfo.type];
   const Icon = meta.Icon;
-  const inputGroups = useMemo(() => groupConnections(elementInfo.inputs), [elementInfo.inputs]);
-  const outputGroups = useMemo(() => groupConnections(elementInfo.outputs), [elementInfo.outputs]);
+  const inputGroups = useMemo(() => withCallSiblingApply(groupConnections(elementInfo.inputs)), [elementInfo.inputs]);
+  const outputGroups = useMemo(() => withCallSiblingApply(groupConnections(elementInfo.outputs)), [elementInfo.outputs]);
 
   const relatedResults = useMemo(() => {
     if (!report) return [];
@@ -194,7 +224,10 @@ export function SelectionDetailPanel({
 
       {elementInfo.type === "USER" && (
         <div>
-          <p className="mb-2 text-sm font-semibold text-gray-900 dark:text-gray-100">트래픽 입구</p>
+          <p className="mb-2 text-sm font-semibold text-gray-900 dark:text-gray-100">전체 트래픽</p>
+          <p className="-mt-1 mb-2 text-[11px] text-gray-400 dark:text-gray-500">
+            한 번만 정하면 돼요 — 아래 모든 요소가 이 값을 이어받아요.
+          </p>
           <div className="flex flex-col gap-2 rounded-lg border border-gray-200 p-3 dark:border-gray-700">
             <label className="flex items-center justify-between gap-2 text-xs text-gray-600 dark:text-gray-300">
               평균 요청 수
@@ -250,6 +283,33 @@ export function SelectionDetailPanel({
                 KB
               </span>
             </label>
+            {elementInfo.entryAvgRps !== undefined && (
+              <div className="flex flex-col gap-1 border-t border-gray-100 pt-2 text-[11px] text-gray-500 dark:border-gray-800 dark:text-gray-400">
+                {(() => {
+                  const { monthlyRequests, monthlyTransferGb } = computeGlobalMonthlyFigures(
+                    elementInfo.entryAvgRps!,
+                    elementInfo.entryAvgResponseSizeKb,
+                  );
+                  return (
+                    <>
+                      <div className="flex items-center justify-between">
+                        <span>월 요청 수</span>
+                        <span>{Math.round(monthlyRequests).toLocaleString()}건</span>
+                      </div>
+                      {monthlyTransferGb !== undefined && (
+                        <div className="flex items-center justify-between">
+                          <span>월 전송량</span>
+                          <span>{monthlyTransferGb.toFixed(1)}GB</span>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
+              </div>
+            )}
+          </div>
+          <div className="mt-2">
+            <GlobalTrafficSummarySection graph={graph} />
           </div>
         </div>
       )}
