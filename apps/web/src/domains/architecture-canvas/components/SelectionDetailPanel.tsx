@@ -1,12 +1,17 @@
 "use client";
 
-import type { ArchitectureValidationReport } from "@nangman/shared-types";
+import type { ArchitectureGraph, ArchitectureValidationReport } from "@nangman/shared-types";
 import { useMemo } from "react";
 import { COMPONENT_META } from "../component-meta";
+import { COST_RELEVANT_TYPES } from "../node-cost";
 import type { SelectedElementConnection, SelectedElementInfo } from "../types";
 import { RULE_RELATED_COMPONENT_TYPES, SEVERITY_ICON, SEVERITY_PILL_STYLE } from "../validation-style";
+import { WhatIfRemovePanel } from "./WhatIfRemovePanel";
 
 interface SelectionDetailPanelProps {
+  architectureId: string;
+  /** F3: "빼고 시험해 보기"가 노드를 뺀 가상 그래프를 만들 때 쓰는, 지금 캔버스의 실제(저장 전 포함) 그래프. */
+  graph: ArchitectureGraph;
   elementInfo: SelectedElementInfo;
   report?: ArchitectureValidationReport;
   onFocusNodes: (nodeIds: string[]) => void;
@@ -111,6 +116,8 @@ function CheckCircleIcon({ ok }: { ok: boolean }) {
 }
 
 export function SelectionDetailPanel({
+  architectureId,
+  graph,
   elementInfo,
   report,
   onFocusNodes,
@@ -287,6 +294,9 @@ export function SelectionDetailPanel({
         >
           ↗ 트래픽 2배로 늘려 보기
         </button>
+        {COST_RELEVANT_TYPES.includes(elementInfo.type) && (
+          <WhatIfRemovePanel architectureId={architectureId} graph={graph} nodeId={elementInfo.id} nodeLabel={elementInfo.label} />
+        )}
       </div>
     </div>
   );

@@ -2,6 +2,7 @@ import type {
   ApiResponse,
   ArchitectureDashboardSummary,
   ArchitectureDetail,
+  ArchitectureGraph,
   ArchitectureValidationReport,
   ComponentPresetCatalogItem,
   CreateArchitectureRequest,
@@ -14,6 +15,7 @@ import type {
   SimulationRunResult,
   SimulationRunSummary,
   UpdateArchitectureRequest,
+  ValidationPreviewResult,
   ValidationRuleCatalogItem,
 } from "@nangman/shared-types";
 
@@ -70,6 +72,14 @@ export function updateArchitecture(id: string, input: UpdateArchitectureRequest)
 
 export function validateArchitecture(id: string): Promise<ArchitectureValidationReport> {
   return request<ArchitectureValidationReport>(`/architectures/${id}/validate`, { method: "POST" });
+}
+
+/** F3: "빼고 시험해 보기" — graph를 저장하지 않고 그 자리에서 검증·비용만 미리 계산해 본다. */
+export function validateArchitecturePreview(id: string, graph: ArchitectureGraph): Promise<ValidationPreviewResult> {
+  return request<ValidationPreviewResult>(`/architectures/${id}/validate-preview`, {
+    method: "POST",
+    body: JSON.stringify({ graph }),
+  });
 }
 
 export function getComponentPresets(): Promise<ComponentPresetCatalogItem[]> {

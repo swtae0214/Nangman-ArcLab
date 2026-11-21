@@ -233,6 +233,8 @@ export function ArchitectureEditor({ id }: { id: string }) {
   // 풀면(SelectionDetailPanel의 × 버튼) 다시 평소의 탭(정적 검증/용량 계산기/시뮬레이션)으로 돌아온다.
   const rightPanelBody = selectedElementInfo ? (
     <SelectionDetailPanel
+      architectureId={id}
+      graph={liveGraph}
       elementInfo={selectedElementInfo}
       report={validation.data}
       onFocusNodes={handleFocusNodes}

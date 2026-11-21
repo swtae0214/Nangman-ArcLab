@@ -34,3 +34,12 @@ export interface ArchitectureValidationReport {
   passed: boolean;
   results: ValidationRuleResult[];
 }
+
+/**
+ * F3: "빼고 시험해 보기" — 저장 없이, 요청 본문으로 받은 가상의 그래프(보통 노드 하나를 뺀 상태)를
+ * 그 자리에서 검증 + 비용 계산만 해서 돌려준다. 실제 아키텍처는 전혀 바뀌지 않는다.
+ */
+export interface ValidationPreviewResult {
+  validation: ArchitectureValidationReport;
+  estimatedMonthlyCostUsd: number;
+}
