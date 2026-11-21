@@ -49,3 +49,19 @@ body {
   --xy-edge-stroke-width-default: 1.5;
   --xy-edge-stroke-selected-default: #e5e7eb;
 }
+
+/*
+ * @xyflow/react는 선택 모드에서 pane에 .selection 클래스를 붙여 cursor: pointer를 주는데, 대부분의
+ * OS/브라우저에서 pointer 커서도 손가락으로 가리키는 "손" 모양이라 "손 도구(H, 팬 모드)"의
+ * cursor: grab(역시 손 모양)과 한눈에 구분되지 않았다. 선택 모드만 또렷한 기본 화살표로 바꾼다.
+ * (.selection과 specificity가 같아서 로드 순서에 따라 묻힐 수 있어 !important로 확실히 이긴다.)
+ */
+[data-interaction-mode="select"] .react-flow__pane {
+  cursor: default !important;
+}
+[data-interaction-mode="pan"] .react-flow__pane {
+  cursor: grab;
+}
+[data-interaction-mode="pan"] .react-flow__pane.dragging {
+  cursor: grabbing;
+}

@@ -972,7 +972,14 @@ const CanvasInner = forwardRef<ArchitectureCanvasHandle, ArchitectureCanvasProps
         <NodeCostProvider value={showNodeCost ?? false}>
         <div className="flex h-full w-full dark:bg-gray-900">
           {!readOnly && <LeftSidebar nodes={nodes} onSelectNode={handleSelectNodeFromLayerPanel} />}
-          <div ref={setCanvasWrapperRef} className="relative h-full flex-1 dark:bg-gray-900">
+          <div
+            ref={setCanvasWrapperRef}
+            // "이동(V)" 모드인데 캔버스 위 커서가 여전히 손 모양(@xyflow/react 기본 pane 커서)으로 보여서,
+            // 지금 모드가 제대로 바뀐 건지 한눈에 알아보기 어렵다는 피드백으로 globals.css에서 모드별로
+            // 커서를 강제로 덮어쓴다.
+            data-interaction-mode={interactionMode}
+            className="relative h-full flex-1 dark:bg-gray-900"
+          >
             {!readOnly && onToggleTrafficFlow && (
               <ToggleSwitch
                 checked={showTrafficFlow ?? false}
