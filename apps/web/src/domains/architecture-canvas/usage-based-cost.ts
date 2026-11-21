@@ -21,6 +21,8 @@ const ALB_HOURLY_USD = 0.0225;
 const ALB_LCU_HOURLY_USD = 0.008;
 /** LCU 1개 = 신규 연결 초당 25개(AWS 공식 정의). */
 const ALB_NEW_CONNECTIONS_PER_LCU = 25;
+/** F5: "고정 요금만 반영" — LCU를 전혀 계산 못 해도, ALB가 떠 있는 한 항상 붙는 시간당 요금만이라도. */
+export const ALB_FIXED_MONTHLY_USD = Math.round(ALB_HOURLY_USD * 730 * 100) / 100;
 
 export interface AlbCostInput {
   /** 이 로드밸런서에 도착하는 RPS(트래픽 전파 엔진 계산값). */
@@ -29,12 +31,16 @@ export interface AlbCostInput {
   connectionReuse: boolean;
   /** connectionReuse가 true일 때만 의미 있음 — 연결 하나당 평균 요청 수. */
   requestsPerConnection?: number;
+  /** F5: 연결당 평균 요청 수가 없어 LCU를 못 구해도, ALB 고정 요금만이라도 반영할지. */
+  acceptPartialCost?: boolean;
 }
 
 export interface AlbCostResult {
   newConnectionsPerSec: number;
   lcuFromNewConnections: number;
   monthlyCostUsd: number;
+  /** true면 LCU 없이 고정 요금만 반영된 값 — 합계를 "하한값"으로 표시해야 한다. */
+  isPartial: boolean;
 }
 
 /**
@@ -49,11 +55,15 @@ export function computeAlbCost(input: AlbCostInput): AlbCostResult | null {
       ? input.rps / input.requestsPerConnection
       : null
     : input.rps;
-  if (newConnectionsPerSec === null) return null;
+
+  if (newConnectionsPerSec === null) {
+    if (!input.acceptPartialCost) return null;
+    return { newConnectionsPerSec: 0, lcuFromNewConnections: 0, monthlyCostUsd: ALB_FIXED_MONTHLY_USD, isPartial: true };
+  }
 
   const lcuFromNewConnections = newConnectionsPerSec / ALB_NEW_CONNECTIONS_PER_LCU;
   const monthlyCostUsd = (ALB_HOURLY_USD + lcuFromNewConnections * ALB_LCU_HOURLY_USD) * 730;
-  return { newConnectionsPerSec, lcuFromNewConnections, monthlyCostUsd: Math.round(monthlyCostUsd * 100) / 100 };
+  return { newConnectionsPerSec, lcuFromNewConnections, monthlyCostUsd: Math.round(monthlyCostUsd * 100) / 100, isPartial: false };
 }
 
 // ── CDN(CloudFront) ──────────────────────────────────────────────────────────

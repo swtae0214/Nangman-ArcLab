@@ -154,6 +154,11 @@ export interface GraphNode {
     /** LOAD_BALANCER(ALB) 전용 — albConnectionReuse가 true일 때, 연결 하나당 평균 요청 수. */
     albRequestsPerConnection?: number;
     /**
+     * F5: LOAD_BALANCER(ALB) 전용 — 연결당 평균 요청 수가 없어서 LCU를 계산할 수 없을 때도,
+     * ALB 고정 시간당 요금만이라도 비용 합계에 넣을지. 켜져 있어도 합계는 "하한값"으로 표시된다.
+     */
+    albAcceptPartialCost?: boolean;
+    /**
      * F4: 프리셋을 고를 수 있는 타입(WEB_SERVER/DB_PRIMARY/DB_REPLICA/CACHE) 전용 — 같은 프리셋을
      * 몇 대 쓰는지. 용량 계산(M/M/c의 c)과 월 비용(프리셋 단가 × 이 값) 둘 다에 쓰인다. 기본값 1.
      */

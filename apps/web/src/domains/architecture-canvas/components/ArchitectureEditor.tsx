@@ -104,7 +104,15 @@ export function ArchitectureEditor({ id }: { id: string }) {
   );
 
   const handleUpdateUsageBasedCostSettings = useCallback(
-    (nodeId: string, patch: { cdnCacheHitRatioPercent?: number; albConnectionReuse?: boolean; albRequestsPerConnection?: number }) => {
+    (
+      nodeId: string,
+      patch: {
+        cdnCacheHitRatioPercent?: number;
+        albConnectionReuse?: boolean;
+        albRequestsPerConnection?: number;
+        albAcceptPartialCost?: boolean;
+      },
+    ) => {
       canvasRef.current?.updateUsageBasedCostSettings(nodeId, patch);
     },
     [],
@@ -113,6 +121,14 @@ export function ArchitectureEditor({ id }: { id: string }) {
   const handleUpdateCapacitySettings = useCallback((nodeId: string, patch: { instanceCount?: number }) => {
     canvasRef.current?.updateCapacitySettings(nodeId, patch);
   }, []);
+
+  // F5: 비용 탭의 "고정 요금만 반영" 버튼 — 같은 버튼으로 껐다 켰다 할 수 있게 토글로 둔다.
+  const handleToggleAlbPartialCost = useCallback(
+    (nodeId: string, next: boolean) => {
+      canvasRef.current?.updateUsageBasedCostSettings(nodeId, { albAcceptPartialCost: next });
+    },
+    [],
+  );
 
   /**
    * 11단계(온보딩 튜토리얼): 대시보드의 "튜토리얼" 링크가 새 연습용 아키텍처를 만들고
@@ -225,7 +241,9 @@ export function ArchitectureEditor({ id }: { id: string }) {
             {validation.isPending ? "검증 중..." : '상단의 "검증 실행"을 눌러 정적 검증을 실행하세요.'}
           </p>
         ))}
-      {activeTab === "cost" && <CostPanel summary={costSummary} />}
+      {activeTab === "cost" && (
+        <CostPanel summary={costSummary} onFocusNodes={handleFocusNodes} onToggleAlbPartialCost={handleToggleAlbPartialCost} />
+      )}
       {activeTab === "simulation" && <SimulationPanel architectureId={id} />}
     </div>
   );
@@ -313,17 +331,19 @@ export function ArchitectureEditor({ id }: { id: string }) {
                 </span>
               )}
               {costSummary && costSummary.lines.length > 0 && (
-                <span
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("cost")}
                   title={
-                    costSummary.unresolvedCount > 0
-                      ? `가격 미지원 ${costSummary.unresolvedCount}개는 합계에서 빠져 있어요`
-                      : undefined
+                    costSummary.isLowerBound
+                      ? `일부 노드(${costSummary.lines.length - costSummary.resolvedCount}개)는 아직 가격이 반영되지 않았어요 — 눌러서 자세히 보기`
+                      : "눌러서 비용 탭 열기"
                   }
-                  className="rounded bg-gray-50 px-1.5 py-0.5 text-[11px] font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-300"
+                  className="flex items-center gap-1 rounded bg-gray-50 px-1.5 py-0.5 text-[11px] font-medium text-gray-600 hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
                 >
-                  월 ${costSummary.totalMonthlyCostUsd.toFixed(2)} 예상
-                  {costSummary.unresolvedCount > 0 && ` (미지원 ${costSummary.unresolvedCount})`}
-                </span>
+                  🗄 월 {costSummary.isLowerBound ? "최소 " : ""}${costSummary.totalMonthlyCostUsd.toFixed(2)}
+                  {costSummary.isLowerBound && ` · ${costSummary.resolvedCount}/${costSummary.lines.length} 반영`}
+                </button>
               )}
             </h1>
             {headerStatusText && <p className="text-xs text-gray-400 dark:text-gray-500">{headerStatusText}</p>}

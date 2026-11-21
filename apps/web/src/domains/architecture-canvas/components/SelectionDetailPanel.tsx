@@ -25,7 +25,12 @@ interface SelectionDetailPanelProps {
   onUpdateEdgeTraffic: (edgeIds: string[], patch: { distributionWeight?: number; callsPerRequest?: number }) => void;
   onUpdateUsageBasedCostSettings: (
     nodeId: string,
-    patch: { cdnCacheHitRatioPercent?: number; albConnectionReuse?: boolean; albRequestsPerConnection?: number },
+    patch: {
+      cdnCacheHitRatioPercent?: number;
+      albConnectionReuse?: boolean;
+      albRequestsPerConnection?: number;
+      albAcceptPartialCost?: boolean;
+    },
   ) => void;
   onUpdateCapacitySettings: (nodeId: string, patch: { instanceCount?: number }) => void;
 }

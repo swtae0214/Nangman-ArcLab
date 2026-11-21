@@ -60,6 +60,11 @@ export class NodeDataDto {
   @IsNumber()
   albRequestsPerConnection?: number;
 
+  // F5: LOAD_BALANCER(ALB) 전용 — LCU 계산이 안 돼도 고정 시간당 요금만 합계에 넣을지.
+  @IsOptional()
+  @IsBoolean()
+  albAcceptPartialCost?: boolean;
+
   // F4: 프리셋 선택 가능 타입 전용 — 같은 프리셋을 몇 대 쓰는지(용량 계산 + 비용 둘 다에 쓰임).
   @IsOptional()
   @IsNumber()

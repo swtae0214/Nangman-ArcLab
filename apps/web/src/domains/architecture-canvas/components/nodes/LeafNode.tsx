@@ -2,7 +2,7 @@ import { Handle, NodeResizer, Position, useReactFlow, type NodeProps } from "@xy
 import { COMPONENT_META, LEAF_MIN_HEIGHT, LEAF_MIN_WIDTH } from "../../component-meta";
 import { useComponentPresets } from "../../hooks/useCapacityCalculator";
 import { PRESET_SELECTABLE_TYPES } from "../../node-cost";
-import { useShowNodeCost } from "../../node-cost-context";
+import { useNodeCostLine, useShowNodeCost } from "../../node-cost-context";
 import { useProblemNodeIds } from "../../problem-nodes-context";
 import { useIsReadOnly } from "../../read-only-context";
 import { useTrafficRpsByNodeId } from "../../traffic-rps-context";
@@ -25,7 +25,9 @@ export function LeafNode({ id, type, data, selected }: NodeProps<FlowNode>) {
   const presetsQuery = useComponentPresets();
   const trafficRps = useTrafficRpsByNodeId().get(id);
   const showNodeCost = useShowNodeCost();
-  const monthlyCostUsd = presetsQuery.data?.find((preset) => preset.code === data.presetCode)?.monthlyCostUsd;
+  // F5: 비용 탭(summarizeArchitectureCost)과 같은 계산 결과를 쓴다 — instanceCount 배수나
+  // LOAD_BALANCER/CDN의 사용량 기반 비용까지 여기서 직접 다시 계산하면 두 화면이 어긋날 수 있다.
+  const costLine = useNodeCostLine(id);
 
   const handleLabelChange = (label: string) => {
     setNodes((nodes) => nodes.map((node) => (node.id === id ? { ...node, data: { ...node.data, label } } : node)));
@@ -96,16 +98,23 @@ export function LeafNode({ id, type, data, selected }: NodeProps<FlowNode>) {
           ))}
         <Handle type="source" position={Position.Bottom} />
       </div>
-      {(trafficRps !== undefined || (showNodeCost && monthlyCostUsd !== undefined)) && (
+      {(trafficRps !== undefined || (showNodeCost && costLine)) && (
         <div className="absolute left-1/2 top-full z-10 mt-1 flex -translate-x-1/2 flex-col items-center gap-0.5">
           {trafficRps !== undefined && (
             <div className="rounded border border-gray-300 bg-white px-1.5 py-0.5 text-[10px] font-medium text-gray-600 shadow-sm dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300">
               {Math.round(trafficRps)}
             </div>
           )}
-          {showNodeCost && monthlyCostUsd !== undefined && (
-            <div className="whitespace-nowrap rounded border border-gray-300 bg-white px-1.5 py-0.5 text-[10px] font-medium text-gray-600 shadow-sm dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300">
-              월 ${monthlyCostUsd.toFixed(2)}
+          {showNodeCost && costLine && (
+            <div
+              title={costLine.monthlyCostUsd === undefined ? costLine.unresolvedNote : costLine.partialNote}
+              className={`whitespace-nowrap rounded border px-1.5 py-0.5 text-[10px] font-medium shadow-sm ${
+                costLine.monthlyCostUsd !== undefined
+                  ? "border-gray-300 bg-white text-gray-600 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300"
+                  : "border-dashed border-gray-400 bg-white text-gray-400 dark:border-gray-500 dark:bg-gray-800 dark:text-gray-500"
+              }`}
+            >
+              {costLine.monthlyCostUsd !== undefined ? `월 $${costLine.monthlyCostUsd.toFixed(2)}` : "미반영"}
             </div>
           )}
         </div>

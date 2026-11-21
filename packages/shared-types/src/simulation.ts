@@ -16,6 +16,8 @@ export interface ComponentPresetCatalogItem {
   awsRegion?: string;
   /** 가격 데이터의 출처/주의사항 설명 (예: "AWS Price List Bulk API (온디맨드, 교육용 근사치 — 실제 청구와 다를 수 있어요)"). */
   pricingSourceNote?: string;
+  /** F5: 이 가격을 수집한 시각(ISO) — 비용 탭의 "가격 기준일" 표시에 쓴다. */
+  pricingFetchedAt?: string;
 }
 
 export interface NodeCapacityPreviewRequest {

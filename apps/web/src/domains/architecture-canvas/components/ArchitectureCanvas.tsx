@@ -48,7 +48,7 @@ import {
 } from "../containment";
 import { useComponentPresets } from "../hooks/useCapacityCalculator";
 import { PRESET_SELECTABLE_TYPES, summarizeArchitectureCost, type ArchitectureCostSummary } from "../node-cost";
-import { NodeCostProvider } from "../node-cost-context";
+import { NodeCostLineProvider, NodeCostProvider } from "../node-cost-context";
 import { ProblemNodesProvider } from "../problem-nodes-context";
 import { ReadOnlyProvider } from "../read-only-context";
 import { computeNodeRps, inferEdgeKind } from "../traffic-rps";
@@ -100,7 +100,12 @@ export interface ArchitectureCanvasHandle {
   /** F4: CDN 캐시 적중률/LOAD_BALANCER 연결 재사용 설정을 우측 패널에서 바로 고칠 수 있게 해주는 통로. */
   updateUsageBasedCostSettings: (
     nodeId: string,
-    patch: { cdnCacheHitRatioPercent?: number; albConnectionReuse?: boolean; albRequestsPerConnection?: number },
+    patch: {
+      cdnCacheHitRatioPercent?: number;
+      albConnectionReuse?: boolean;
+      albRequestsPerConnection?: number;
+      albAcceptPartialCost?: boolean;
+    },
   ) => void;
   /** F4: 프리셋 선택 가능 타입의 인스턴스 수를 우측 패널(용량 섹션)에서 바로 고칠 수 있게 해주는 통로. */
   updateCapacitySettings: (nodeId: string, patch: { instanceCount?: number }) => void;
@@ -203,6 +208,9 @@ const CanvasInner = forwardRef<ArchitectureCanvasHandle, ArchitectureCanvasProps
     () => summarizeArchitectureCost(nodes, presetsQuery.data ?? [], computedRpsByNodeId),
     [nodes, presetsQuery.data, computedRpsByNodeId],
   );
+  // F5: 캔버스 노드 라벨("$30"/점선 "미반영")이 비용 탭과 같은 계산 결과를 쓰도록, 한 번 계산한
+  // costSummary.lines를 노드 id로 바로 찾아볼 수 있게 맵으로만 바꿔서 내려준다.
+  const costLinesByNodeId = useMemo(() => new Map(costSummary.lines.map((line) => [line.nodeId, line])), [costSummary]);
   const lastReportedCostSignatureRef = useRef<string | null>(null);
   useEffect(() => {
     const signature = JSON.stringify(costSummary);
@@ -693,7 +701,11 @@ const CanvasInner = forwardRef<ArchitectureCanvasHandle, ArchitectureCanvasProps
       ...(node.type === "USER" ? { entryAvgRps: node.data.entryAvgRps, entryPeakMultiplier: node.data.entryPeakMultiplier } : {}),
       ...(node.type === "CDN" ? { cdnCacheHitRatioPercent: node.data.cdnCacheHitRatioPercent } : {}),
       ...(node.type === "LOAD_BALANCER"
-        ? { albConnectionReuse: node.data.albConnectionReuse, albRequestsPerConnection: node.data.albRequestsPerConnection }
+        ? {
+            albConnectionReuse: node.data.albConnectionReuse,
+            albRequestsPerConnection: node.data.albRequestsPerConnection,
+            albAcceptPartialCost: node.data.albAcceptPartialCost,
+          }
         : {}),
       ...(PRESET_SELECTABLE_TYPES.includes(node.type)
         ? { presetCode: node.data.presetCode, instanceCount: node.data.instanceCount }
@@ -970,6 +982,7 @@ const CanvasInner = forwardRef<ArchitectureCanvasHandle, ArchitectureCanvasProps
       <ReadOnlyProvider value={readOnly}>
         <TrafficRpsProvider value={rpsByNodeId}>
         <NodeCostProvider value={showNodeCost ?? false}>
+        <NodeCostLineProvider value={costLinesByNodeId}>
         <div className="flex h-full w-full dark:bg-gray-900">
           {!readOnly && <LeftSidebar nodes={nodes} onSelectNode={handleSelectNodeFromLayerPanel} />}
           <div
@@ -1072,6 +1085,7 @@ const CanvasInner = forwardRef<ArchitectureCanvasHandle, ArchitectureCanvasProps
             )}
           </div>
         </div>
+        </NodeCostLineProvider>
         </NodeCostProvider>
         </TrafficRpsProvider>
       </ReadOnlyProvider>

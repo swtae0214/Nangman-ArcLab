@@ -35,7 +35,9 @@ export class CatalogService {
   }
 
   /** fetch-aws-pricing 스크립트가 ComponentPreset.metadata(Json)에 적어둔 가격 정보를 꺼낸다. 아직 수집 전이면 빈 객체. */
-  private readPricingMetadata(metadata: unknown): Pick<ComponentPresetCatalogItem, 'hourlyUsd' | 'monthlyCostUsd' | 'awsRegion' | 'pricingSourceNote'> {
+  private readPricingMetadata(
+    metadata: unknown,
+  ): Pick<ComponentPresetCatalogItem, 'hourlyUsd' | 'monthlyCostUsd' | 'awsRegion' | 'pricingSourceNote' | 'pricingFetchedAt'> {
     if (typeof metadata !== 'object' || metadata === null) return {};
     const meta = metadata as Record<string, unknown>;
     return {
@@ -43,6 +45,7 @@ export class CatalogService {
       ...(typeof meta.monthlyCostUsd === 'number' ? { monthlyCostUsd: meta.monthlyCostUsd } : {}),
       ...(typeof meta.awsRegion === 'string' ? { awsRegion: meta.awsRegion } : {}),
       ...(typeof meta.pricingSourceNote === 'string' ? { pricingSourceNote: meta.pricingSourceNote } : {}),
+      ...(typeof meta.fetchedAt === 'string' ? { pricingFetchedAt: meta.fetchedAt } : {}),
     };
   }
 

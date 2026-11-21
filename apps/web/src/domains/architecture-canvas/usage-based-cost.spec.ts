@@ -44,4 +44,16 @@ describe("computeAlbCost", () => {
     const result = computeAlbCost({ rps: 12, connectionReuse: true });
     expect(result).toBeNull();
   });
+
+  it("F5: acceptPartialCost를 켜면 LCU 없이 ALB 고정 요금만 isPartial로 반환한다", () => {
+    const result = computeAlbCost({ rps: 12, connectionReuse: true, acceptPartialCost: true });
+    expect(result).not.toBeNull();
+    expect(result?.isPartial).toBe(true);
+    expect(result?.monthlyCostUsd).toBeCloseTo(16.43, 2);
+  });
+
+  it("전체 계산이 가능하면 acceptPartialCost와 무관하게 isPartial이 false다", () => {
+    const result = computeAlbCost({ rps: 25, connectionReuse: false, acceptPartialCost: true });
+    expect(result?.isPartial).toBe(false);
+  });
 });
