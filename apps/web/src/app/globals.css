@@ -53,11 +53,13 @@ body {
 /*
  * @xyflow/react는 선택 모드에서 pane에 .selection 클래스를 붙여 cursor: pointer를 주는데, 대부분의
  * OS/브라우저에서 pointer 커서도 손가락으로 가리키는 "손" 모양이라 "손 도구(H, 팬 모드)"의
- * cursor: grab(역시 손 모양)과 한눈에 구분되지 않았다. 선택 모드만 또렷한 기본 화살표로 바꾼다.
+ * cursor: grab(역시 손 모양)과 한눈에 구분되지 않았다 — "기본 화살표로만 바꿔도 똑같이 헷갈린다"는
+ * 후속 피드백으로, 아예 툴바의 "이동(V)" 버튼과 똑같은 화살표 아이콘(CanvasToolbar.tsx의
+ * SelectIcon과 같은 path)을 커서 이미지로 써서, 커서 모양만 보고도 지금 도구가 뭔지 바로 알 수 있게 한다.
  * (.selection과 specificity가 같아서 로드 순서에 따라 묻힐 수 있어 !important로 확실히 이긴다.)
  */
 [data-interaction-mode="select"] .react-flow__pane {
-  cursor: default !important;
+  cursor: url("/cursors/select-cursor.svg") 3 2, default !important;
 }
 [data-interaction-mode="pan"] .react-flow__pane {
   cursor: grab;
