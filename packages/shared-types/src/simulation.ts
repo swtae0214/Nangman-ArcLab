@@ -8,6 +8,14 @@ export interface ComponentPresetCatalogItem {
   displayName: string;
   serviceRateRps: number;
   sourceNote: string;
+  /** AWS Price List Bulk API로 수집한 온디맨드 시간당 요금(USD). 아직 수집되지 않았으면 undefined. */
+  hourlyUsd?: number;
+  /** hourlyUsd * 730시간으로 어림잡은 월간 비용(USD). */
+  monthlyCostUsd?: number;
+  /** 가격을 조회한 AWS 리전 코드 (예: "us-east-1"). */
+  awsRegion?: string;
+  /** 가격 데이터의 출처/주의사항 설명 (예: "AWS Price List Bulk API (온디맨드, 교육용 근사치 — 실제 청구와 다를 수 있어요)"). */
+  pricingSourceNote?: string;
 }
 
 export interface NodeCapacityPreviewRequest {

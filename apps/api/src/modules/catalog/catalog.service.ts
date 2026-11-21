@@ -21,13 +21,29 @@ export class CatalogService {
 
   async listComponentPresets(): Promise<ComponentPresetCatalogItem[]> {
     const presets = await this.prisma.componentPreset.findMany({ orderBy: { code: 'asc' } });
-    return presets.map((preset) => ({
-      code: preset.code,
-      componentType: preset.componentType,
-      displayName: preset.displayName,
-      serviceRateRps: preset.serviceRateRps.toNumber(),
-      sourceNote: preset.sourceNote,
-    }));
+    return presets.map((preset) => {
+      const pricing = this.readPricingMetadata(preset.metadata);
+      return {
+        code: preset.code,
+        componentType: preset.componentType,
+        displayName: preset.displayName,
+        serviceRateRps: preset.serviceRateRps.toNumber(),
+        sourceNote: preset.sourceNote,
+        ...pricing,
+      };
+    });
+  }
+
+  /** fetch-aws-pricing 스크립트가 ComponentPreset.metadata(Json)에 적어둔 가격 정보를 꺼낸다. 아직 수집 전이면 빈 객체. */
+  private readPricingMetadata(metadata: unknown): Pick<ComponentPresetCatalogItem, 'hourlyUsd' | 'monthlyCostUsd' | 'awsRegion' | 'pricingSourceNote'> {
+    if (typeof metadata !== 'object' || metadata === null) return {};
+    const meta = metadata as Record<string, unknown>;
+    return {
+      ...(typeof meta.hourlyUsd === 'number' ? { hourlyUsd: meta.hourlyUsd } : {}),
+      ...(typeof meta.monthlyCostUsd === 'number' ? { monthlyCostUsd: meta.monthlyCostUsd } : {}),
+      ...(typeof meta.awsRegion === 'string' ? { awsRegion: meta.awsRegion } : {}),
+      ...(typeof meta.pricingSourceNote === 'string' ? { pricingSourceNote: meta.pricingSourceNote } : {}),
+    };
   }
 
   async listFailureScenarios(): Promise<FailureScenarioCatalogItem[]> {

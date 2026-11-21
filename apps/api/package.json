@@ -18,6 +18,7 @@
     "seed:validation-rules": "node dist/scripts/seed-validation-rules.js",
     "seed:component-presets": "node dist/scripts/seed-component-presets.js",
     "seed:failure-scenarios": "node dist/scripts/seed-failure-scenarios.js",
+    "fetch:aws-pricing": "node dist/scripts/fetch-aws-pricing.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:cov": "vitest run --coverage",
