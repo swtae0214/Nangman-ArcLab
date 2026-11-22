@@ -190,4 +190,54 @@ describe('computePipeline', () => {
     const webMetric = result.nodeMetrics.find((metric) => metric.nodeType === 'WEB_SERVER');
     expect(webMetric?.instanceCount).toBe(1); // floor(3 * 0.5) = 1
   });
+
+  /** 12단계: LOAD_BALANCER/WEB_SERVER/DB_PRIMARY·REPLICA만 하드코딩돼 있던 걸 역할별 타입 묶음으로 일반화했다. */
+  it('API Gateway→Lambda→DynamoDB처럼 새로 추가된 타입으로도 파이프라인이 계산된다', () => {
+    const result = computePipeline(
+      graph(
+        [
+          { id: 'gw1', type: 'API_GATEWAY', position: { x: 0, y: 0 }, data: { label: 'GW' } },
+          { id: 'fn1', type: 'LAMBDA', position: { x: 1, y: 0 }, data: { label: 'Fn' } },
+          { id: 'ddb1', type: 'DYNAMODB', position: { x: 2, y: 0 }, data: { label: 'DDB' } },
+        ],
+        [
+          { id: 'e1', source: 'gw1', target: 'fn1' },
+          { id: 'e2', source: 'fn1', target: 'ddb1' },
+        ],
+      ),
+      30,
+      [],
+    );
+
+    expect(result.nodeMetrics).toHaveLength(2);
+    expect(result.nodeMetrics.find((metric) => metric.nodeType === 'LAMBDA')).toBeDefined();
+    expect(result.nodeMetrics.find((metric) => metric.nodeType === 'DYNAMODB')).toBeDefined();
+    // 프리셋이 없으니 기존 폴백(기본값 100 RPS)과 경고 문구로 계산됐는지도 같이 확인한다.
+    expect(result.warnings.some((warning) => warning.includes('임시값'))).toBe(true);
+  });
+
+  it('같은 ASG 아래 ECS 여러 대도 웹 서버처럼 하나의 큐로 합쳐진다', () => {
+    const result = computePipeline(
+      graph(
+        [
+          { id: 'lb1', type: 'LOAD_BALANCER', position: { x: 0, y: 0 }, data: { label: 'LB' } },
+          { id: 'asg1', type: 'AUTO_SCALING_GROUP', position: { x: 1, y: 0 }, data: { label: 'ASG' } },
+          { id: 'ecs1', type: 'ECS', logicalGroupId: 'asg1', position: { x: 0, y: 0 }, data: { label: 'ECS1' } },
+          { id: 'ecs2', type: 'ECS', logicalGroupId: 'asg1', position: { x: 1, y: 0 }, data: { label: 'ECS2' } },
+          { id: 'db1', type: 'DB_PRIMARY', position: { x: 2, y: 0 }, data: { label: 'DB', presetCode: 'db-preset' } },
+        ],
+        [
+          { id: 'e1', source: 'lb1', target: 'ecs1' },
+          { id: 'e2', source: 'lb1', target: 'ecs2' },
+          { id: 'e3', source: 'ecs1', target: 'db1' },
+          { id: 'e4', source: 'ecs2', target: 'db1' },
+        ],
+      ),
+      30,
+      PRESETS,
+    );
+
+    const ecsMetric = result.nodeMetrics.find((metric) => metric.nodeType === 'ECS');
+    expect(ecsMetric?.instanceCount).toBe(2);
+  });
 });

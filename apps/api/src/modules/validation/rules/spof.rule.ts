@@ -1,11 +1,11 @@
-import type { ArchitectureGraph } from '@nangman/shared-types';
+import { ENTRY_COMPONENT_TYPES, DATA_COMPONENT_TYPES, type ArchitectureGraph } from '@nangman/shared-types';
 import { buildUndirectedAdjacency, canReachAnyExcluding, findArticulationPoints } from '../graph.util.js';
 import type { RuleEvaluation } from './rule.types.js';
 
 /**
- * SPOF-001: 로드밸런서 → DB 사이에 단일 장애점이 있는가.
- * 그래프 전체의 절단점을 먼저 구하고, 그중 "그 절단점을 지웠을 때 실제로 어느 LB에서도
- * 어느 DB로도 못 가는" 것만 SPOF로 보고한다 — 검증과 무관한 위치의 절단점(예: 독립된
+ * SPOF-001: 진입점(로드밸런서/API Gateway) → 데이터 저장소 사이에 단일 장애점이 있는가.
+ * 그래프 전체의 절단점을 먼저 구하고, 그중 "그 절단점을 지웠을 때 실제로 어느 진입점에서도
+ * 어느 저장소로도 못 가는" 것만 SPOF로 보고한다 — 검증과 무관한 위치의 절단점(예: 독립된
  * CDN 곁가지)까지 SPOF로 오탐하지 않기 위해서다.
  */
 export function evaluateSpofRule(graph: ArchitectureGraph): RuleEvaluation {
@@ -13,9 +13,9 @@ export function evaluateSpofRule(graph: ArchitectureGraph): RuleEvaluation {
   const nodeIds = graph.nodes.map((node) => node.id);
   const articulationPoints = findArticulationPoints(nodeIds, adjacency);
 
-  const loadBalancerIds = graph.nodes.filter((node) => node.type === 'LOAD_BALANCER').map((node) => node.id);
+  const loadBalancerIds = graph.nodes.filter((node) => ENTRY_COMPONENT_TYPES.includes(node.type)).map((node) => node.id);
   const databaseIds = new Set(
-    graph.nodes.filter((node) => node.type === 'DB_PRIMARY' || node.type === 'DB_REPLICA').map((node) => node.id),
+    graph.nodes.filter((node) => DATA_COMPONENT_TYPES.includes(node.type)).map((node) => node.id),
   );
 
   // 로드밸런서나 DB가 하나라도 없으면 "그 사이의 단일 장애점"을 따질 경로 자체가 없다 — "해당 없음"으로 표시한다.

@@ -41,9 +41,20 @@ export const SEVERITY_ICON: Record<RuleSeverity, string> = {
  * "이 요소와 관련된 검증"에 보여주려면 nodeIds와 별개로 규칙↔타입 관계를 따로 알고 있어야 한다.
  */
 export const RULE_RELATED_COMPONENT_TYPES: Record<string, ComponentType[]> = {
-  "SPOF-001": ["LOAD_BALANCER", "DB_PRIMARY", "DB_REPLICA"],
+  "SPOF-001": [
+    "LOAD_BALANCER",
+    "API_GATEWAY",
+    "DB_PRIMARY",
+    "DB_REPLICA",
+    "AURORA",
+    "DOCUMENT_DB",
+    "REDSHIFT",
+    "OPENSEARCH",
+    "DYNAMODB",
+  ],
   "DB-002": ["DB_PRIMARY", "DB_REPLICA"],
-  "MULTIAZ-001": ["DB_PRIMARY", "DB_REPLICA"],
+  "MULTIAZ-001": ["DB_PRIMARY", "DB_REPLICA", "REDSHIFT", "OPENSEARCH"],
   "MULTIAZ-002": ["CACHE"],
-  "ASG-001": ["WEB_SERVER"],
+  "ASG-001": ["WEB_SERVER", "ECS", "ELASTIC_BEANSTALK"],
+  "NAT-001": ["NAT_GATEWAY"],
 };

@@ -26,6 +26,14 @@ const GROUP_RECOMMENDATION_RULES: Partial<Record<ComponentType, ComponentType[]>
   DB_PRIMARY: ["MULTI_AZ_GROUP"],
   DB_REPLICA: ["MULTI_AZ_GROUP"],
   CACHE: ["MULTI_AZ_GROUP"],
+  // 12단계: ASG-001/MULTIAZ-001이 늘어난 타입만큼 "추천" 묶기도 같이 늘렸다 — ECS/Elastic
+  // Beanstalk는 실제로 EC2 Auto Scaling Group을 쓰는 서비스고, Redshift/OpenSearch는 RDS처럼
+  // Multi-AZ를 직접 켤 수 있는 서비스라 추천에 넣었다.
+  ECS: ["AUTO_SCALING_GROUP"],
+  ELASTIC_BEANSTALK: ["AUTO_SCALING_GROUP"],
+  REDSHIFT: ["MULTI_AZ_GROUP"],
+  OPENSEARCH: ["MULTI_AZ_GROUP"],
+  API_GATEWAY: ["TARGET_GROUP"],
 };
 
 /** 묶기 팝오버 안에서 보여줄 카테고리 분류 — 종류가 늘어도 한눈에 찾기 쉽게 묶어둔다. */

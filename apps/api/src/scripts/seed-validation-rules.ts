@@ -44,6 +44,14 @@ const VALIDATION_RULES = [
     sourceCitation: 'AWS Well-Architected Framework Reliability Pillar REL 7',
     category: 'RELIABILITY',
   },
+  {
+    code: 'NAT-001',
+    name: 'NAT Gateway 이중화 여부',
+    description: 'NAT Gateway가 1개뿐이면 그 가용 영역(또는 NAT Gateway 자체)에 장애가 났을 때 아웃바운드 트래픽이 전부 끊깁니다.',
+    defaultSeverity: 'WARNING',
+    sourceCitation: 'AWS Well-Architected Framework Reliability Pillar REL 10',
+    category: 'RELIABILITY',
+  },
 ] as const;
 
 async function main(): Promise<void> {

@@ -5,6 +5,7 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { evaluateAsgRule } from './rules/asg.rule.js';
 import { evaluateDbReplicaRule } from './rules/db-replica.rule.js';
 import { evaluateCacheMultiAzRule, evaluateDbMultiAzRule } from './rules/multi-az.rule.js';
+import { evaluateNatGatewayRule } from './rules/nat-gateway.rule.js';
 import type { RuleEvaluation } from './rules/rule.types.js';
 import { evaluateSpofRule } from './rules/spof.rule.js';
 
@@ -15,6 +16,7 @@ const RULE_EVALUATORS: Array<(graph: ArchitectureGraph) => RuleEvaluation> = [
   evaluateCacheMultiAzRule,
   evaluateAsgRule,
   evaluateDbReplicaRule,
+  evaluateNatGatewayRule,
 ];
 
 @Injectable()

@@ -1,4 +1,12 @@
-import type { ArchitectureGraph, ComponentPresetCatalogItem, ComponentType, GraphNode } from '@nangman/shared-types';
+import {
+  COMPUTE_COMPONENT_TYPES,
+  DATA_COMPONENT_TYPES,
+  ENTRY_COMPONENT_TYPES,
+  type ArchitectureGraph,
+  type ComponentPresetCatalogItem,
+  type ComponentType,
+  type GraphNode,
+} from '@nangman/shared-types';
 import {
   bfsReachable,
   buildDirectedAdjacency,
@@ -78,15 +86,15 @@ export function computePipeline(
     if (!defaultPresetByType.has(preset.componentType)) defaultPresetByType.set(preset.componentType, preset);
   }
 
-  const lbIds = graph.nodes.filter((node) => node.type === 'LOAD_BALANCER').map((node) => node.id);
-  const dbIds = graph.nodes.filter((node) => node.type === 'DB_PRIMARY' || node.type === 'DB_REPLICA').map((node) => node.id);
+  const lbIds = graph.nodes.filter((node) => ENTRY_COMPONENT_TYPES.includes(node.type)).map((node) => node.id);
+  const dbIds = graph.nodes.filter((node) => DATA_COMPONENT_TYPES.includes(node.type)).map((node) => node.id);
 
   if (lbIds.length === 0 || dbIds.length === 0) {
     return {
       nodeMetrics: [],
       endToEndLatencyMs: null,
       throughputRps: 0,
-      warnings: ['로드밸런서와 DB가 모두 있어야 트래픽 경로를 계산할 수 있습니다.'],
+      warnings: ['로드밸런서(또는 API Gateway)와 데이터 저장소가 모두 있어야 트래픽 경로를 계산할 수 있습니다.'],
     };
   }
 
@@ -96,9 +104,7 @@ export function computePipeline(
   const relevantIds = new Set(
     graph.nodes
       .filter((node) => reachableFromLb.has(node.id) && canReachDb.has(node.id))
-      .filter(
-        (node) => node.type === 'WEB_SERVER' || node.type === 'CACHE' || node.type === 'DB_PRIMARY' || node.type === 'DB_REPLICA',
-      )
+      .filter((node) => COMPUTE_COMPONENT_TYPES.includes(node.type) || node.type === 'CACHE' || DATA_COMPONENT_TYPES.includes(node.type))
       .map((node) => node.id),
   );
 
@@ -117,23 +123,24 @@ export function computePipeline(
     warnings.push(`캐시 적중률은 ${(DEFAULT_CACHE_HIT_RATIO * 100).toFixed(0)}%로 가정해 DB로 가는 트래픽을 줄였습니다.`);
   }
 
-  // 웹 서버는 ASG로 묶인 것끼리 하나의 큐로 합친다(같은 ASG면 그 개수만큼 c가 커진다).
+  // 컴퓨트 계층(웹 서버/Lambda/Fargate/ECS/App Runner/Elastic Beanstalk)은 ASG로 묶인 것끼리
+  // 하나의 큐로 합친다(같은 ASG면 그 개수만큼 c가 커진다).
   // 9단계부터 ASG는 물리적 소속(parentId)이 아니라 Target Group과 같은 논리적 소속(logicalGroupId)이다 —
   // 실제 AWS의 ASG도 한 서브넷에 갇히지 않고 여러 AZ에 걸쳐 있는 게 정상이라 이렇게 바꿨다.
-  const webServerGroups = new Map<string, GraphNode[]>();
+  const computeGroups = new Map<string, GraphNode[]>();
   for (const id of relevantIds) {
     const node = nodesById.get(id);
-    if (!node || node.type !== 'WEB_SERVER') continue;
+    if (!node || !COMPUTE_COMPONENT_TYPES.includes(node.type)) continue;
     const logicalGroup = node.logicalGroupId ? nodesById.get(node.logicalGroupId) : undefined;
     const groupKey = logicalGroup?.type === 'AUTO_SCALING_GROUP' ? logicalGroup.id : node.id;
-    const group = webServerGroups.get(groupKey) ?? [];
+    const group = computeGroups.get(groupKey) ?? [];
     group.push(node);
-    webServerGroups.set(groupKey, group);
+    computeGroups.set(groupKey, group);
   }
 
   const nodeMetrics: PipelineNodeMetric[] = [];
 
-  for (const [groupKey, members] of webServerGroups) {
+  for (const [groupKey, members] of computeGroups) {
     const representative = members[0];
     if (!representative) continue;
 
@@ -148,7 +155,7 @@ export function computePipeline(
     const mmc = calculateMMc({ lambdaRps: expectedRps, muRps, instanceCount });
     nodeMetrics.push({
       nodeId: groupKey,
-      nodeType: 'WEB_SERVER',
+      nodeType: representative.type,
       lambdaRps: mmc.lambdaRps,
       muRps: mmc.muRps,
       instanceCount: mmc.instanceCount,
@@ -161,7 +168,7 @@ export function computePipeline(
 
   for (const id of relevantIds) {
     const node = nodesById.get(id);
-    if (!node || (node.type !== 'CACHE' && node.type !== 'DB_PRIMARY' && node.type !== 'DB_REPLICA')) continue;
+    if (!node || (node.type !== 'CACHE' && !DATA_COMPONENT_TYPES.includes(node.type))) continue;
 
     const lambdaForNode = node.type === 'CACHE' ? expectedRps : expectedRps * cacheMultiplier;
     const muRps = resolveMuRps(node, presetsByCode, defaultPresetByType, warnings);

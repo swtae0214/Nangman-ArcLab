@@ -1,4 +1,4 @@
-import type { ArchitectureGraph, ComponentType } from '@nangman/shared-types';
+import { MULTI_AZ_TOGGLE_DATA_TYPES, type ArchitectureGraph, type ComponentType } from '@nangman/shared-types';
 import { buildNodesById, findAncestorTypes } from '../graph.util.js';
 import type { RuleEvaluation } from './rule.types.js';
 
@@ -27,9 +27,13 @@ function evaluateGroupMembershipRule(graph: ArchitectureGraph, targetTypes: Comp
   };
 }
 
-/** MULTIAZ-001: DB(Primary/Replica)가 Multi-AZ(또는 Multi-Region) 그룹에 속해 있는가. */
+/**
+ * MULTIAZ-001: DB(Primary/Replica), Redshift, OpenSearch가 Multi-AZ(또는 Multi-Region) 그룹에
+ * 속해 있는가. Aurora/DocumentDB/DynamoDB는 일부러 안 넣는다 — 스토리지가 항상 자동으로 여러
+ * AZ에 복제되는 서비스라 "그룹에 넣었는지" 자체를 물어볼 수 없다(사용자가 켜고 끄는 설정이 아님).
+ */
 export function evaluateDbMultiAzRule(graph: ArchitectureGraph): RuleEvaluation {
-  return evaluateGroupMembershipRule(graph, ['DB_PRIMARY', 'DB_REPLICA'], 'MULTIAZ-001');
+  return evaluateGroupMembershipRule(graph, MULTI_AZ_TOGGLE_DATA_TYPES, 'MULTIAZ-001');
 }
 
 /** MULTIAZ-002: 캐시가 Multi-AZ(또는 Multi-Region) 그룹에 속해 있는가. */

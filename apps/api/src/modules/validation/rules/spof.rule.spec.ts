@@ -56,4 +56,23 @@ describe('evaluateSpofRule', () => {
     expect(result.passed).toBe(true);
     expect(result.applicable).toBe(false);
   });
+
+  it('12단계: API Gateway도 진입점으로, DynamoDB도 데이터 저장소로 SPOF 판정에 들어간다', () => {
+    const result = evaluateSpofRule(
+      graph(
+        [
+          { id: 'gw1', type: 'API_GATEWAY', position: { x: 0, y: 0 }, data: { label: 'GW' } },
+          { id: 'fn1', type: 'LAMBDA', position: { x: 1, y: 0 }, data: { label: 'Fn' } },
+          { id: 'ddb1', type: 'DYNAMODB', position: { x: 2, y: 0 }, data: { label: 'DDB' } },
+        ],
+        [
+          { id: 'e1', source: 'gw1', target: 'fn1' },
+          { id: 'e2', source: 'fn1', target: 'ddb1' },
+        ],
+      ),
+    );
+
+    expect(result.passed).toBe(false);
+    expect(result.detail.nodeIds).toEqual(['fn1']);
+  });
 });

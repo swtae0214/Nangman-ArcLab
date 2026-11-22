@@ -227,13 +227,14 @@ export const COMPONENT_META: Record<ComponentType, ComponentMeta> = {
     category: "네트워킹",
     isSimulated: false,
   },
+  // 12단계: NAT-001(이중화 여부) 검증 대상으로 추가.
   NAT_GATEWAY: {
     type: "NAT_GATEWAY",
     label: "NAT Gateway",
     Icon: ResourceAmazonVPCNATGateway,
     isGroup: false,
     category: "네트워킹",
-    isSimulated: false,
+    isSimulated: true,
   },
   INTERNET_GATEWAY: {
     type: "INTERNET_GATEWAY",
@@ -267,13 +268,14 @@ export const COMPONENT_META: Record<ComponentType, ComponentMeta> = {
     category: "엣지/보안",
     isSimulated: false,
   },
+  // 12단계: SPOF-001/시뮬레이션의 "진입점" 역할로 로드밸런서와 함께 계산 대상에 추가.
   API_GATEWAY: {
     type: "API_GATEWAY",
     label: "API Gateway",
     Icon: ArchitectureServiceAmazonAPIGateway,
     isGroup: false,
     category: "엣지/보안",
-    isSimulated: false,
+    isSimulated: true,
   },
   ROUTE53: {
     type: "ROUTE53",
@@ -307,13 +309,15 @@ export const COMPONENT_META: Record<ComponentType, ComponentMeta> = {
     category: "엣지/보안",
     isSimulated: false,
   },
+  // 12단계: 컴퓨트 계층(시뮬레이션 M/M/c 큐잉) 계산 대상으로 추가. ASG-001(이중화) 대상은 아니다 —
+  // Lambda는 "인스턴스"라는 개념 자체가 없어서 ASG_CAPABLE_COMPUTE_TYPES에는 안 넣었다.
   LAMBDA: {
     type: "LAMBDA",
     label: "Lambda",
     Icon: ArchitectureServiceAWSLambda,
     isGroup: false,
     category: "컴퓨트/메시징",
-    isSimulated: false,
+    isSimulated: true,
   },
   SQS: {
     type: "SQS",
@@ -363,13 +367,15 @@ export const COMPONENT_META: Record<ComponentType, ComponentMeta> = {
     category: "컴퓨트/메시징",
     isSimulated: false,
   },
+  // 12단계: 컴퓨트 계층(시뮬레이션) + ASG-001(이중화) 계산 대상으로 추가 — 로드밸런싱 환경이면
+  // 실제로 AWS가 내부에 EC2 Auto Scaling Group을 만들어 관리한다.
   ELASTIC_BEANSTALK: {
     type: "ELASTIC_BEANSTALK",
     label: "Elastic Beanstalk",
     Icon: ArchitectureServiceAWSElasticBeanstalk,
     isGroup: false,
     category: "컴퓨트/메시징",
-    isSimulated: false,
+    isSimulated: true,
   },
   SES: {
     type: "SES",
@@ -463,13 +469,15 @@ export const COMPONENT_META: Record<ComponentType, ComponentMeta> = {
     category: "데이터/스트리밍",
     isSimulated: false,
   },
+  // 12단계: 데이터 저장소 계층(SPOF-001, 시뮬레이션) 계산 대상으로 추가. MULTIAZ-001 대상은 아니다 —
+  // 스토리지가 항상 자동으로 3개 가용 영역에 복제돼서, "Multi-AZ 그룹에 넣었는지"를 물을 수 없다.
   AURORA: {
     type: "AURORA",
     label: "Aurora",
     Icon: ArchitectureServiceAmazonAurora,
     isGroup: false,
     category: "데이터/스트리밍",
-    isSimulated: false,
+    isSimulated: true,
   },
   COGNITO: {
     type: "COGNITO",
@@ -479,6 +487,7 @@ export const COMPONENT_META: Record<ComponentType, ComponentMeta> = {
     category: "데이터/스트리밍",
     isSimulated: false,
   },
+  // 12단계: Aurora와 같은 이유로 데이터 저장소 계층에는 추가하지만 MULTIAZ-001 대상은 아니다.
   DOCUMENT_DB: {
     type: "DOCUMENT_DB",
     // 참고 이미지의 "MongoDB"는 AWS 공식 아이콘이 아니라서(서드파티 제품), 가장 가까운 AWS 매니지드
@@ -487,24 +496,28 @@ export const COMPONENT_META: Record<ComponentType, ComponentMeta> = {
     Icon: ArchitectureServiceAmazonDocumentDB,
     isGroup: false,
     category: "데이터/스트리밍",
-    isSimulated: false,
+    isSimulated: true,
   },
   // 12단계: "실무에서 자주 쓰는 핵심 서비스 위주로 더 추가해달라"는 요청으로 보강한 데이터/분석 서비스.
+  // 12단계: DynamoDB도 데이터 저장소 계층에 추가하지만, 리전 내 AZ 복제가 항상 자동이라
+  // MULTIAZ-001 대상은 아니다(Global Tables는 리전 간 복제라 별개 개념 — 범위 밖).
   DYNAMODB: {
     type: "DYNAMODB",
     label: "DynamoDB",
     Icon: ArchitectureServiceAmazonDynamoDB,
     isGroup: false,
     category: "데이터/스트리밍",
-    isSimulated: false,
+    isSimulated: true,
   },
+  // 12단계: Redshift/OpenSearch는 RDS처럼 Multi-AZ를 사용자가 직접 켜고 끌 수 있는 서비스라
+  // MULTIAZ-001 대상에도 포함했다.
   REDSHIFT: {
     type: "REDSHIFT",
     label: "Redshift",
     Icon: ArchitectureServiceAmazonRedshift,
     isGroup: false,
     category: "데이터/스트리밍",
-    isSimulated: false,
+    isSimulated: true,
   },
   OPENSEARCH: {
     type: "OPENSEARCH",
@@ -512,7 +525,7 @@ export const COMPONENT_META: Record<ComponentType, ComponentMeta> = {
     Icon: ArchitectureServiceAmazonOpenSearchService,
     isGroup: false,
     category: "데이터/스트리밍",
-    isSimulated: false,
+    isSimulated: true,
   },
   GLUE: {
     type: "GLUE",
@@ -604,6 +617,8 @@ export const COMPONENT_META: Record<ComponentType, ComponentMeta> = {
     isSimulated: false,
   },
   // 10단계: reel-gen류 서버리스/컨테이너 파이프라인 참고 아키텍처에 나온 서비스.
+  // 12단계: 컴퓨트 계층(시뮬레이션) 계산 대상으로 추가. ASG-001 대상은 아니다 — Fargate는 EC2
+  // Auto Scaling Group 자체를 안 쓰고, ECS 서비스의 "원하는 태스크 수"로 스케일링한다.
   FARGATE: {
     type: "FARGATE",
     label: "ECS Fargate Container",
@@ -612,7 +627,7 @@ export const COMPONENT_META: Record<ComponentType, ComponentMeta> = {
     // VPC/Subnet과 똑같이 진짜 부모-자식(parentId) 관계로 다룬다 — 논리적 그룹으로 만들 이유가 없다.
     isGroup: true,
     category: "핵심 인프라",
-    isSimulated: false,
+    isSimulated: true,
   },
   ECR: {
     type: "ECR",
@@ -661,21 +676,25 @@ export const COMPONENT_META: Record<ComponentType, ComponentMeta> = {
     category: "컨테이너/AI·ML",
     isSimulated: false,
   },
+  // 12단계: 컴퓨트 계층(시뮬레이션) + ASG-001(이중화) 계산 대상으로 추가 — EC2 launch type
+  // 기준으로, 밑에 진짜 EC2 Auto Scaling Group(ASG capacity provider)이 있다고 본다.
   ECS: {
     type: "ECS",
     label: "ECS (컨테이너)",
     Icon: ArchitectureServiceAmazonElasticContainerService,
     isGroup: false,
     category: "컨테이너/AI·ML",
-    isSimulated: false,
+    isSimulated: true,
   },
+  // 12단계: 컴퓨트 계층(시뮬레이션) 계산 대상으로 추가. ASG-001 대상은 아니다 — App Runner는
+  // 자체 동시성 기반 스케일링이라 EC2 ASG도 ECS 서비스도 아니다.
   APP_RUNNER: {
     type: "APP_RUNNER",
     label: "App Runner",
     Icon: ArchitectureServiceAWSAppRunner,
     isGroup: false,
     category: "컨테이너/AI·ML",
-    isSimulated: false,
+    isSimulated: true,
   },
   BEDROCK: {
     type: "BEDROCK",
