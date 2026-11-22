@@ -149,4 +149,30 @@ describe("computeNodeRps", () => {
     expect(rpsByNodeId.get("cdn")).toBe(120);
     expect(rpsByNodeId.get("lb")).toBeCloseTo(24, 5);
   });
+
+  it("F6(A2): CDN 적중률을 안 정했으면 기본값 80%로 계산한다", () => {
+    const graph: ArchitectureGraph = {
+      nodes: [node("user", "USER", { entryAvgRps: 100 }), node("cdn", "CDN"), node("lb", "LOAD_BALANCER")],
+      edges: [edge("e1", "user", "cdn"), edge("e2", "cdn", "lb")],
+    };
+    expect(computeNodeRps(graph).rpsByNodeId.get("lb")).toBeCloseTo(20, 5);
+  });
+
+  it("F6(A2): 웹서버→DB Primary/Replica 호출값을 안 정했으면 타입 쌍 기본값(쓰기 10%·읽기 90%)으로 계산한다", () => {
+    const graph: ArchitectureGraph = {
+      nodes: [node("web", "WEB_SERVER", { trafficOverrideRps: 100 }), node("primary", "DB_PRIMARY"), node("replica", "DB_REPLICA")],
+      edges: [edge("e1", "web", "primary"), edge("e2", "web", "replica")],
+    };
+    const { rpsByNodeId } = computeNodeRps(graph);
+    expect(rpsByNodeId.get("primary")).toBeCloseTo(10, 5);
+    expect(rpsByNodeId.get("replica")).toBeCloseTo(90, 5);
+  });
+
+  it("F6(A2): 타입 쌍 기본값이 없는 호출(예: 웹서버→캐시)은 그대로 1배다", () => {
+    const graph: ArchitectureGraph = {
+      nodes: [node("web", "WEB_SERVER", { trafficOverrideRps: 100 }), node("cache", "CACHE")],
+      edges: [edge("e1", "web", "cache")],
+    };
+    expect(computeNodeRps(graph).rpsByNodeId.get("cache")).toBe(100);
+  });
 });

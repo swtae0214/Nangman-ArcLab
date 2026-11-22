@@ -5,6 +5,30 @@ export type TrafficEdgeKind = "distribution" | "call" | "replication";
 /** (출발 타입 → 도착 타입) 쌍 중, 선 개수와 무관하게 항상 "복제"로 보는 예외. */
 const REPLICATION_TYPE_PAIRS: ReadonlySet<string> = new Set(["DB_PRIMARY->DB_REPLICA"]);
 
+/**
+ * F6(A2): 호출(call) 엣지에 값을 직접 입력하지 않았을 때 쓰는 기본값 — 타입 쌍과 무관하게 전부
+ * "1"이면 사용자(USER)부터 DB까지 같은 숫자(예: 400)가 아무 변화 없이 그대로 내려가 보여서 혼란을
+ * 준다는 피드백(2026-11)으로, 흔히 인용되는 읽기 위주 웹 서비스의 읽기:쓰기 비율(약 90:10 —
+ * https://algomaster.io/learn/system-design-interviews/high-read-traffic 등 시스템 설계 자료에서
+ * 반복적으로 쓰이는 예시 비율)을 기본값으로 둔다. 언제든 연결 상세에서 직접 바꿀 수 있는 "기본값"일
+ * 뿐, 실제 앱의 읽기/쓰기 비율을 측정한 값은 아니다.
+ */
+const DEFAULT_CALLS_PER_REQUEST_BY_TYPE_PAIR: ReadonlyMap<string, number> = new Map([
+  ["WEB_SERVER->DB_PRIMARY", 0.1],
+  ["WEB_SERVER->DB_REPLICA", 0.9],
+]);
+
+export function getDefaultCallsPerRequest(sourceType: GraphNode["type"], targetType: GraphNode["type"]): number {
+  return DEFAULT_CALLS_PER_REQUEST_BY_TYPE_PAIR.get(`${sourceType}->${targetType}`) ?? 1;
+}
+
+/**
+ * F6(A2): CDN 캐시 적중률 입력이 비어 있을 때 쓰는 기본값. 입력이 없으면 적중률 0%(= 전부
+ * origin으로 전달)로 계산되던 것보다, 어떤 CDN이든 일정 비율은 캐시에 맞힌다고 보는 쪽이
+ * 더 현실적인 기본 가정이라 80%로 둔다.
+ */
+export const DEFAULT_CDN_CACHE_HIT_RATIO_PERCENT = 80;
+
 export interface NodeRpsOverrideMismatch {
   nodeId: string;
   /** 윗단에서 흘러온 값을 그대로 더했다면 나왔을 값. */
@@ -159,7 +183,8 @@ export function computeNodeRps(graph: ArchitectureGraph, options?: { peak?: bool
       // F4: CDN은 캐시가 맞든 틀리든 뷰어에게 응답은 다 내려주지만(= CDN 자신의 rpsByNodeId 값은
       // 그대로 둔다), origin(뒷단)으로는 캐시에 못 맞힌 비율만큼만 흘려보낸다 — 그래서 CDN에서
       // 나가는 선을 탈 때만 이 비율을 곱하고, rpsByNodeId 자체는 건드리지 않는다.
-      const cdnPassThroughRatio = sourceNode?.type === "CDN" ? 1 - (sourceNode.data.cdnCacheHitRatioPercent ?? 0) / 100 : 1;
+      const cdnPassThroughRatio =
+        sourceNode?.type === "CDN" ? 1 - (sourceNode.data.cdnCacheHitRatioPercent ?? DEFAULT_CDN_CACHE_HIT_RATIO_PERCENT) / 100 : 1;
       const upstreamRps = (rpsByNodeId.get(edge.source) ?? 0) * cdnPassThroughRatio;
       const kind = inferEdgeKind(edge, nodesById, edgesBySourceId);
       if (kind === "distribution") {
@@ -169,7 +194,8 @@ export function computeNodeRps(graph: ArchitectureGraph, options?: { peak?: bool
         const totalWeight = siblings.reduce((sum, sibling) => sum + (sibling.distributionWeight ?? 1), 0) || 1;
         computedFromUpstream += upstreamRps * ((edge.distributionWeight ?? 1) / totalWeight);
       } else {
-        computedFromUpstream += upstreamRps * (edge.callsPerRequest ?? 1);
+        const defaultCallsPerRequest = sourceNode ? getDefaultCallsPerRequest(sourceNode.type, node.type) : 1;
+        computedFromUpstream += upstreamRps * (edge.callsPerRequest ?? defaultCallsPerRequest);
       }
     }
 

@@ -51,7 +51,7 @@ import { PRESET_SELECTABLE_TYPES, summarizeArchitectureCost, type ArchitectureCo
 import { NodeCostLineProvider, NodeCostProvider } from "../node-cost-context";
 import { ProblemNodesProvider } from "../problem-nodes-context";
 import { ReadOnlyProvider } from "../read-only-context";
-import { computeNodeRps, inferEdgeKind } from "../traffic-rps";
+import { computeNodeRps, getDefaultCallsPerRequest, inferEdgeKind } from "../traffic-rps";
 import { TrafficRpsProvider } from "../traffic-rps-context";
 import { flowToGraph, graphToFlow, type FlowEdge, type FlowNode, type SelectedElementInfo } from "../types";
 import { CanvasToolbar, type CanvasInteractionMode } from "./CanvasToolbar";
@@ -676,7 +676,14 @@ const CanvasInner = forwardRef<ArchitectureCanvasHandle, ArchitectureCanvasProps
       const otherId = edge.source === node.id ? edge.target : edge.source;
       const graphEdge = graphSnapshot.edges.find((e) => e.id === edge.id);
       const kind = graphEdge ? inferEdgeKind(graphEdge, graphNodesById, graphEdgesBySourceId) : "call";
-      const value = kind === "distribution" ? (graphEdge?.distributionWeight ?? 1) : kind === "call" ? (graphEdge?.callsPerRequest ?? 1) : undefined;
+      // F6(A2): 호출값을 직접 안 정했으면 타입 쌍 기본값을 보여준다(예: 웹서버→DB Primary는 0.1)
+      // — "기본값" 칩을 붙여야 해서, 그 기본값이 쓰였는지도 같이 알려준다.
+      const sourceType = graphEdge ? graphNodesById.get(graphEdge.source)?.type : undefined;
+      const targetType = graphEdge ? graphNodesById.get(graphEdge.target)?.type : undefined;
+      const defaultCallsPerRequest = sourceType && targetType ? getDefaultCallsPerRequest(sourceType, targetType) : 1;
+      const isDefaultValue = kind === "call" && graphEdge?.callsPerRequest === undefined;
+      const value =
+        kind === "distribution" ? (graphEdge?.distributionWeight ?? 1) : kind === "call" ? (graphEdge?.callsPerRequest ?? defaultCallsPerRequest) : undefined;
       return {
         edgeId: edge.id,
         nodeId: otherId,
@@ -684,6 +691,7 @@ const CanvasInner = forwardRef<ArchitectureCanvasHandle, ArchitectureCanvasProps
         ...(typeof edge.label === "string" && edge.label ? { edgeLabel: edge.label } : {}),
         kind,
         value,
+        isDefaultValue,
       };
     };
 

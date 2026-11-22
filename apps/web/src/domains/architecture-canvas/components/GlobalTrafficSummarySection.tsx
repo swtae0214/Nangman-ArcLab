@@ -2,9 +2,18 @@
 
 import type { ArchitectureGraph, ComponentType } from "@nangman/shared-types";
 import { useMemo } from "react";
-import { COMPONENT_META } from "../component-meta";
+import { COMPONENT_META, LOGICAL_GROUP_TYPES } from "../component-meta";
 import { computeNodeRps } from "../traffic-rps";
 import { KB_PER_GB, SECONDS_PER_MONTH } from "../usage-based-cost";
+
+const LOGICAL_GROUP_TYPE_SET = new Set<ComponentType>(LOGICAL_GROUP_TYPES);
+
+/** F6(A2): 캐시/DB 행에 "이 숫자가 뭘 세는 건지" 역할을 같이 적어준다(조회/쓰기/읽기). */
+const ROLE_LABEL_BY_TYPE: Partial<Record<ComponentType, string>> = {
+  CACHE: "조회",
+  DB_PRIMARY: "쓰기",
+  DB_REPLICA: "읽기",
+};
 
 /**
  * F4: USER(입구) 노드를 선택했을 때 보여주는 "전체 트래픽" 요약 — 입구 하나의 평균 RPS/응답
@@ -17,7 +26,11 @@ export function GlobalTrafficSummarySection({ graph }: { graph: ArchitectureGrap
 
   const groupsByType = useMemo(() => {
     const rankByNodeId = new Map(order.map((id, index) => [id, index]));
-    const relevantNodes = graph.nodes.filter((node) => !COMPONENT_META[node.type].isGroup && node.type !== "TEXT_BOX");
+    // 물리 컨테이너(VPC·서브넷 등, isGroup)와 논리 그룹(Target Group·Auto Scaling Group)은 트래픽이
+    // 흐르는 실제 컴포넌트가 아니라 묶어 보여주는 용도라, "값이 흘러가는 모습"에서는 뺀다.
+    const relevantNodes = graph.nodes.filter(
+      (node) => !COMPONENT_META[node.type].isGroup && !LOGICAL_GROUP_TYPE_SET.has(node.type) && node.type !== "TEXT_BOX",
+    );
 
     const nodesByType = new Map<ComponentType, typeof relevantNodes>();
     for (const node of relevantNodes) {
@@ -44,10 +57,14 @@ export function GlobalTrafficSummarySection({ graph }: { graph: ArchitectureGrap
           <span>
             {group.label}
             {group.values.length > 1 && ` ×${group.values.length}`}
+            {ROLE_LABEL_BY_TYPE[group.type] && <span className="ml-1 text-gray-400 dark:text-gray-500">({ROLE_LABEL_BY_TYPE[group.type]})</span>}
           </span>
           <span className="text-gray-700 dark:text-gray-200">{group.values.map((value) => Math.round(value)).join(" + ")}</span>
         </div>
       ))}
+      <p className="mt-1 text-[11px] text-gray-400 dark:text-gray-500">
+        물리/논리 그룹 영역(VPC·서브넷·Auto Scaling Group 등)은 트래픽이 흐르는 컴포넌트가 아니라 목록에서 뺐어요.
+      </p>
     </div>
   );
 }

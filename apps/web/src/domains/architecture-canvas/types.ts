@@ -66,6 +66,8 @@ export interface SelectedElementConnection {
   kind: "distribution" | "call" | "replication";
   /** kind별로 의미 있는 값만 채워진다 — distribution=가중치, call=요청당 횟수, replication=없음(undefined). */
   value?: number;
+  /** F6(A2): true면 value가 사용자가 직접 정한 게 아니라 타입 쌍 기본값이다("기본값" 칩 표시용). */
+  isDefaultValue?: boolean;
 }
 
 export interface SelectedElementInfo {

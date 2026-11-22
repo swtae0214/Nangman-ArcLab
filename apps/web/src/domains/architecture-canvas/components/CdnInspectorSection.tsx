@@ -1,5 +1,6 @@
 "use client";
 
+import { DEFAULT_CDN_CACHE_HIT_RATIO_PERCENT } from "../traffic-rps";
 import type { SelectedElementInfo } from "../types";
 import { computeCdnCost } from "../usage-based-cost";
 
@@ -19,20 +20,28 @@ export function CdnInspectorSection({
   const rps = elementInfo.computedRps;
   const avgResponseSizeKb = elementInfo.entryAvgResponseSizeKb;
   const cost = rps !== undefined && avgResponseSizeKb !== undefined ? computeCdnCost({ rps, avgResponseSizeKb }) : null;
+  const isDefaultHitRatio = elementInfo.cdnCacheHitRatioPercent === undefined;
 
   return (
     <div>
       <p className="mb-2 text-sm font-semibold text-gray-900 dark:text-gray-100">CDN 비용</p>
       <div className="flex flex-col gap-2 rounded-lg border border-gray-200 p-3 dark:border-gray-700">
         <label className="flex items-center justify-between gap-2 text-xs text-gray-600 dark:text-gray-300">
-          캐시 적중률
+          <span className="flex items-center gap-1.5">
+            캐시 적중률
+            {isDefaultHitRatio && (
+              <span className="rounded bg-gray-100 px-1 py-0.5 text-[10px] text-gray-500 dark:bg-gray-700 dark:text-gray-400">
+                기본값
+              </span>
+            )}
+          </span>
           <span className="flex items-center gap-1">
             <input
               type="number"
               min={0}
               max={100}
               step="any"
-              value={elementInfo.cdnCacheHitRatioPercent ?? ""}
+              value={elementInfo.cdnCacheHitRatioPercent ?? DEFAULT_CDN_CACHE_HIT_RATIO_PERCENT}
               onChange={(event) =>
                 onUpdateUsageBasedCostSettings(elementInfo.id, {
                   cdnCacheHitRatioPercent: event.target.value === "" ? undefined : Number(event.target.value),

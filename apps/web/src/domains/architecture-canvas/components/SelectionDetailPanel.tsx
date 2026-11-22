@@ -41,6 +41,8 @@ interface ConnectionGroup {
   edgeLabel?: string;
   kind: SelectedElementConnection["kind"];
   value?: number;
+  /** F6(A2): true면 value가 사용자가 직접 정한 게 아니라 타입 쌍 기본값이다. */
+  isDefaultValue?: boolean;
   /**
    * F4: "값이 달라서 따로 보여주는" 호출(call) 연결이 정확히 2개일 때만 채워진다 — 다른 쪽 값을
    * 이 그룹에도 그대로 적용할 수 있게 해주는 지름길. 3개 이상으로 값이 갈리면(어느 쪽을 기준으로
@@ -66,6 +68,7 @@ function groupConnections(connections: SelectedElementConnection[]): ConnectionG
         edgeLabel: connection.edgeLabel,
         kind: connection.kind,
         value: connection.value,
+        isDefaultValue: connection.isDefaultValue,
       });
   }
   return Array.from(groups.values());
@@ -122,6 +125,11 @@ function ConnectionRow({
           <span className="whitespace-nowrap rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-500 dark:bg-gray-700 dark:text-gray-400">
             {TRAFFIC_KIND_LABEL[group.kind]}
           </span>
+          {group.isDefaultValue && (
+            <span className="whitespace-nowrap rounded bg-gray-100 px-1 py-0.5 text-[10px] text-gray-500 dark:bg-gray-700 dark:text-gray-400">
+              기본값
+            </span>
+          )}
           {group.kind !== "replication" && (
             <input
               type="number"
