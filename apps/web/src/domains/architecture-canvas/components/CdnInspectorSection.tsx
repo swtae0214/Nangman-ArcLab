@@ -2,7 +2,7 @@
 
 import { DEFAULT_CDN_CACHE_HIT_RATIO_PERCENT } from "../traffic-rps";
 import type { SelectedElementInfo } from "../types";
-import { computeCdnCost } from "../usage-based-cost";
+import { computeCdnCost, DEFAULT_ENTRY_AVG_RESPONSE_SIZE_KB } from "../usage-based-cost";
 
 /**
  * F4: CDN(CloudFront) 전용 인스펙터 — 캐시 적중률만 입력받고, 나머지(요청 수·전송량)는 트래픽
@@ -18,8 +18,11 @@ export function CdnInspectorSection({
   onUpdateUsageBasedCostSettings: (nodeId: string, patch: { cdnCacheHitRatioPercent?: number }) => void;
 }) {
   const rps = elementInfo.computedRps;
-  const avgResponseSizeKb = elementInfo.entryAvgResponseSizeKb;
-  const cost = rps !== undefined && avgResponseSizeKb !== undefined ? computeCdnCost({ rps, avgResponseSizeKb }) : null;
+  // F7(A4): 입구 노드에 평균 응답 크기를 안 넣었으면 기본값(2.6KB, 시안 기준)을 쓴다 — 더는 입력을
+  // 기다리며 계산을 막지 않는다.
+  const avgResponseSizeKb = elementInfo.entryAvgResponseSizeKb ?? DEFAULT_ENTRY_AVG_RESPONSE_SIZE_KB;
+  const isDefaultResponseSize = elementInfo.entryAvgResponseSizeKb === undefined;
+  const cost = rps !== undefined ? computeCdnCost({ rps, avgResponseSizeKb }) : null;
   const isDefaultHitRatio = elementInfo.cdnCacheHitRatioPercent === undefined;
 
   return (
@@ -55,10 +58,6 @@ export function CdnInspectorSection({
 
         {rps === undefined ? (
           <p className="text-[11px] text-gray-400 dark:text-gray-500">이 노드로 들어오는 트래픽 경로가 없어서 비용을 계산할 수 없어요.</p>
-        ) : avgResponseSizeKb === undefined ? (
-          <p className="text-[11px] text-gray-400 dark:text-gray-500">
-            입구(USER) 노드에 &ldquo;평균 응답 크기&rdquo;를 입력하면 비용을 계산할 수 있어요.
-          </p>
         ) : (
           cost && (
             <div className="flex flex-col gap-1 border-t border-gray-100 pt-2 text-xs dark:border-gray-800">
@@ -85,6 +84,11 @@ export function CdnInspectorSection({
               <p className="mt-1 text-[11px] text-gray-400 dark:text-gray-500">
                 대한민국 포함 요금 구간 기준(종량제, 정액 요금제 제외)이에요.
               </p>
+              {isDefaultResponseSize && (
+                <p className="text-[11px] text-gray-400 dark:text-gray-500">
+                  평균 응답 크기 {DEFAULT_ENTRY_AVG_RESPONSE_SIZE_KB}KB는 기본값이에요 — 입구(USER) 노드에서 직접 바꿀 수 있어요.
+                </p>
+              )}
             </div>
           )
         )}

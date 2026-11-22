@@ -15,6 +15,13 @@ export const SECONDS_PER_MONTH = 30 * 24 * 60 * 60;
 /** 이 파일의 GB 계산은 모두 10진 단위(1GB = 1,000,000KB)를 쓴다 — AWS 가격표 예시 계산과 같은 방식. */
 export const KB_PER_GB = 1_000_000;
 
+/**
+ * F7(A4): USER(입구) 노드의 "평균 응답 크기"를 비워두면 CDN 월 전송량·로드밸런서 처리 데이터
+ * 차원이 전부 계산되지 않던 문제 — 성우가 준 시안(H2)에 그대로 명시된 예시값(2.6KB)을 기본값으로
+ * 쓴다. 입력창에는 "기본값" 칩과 함께 이 값이 미리 채워져 보인다.
+ */
+export const DEFAULT_ENTRY_AVG_RESPONSE_SIZE_KB = 2.6;
+
 // ── ALB(Application Load Balancer) ──────────────────────────────────────────
 
 const ALB_HOURLY_USD = 0.0225;
@@ -23,6 +30,12 @@ const ALB_LCU_HOURLY_USD = 0.008;
 const ALB_NEW_CONNECTIONS_PER_LCU = 25;
 /** F5: "고정 요금만 반영" — LCU를 전혀 계산 못 해도, ALB가 떠 있는 한 항상 붙는 시간당 요금만이라도. */
 export const ALB_FIXED_MONTHLY_USD = Math.round(ALB_HOURLY_USD * 730 * 100) / 100;
+/**
+ * F7(A4): "연결당 평균 요청 수"를 비워두면 LCU를 전혀 계산할 수 없던 문제 — 커넥션 재사용 시 요청
+ * 수는 웹 서버 소프트웨어 설정에 따라 10배까지 갈리는데(Apache 기본값 100, Nginx 기본값 1000),
+ * 성우와 상의해 Nginx 기본값(1000) 기준으로 뒀다(2026-11 결정). 실제 값은 언제든 직접 바꿀 수 있다.
+ */
+export const DEFAULT_ALB_REQUESTS_PER_CONNECTION = 1000;
 
 export interface AlbCostInput {
   /** 이 로드밸런서에 도착하는 RPS(트래픽 전파 엔진 계산값). */

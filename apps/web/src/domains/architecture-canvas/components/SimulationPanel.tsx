@@ -17,7 +17,6 @@ function formatRunTimestamp(iso: string): string {
 
 const formSchema = z.object({
   targetAvailability: z.number().min(0).max(100),
-  expectedRps: z.number().min(0),
   failureScenarioCode: z.string(),
   observationPeriodSec: z.number().int().min(1),
 });
@@ -32,7 +31,18 @@ function formatLatency(ms: number | null): string {
  * 5단계 핵심 화면: 요구사항을 입력하면 검증(3단계) + 큐잉 계산(4단계) + 장애 주입을 한 번에 실행한다.
  * (원래 설계된 "RequirementForm"을 4주차엔 미뤘던 걸 여기서 실제로 만든다.)
  */
-export function SimulationPanel({ architectureId }: { architectureId: string }) {
+export function SimulationPanel({
+  architectureId,
+  entryAvgRps,
+  entryUserNodeId,
+  onFocusNodes,
+}: {
+  architectureId: string;
+  /** F8(A3): 사용자(USER) 노드의 평균 RPS — 트래픽 입력의 단일 출처. 여기서는 읽기 전용으로만 쓴다. */
+  entryAvgRps?: number;
+  entryUserNodeId?: string;
+  onFocusNodes: (nodeIds: string[]) => void;
+}) {
   const failureScenariosQuery = useFailureScenarios();
   const runSimulation = useRunSimulation(architectureId);
   const runsQuery = useSimulationRuns(architectureId);
@@ -56,16 +66,16 @@ export function SimulationPanel({ architectureId }: { architectureId: string }) 
     resolver: zodResolver(formSchema),
     defaultValues: {
       targetAvailability: 99.9,
-      expectedRps: 100,
       failureScenarioCode: "",
       observationPeriodSec: 30 * SECONDS_PER_DAY,
     },
   });
 
   const onSubmit = handleSubmit((values) => {
+    if (entryAvgRps === undefined) return;
     runSimulation.mutate({
       targetAvailability: values.targetAvailability,
-      expectedRps: values.expectedRps,
+      expectedRps: entryAvgRps,
       observationPeriodSec: values.observationPeriodSec,
       ...(values.failureScenarioCode ? { failureScenarioCode: values.failureScenarioCode } : {}),
     });
@@ -95,19 +105,28 @@ export function SimulationPanel({ architectureId }: { architectureId: string }) 
           )}
         </label>
 
-        <label className="text-xs font-medium text-gray-600 dark:text-gray-300">
-          예상 RPS
-          <input
-            type="number"
-            min={0}
-            step="any"
-            {...register("expectedRps", { valueAsNumber: true })}
-            className="mt-1 w-full rounded border border-gray-300 px-2 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
-          />
-          {errors.expectedRps && (
-            <span className="mt-0.5 block text-[11px] text-red-500 dark:text-red-400">{errors.expectedRps.message}</span>
-          )}
-        </label>
+        {/* F8(A3): 트래픽 입력의 단일 출처는 사용자(USER) 노드라서, 여기서는 그 값을 읽기만 하고
+            "사용자 노드에서 수정" 링크만 제공한다 — 이 탭만의 별도 RPS 입력은 두지 않는다. */}
+        <div className="rounded border border-gray-200 px-2 py-1.5 text-xs dark:border-gray-700">
+          <div className="flex items-center justify-between text-gray-600 dark:text-gray-300">
+            <span className="font-medium">예상 RPS</span>
+            <span className={entryAvgRps === undefined ? "text-red-500 dark:text-red-400" : "text-gray-800 dark:text-gray-100"}>
+              {entryAvgRps ?? "미입력"} {entryAvgRps !== undefined && "RPS"}
+            </span>
+          </div>
+          <p className="mt-0.5 text-[11px] text-gray-400 dark:text-gray-500">
+            사용자 노드에서 가져와요.{" "}
+            {entryUserNodeId && (
+              <button
+                type="button"
+                onClick={() => onFocusNodes([entryUserNodeId])}
+                className="text-blue-600 hover:underline dark:text-blue-400"
+              >
+                사용자 노드에서 수정
+              </button>
+            )}
+          </p>
+        </div>
 
         <label className="text-xs font-medium text-gray-600 dark:text-gray-300">
           장애 시나리오 (선택)
@@ -140,7 +159,8 @@ export function SimulationPanel({ architectureId }: { architectureId: string }) 
 
         <button
           type="submit"
-          disabled={runSimulation.isPending}
+          disabled={runSimulation.isPending || entryAvgRps === undefined}
+          title={entryAvgRps === undefined ? "사용자 노드에 평균 요청 수를 먼저 입력하세요" : undefined}
           className="mt-1 rounded-md bg-black px-3 py-1.5 text-xs text-white disabled:opacity-40 dark:bg-gray-100 dark:text-gray-900"
         >
           {runSimulation.isPending ? "실행 중..." : "시뮬레이션 실행"}

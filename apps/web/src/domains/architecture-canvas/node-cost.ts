@@ -1,6 +1,6 @@
 import type { ComponentPresetCatalogItem, ComponentType } from "@nangman/shared-types";
 import type { FlowNode } from "./types";
-import { computeAlbCost, computeCdnCost } from "./usage-based-cost";
+import { computeAlbCost, computeCdnCost, DEFAULT_ALB_REQUESTS_PER_CONNECTION, DEFAULT_ENTRY_AVG_RESPONSE_SIZE_KB } from "./usage-based-cost";
 
 /** 5단계 큐잉 엔진이 M/M/c 계산 대상으로 삼는, 프리셋(인스턴스 크기)을 직접 고를 수 있는 타입. */
 export const PRESET_SELECTABLE_TYPES: ComponentType[] = ["WEB_SERVER", "DB_PRIMARY", "DB_REPLICA", "CACHE"];
@@ -49,6 +49,8 @@ export interface ArchitectureCostSummary {
   assumptionUserNodeId?: string;
   assumptionAvgRps?: number;
   assumptionAvgResponseSizeKb?: number;
+  /** F7(A4): true면 위 응답 크기가 사용자가 직접 넣은 값이 아니라 기본값(2.6KB)이다. */
+  assumptionAvgResponseSizeIsDefault?: boolean;
 }
 
 /** 프리셋 코드 -> 프리셋 조회를 노드별로 반복하지 않도록 미리 맵으로 만든다. */
@@ -76,18 +78,18 @@ function computeUsageBasedOutcome(node: FlowNode, nodes: FlowNode[], rpsByNodeId
   }
 
   if (node.type === "CDN") {
-    const avgResponseSizeKb = nodes.find((candidate) => candidate.type === "USER")?.data.entryAvgResponseSizeKb;
-    if (avgResponseSizeKb === undefined) {
-      return { unresolvedReason: "needs-input", unresolvedNote: "입구(USER) 노드에 평균 응답 크기를 입력하면 계산돼요" };
-    }
+    // F7(A4): 평균 응답 크기를 안 정했으면 기본값(2.6KB, 시안 기준)으로 계산한다 — 더는 입력을
+    // 기다리며 "계산 불가"로 막지 않는다.
+    const avgResponseSizeKb = nodes.find((candidate) => candidate.type === "USER")?.data.entryAvgResponseSizeKb ?? DEFAULT_ENTRY_AVG_RESPONSE_SIZE_KB;
     return { monthlyCostUsd: computeCdnCost({ rps, avgResponseSizeKb }).monthlyCostUsd };
   }
 
   if (node.type === "LOAD_BALANCER") {
+    // F7(A4): 연결당 평균 요청 수를 안 정했으면 기본값(1000, Nginx 기준)으로 계산한다.
     const result = computeAlbCost({
       rps,
       connectionReuse: node.data.albConnectionReuse ?? true,
-      requestsPerConnection: node.data.albRequestsPerConnection,
+      requestsPerConnection: node.data.albRequestsPerConnection ?? DEFAULT_ALB_REQUESTS_PER_CONNECTION,
       acceptPartialCost: node.data.albAcceptPartialCost,
     });
     if (!result) {
@@ -165,6 +167,7 @@ export function summarizeArchitectureCost(
     pricingRegion: pricingSample?.awsRegion,
     assumptionUserNodeId: userNode?.id,
     assumptionAvgRps: userNode?.data.entryAvgRps,
-    assumptionAvgResponseSizeKb: userNode?.data.entryAvgResponseSizeKb,
+    assumptionAvgResponseSizeKb: userNode?.data.entryAvgResponseSizeKb ?? DEFAULT_ENTRY_AVG_RESPONSE_SIZE_KB,
+    assumptionAvgResponseSizeIsDefault: userNode?.data.entryAvgResponseSizeKb === undefined,
   };
 }

@@ -5,6 +5,7 @@ import { useMemo } from "react";
 import { COMPONENT_META } from "../component-meta";
 import { COST_RELEVANT_TYPES, PRESET_SELECTABLE_TYPES } from "../node-cost";
 import type { SelectedElementConnection, SelectedElementInfo } from "../types";
+import { DEFAULT_ENTRY_AVG_RESPONSE_SIZE_KB } from "../usage-based-cost";
 import { RULE_RELATED_COMPONENT_TYPES, SEVERITY_ICON, SEVERITY_PILL_STYLE } from "../validation-style";
 import { CapacityInspectorSection } from "./CapacityInspectorSection";
 import { CdnInspectorSection } from "./CdnInspectorSection";
@@ -279,13 +280,20 @@ export function SelectionDetailPanel({
               </span>
             </label>
             <label className="flex items-center justify-between gap-2 text-xs text-gray-600 dark:text-gray-300">
-              평균 응답 크기
+              <span className="flex items-center gap-1.5">
+                평균 응답 크기
+                {elementInfo.entryAvgResponseSizeKb === undefined && (
+                  <span className="rounded bg-gray-100 px-1 py-0.5 text-[10px] text-gray-500 dark:bg-gray-700 dark:text-gray-400">
+                    기본값
+                  </span>
+                )}
+              </span>
               <span className="flex items-center gap-1" title="CDN·로드밸런서의 비용 계산이 공통으로 쓰는 가정이에요">
                 <input
                   type="number"
                   min={0}
                   step="any"
-                  value={elementInfo.entryAvgResponseSizeKb ?? ""}
+                  value={elementInfo.entryAvgResponseSizeKb ?? DEFAULT_ENTRY_AVG_RESPONSE_SIZE_KB}
                   onChange={(event) =>
                     onUpdateEntryTraffic(elementInfo.id, {
                       entryAvgResponseSizeKb: event.target.value === "" ? undefined : Number(event.target.value),
@@ -301,7 +309,7 @@ export function SelectionDetailPanel({
                 {(() => {
                   const { monthlyRequests, monthlyTransferGb } = computeGlobalMonthlyFigures(
                     elementInfo.entryAvgRps!,
-                    elementInfo.entryAvgResponseSizeKb,
+                    elementInfo.entryAvgResponseSizeKb ?? DEFAULT_ENTRY_AVG_RESPONSE_SIZE_KB,
                   );
                   return (
                     <>

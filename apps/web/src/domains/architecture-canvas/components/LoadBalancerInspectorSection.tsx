@@ -1,7 +1,7 @@
 "use client";
 
 import type { SelectedElementInfo } from "../types";
-import { computeAlbCost } from "../usage-based-cost";
+import { computeAlbCost, DEFAULT_ALB_REQUESTS_PER_CONNECTION } from "../usage-based-cost";
 
 /**
  * F4: LOAD_BALANCER(ALB) 전용 인스펙터. LCU는 "신규 연결/활성 연결/처리 데이터/규칙 평가" 4가지
@@ -18,10 +18,9 @@ export function LoadBalancerInspectorSection({
 }) {
   const rps = elementInfo.computedRps;
   const connectionReuse = elementInfo.albConnectionReuse ?? true;
-  const cost =
-    rps !== undefined
-      ? computeAlbCost({ rps, connectionReuse, requestsPerConnection: elementInfo.albRequestsPerConnection })
-      : null;
+  const isDefaultRequestsPerConnection = elementInfo.albRequestsPerConnection === undefined;
+  const requestsPerConnection = elementInfo.albRequestsPerConnection ?? DEFAULT_ALB_REQUESTS_PER_CONNECTION;
+  const cost = rps !== undefined ? computeAlbCost({ rps, connectionReuse, requestsPerConnection }) : null;
 
   return (
     <div>
@@ -41,12 +40,19 @@ export function LoadBalancerInspectorSection({
 
         {connectionReuse && (
           <label className="flex items-center justify-between gap-2 text-xs text-gray-600 dark:text-gray-300">
-            연결당 평균 요청 수
+            <span className="flex items-center gap-1.5">
+              연결당 평균 요청 수
+              {isDefaultRequestsPerConnection && (
+                <span className="rounded bg-gray-100 px-1 py-0.5 text-[10px] text-gray-500 dark:bg-gray-700 dark:text-gray-400">
+                  기본값
+                </span>
+              )}
+            </span>
             <input
               type="number"
               min={1}
               step="any"
-              value={elementInfo.albRequestsPerConnection ?? ""}
+              value={requestsPerConnection}
               onChange={(event) =>
                 onUpdateUsageBasedCostSettings(elementInfo.id, {
                   albRequestsPerConnection: event.target.value === "" ? undefined : Number(event.target.value),

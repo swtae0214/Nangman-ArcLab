@@ -152,6 +152,9 @@ export function ArchitectureEditor({ id }: { id: string }) {
     () => (showTrafficFlow ? computeTrafficPathEdgeIds(liveGraph) : EMPTY_EDGE_IDS),
     [showTrafficFlow, liveGraph],
   );
+  // F8(A3): 트래픽 입력(RPS)은 사용자(USER) 노드에만 있는 단일 출처라, 시뮬레이션 탭은 이 값을
+  // 읽기 전용으로 받아쓰고 "사용자 노드에서 수정" 링크만 제공한다(자체 RPS 입력 필드 없음).
+  const entryUserNode = useMemo(() => liveGraph.nodes.find((node) => node.type === "USER"), [liveGraph.nodes]);
   const handleGraphChangeWithTutorial = useCallback(
     (graph: ArchitectureGraph) => {
       handleGraphChange(graph);
@@ -244,7 +247,14 @@ export function ArchitectureEditor({ id }: { id: string }) {
       {activeTab === "cost" && (
         <CostPanel summary={costSummary} onFocusNodes={handleFocusNodes} onToggleAlbPartialCost={handleToggleAlbPartialCost} />
       )}
-      {activeTab === "simulation" && <SimulationPanel architectureId={id} />}
+      {activeTab === "simulation" && (
+        <SimulationPanel
+          architectureId={id}
+          entryAvgRps={entryUserNode?.data.entryAvgRps}
+          entryUserNodeId={entryUserNode?.id}
+          onFocusNodes={handleFocusNodes}
+        />
+      )}
     </div>
   );
 

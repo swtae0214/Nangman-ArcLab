@@ -225,8 +225,10 @@ export function CostPanel({
       {summary.assumptionUserNodeId && (
         <div className="rounded-lg border border-dashed border-gray-300 p-2 text-[11px] text-gray-500 dark:border-gray-600 dark:text-gray-400">
           <p>
-            가정: {summary.assumptionAvgRps ?? "미입력"} RPS · 응답{" "}
-            {summary.assumptionAvgResponseSizeKb !== undefined ? `${summary.assumptionAvgResponseSizeKb}KB` : "미입력"}
+            가정: {summary.assumptionAvgRps ?? "미입력"} RPS · 응답 {summary.assumptionAvgResponseSizeKb}KB
+            {summary.assumptionAvgResponseSizeIsDefault && (
+              <span className="ml-1 rounded bg-gray-100 px-1 py-0.5 text-gray-500 dark:bg-gray-700 dark:text-gray-400">기본값</span>
+            )}
           </p>
           <button
             type="button"
