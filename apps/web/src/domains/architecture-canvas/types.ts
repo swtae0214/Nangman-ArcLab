@@ -68,6 +68,10 @@ export interface SelectedElementConnection {
   value?: number;
   /** F6(A2): true면 value가 사용자가 직접 정한 게 아니라 타입 쌍 기본값이다("기본값" 칩 표시용). */
   isDefaultValue?: boolean;
+  /** F9(B7): 이 선이 실제로 나르는 RPS(= 상류 RPS × 값) — 입력값만으론 "이게 얼마나 되는지" 안 보여서 추가. */
+  resultRps?: number;
+  /** F9(B7): kind가 "distribution"일 때만 — 형제 가중치 합 대비 이 선의 비율(%). */
+  distributionPercent?: number;
 }
 
 export interface SelectedElementInfo {

@@ -684,6 +684,25 @@ const CanvasInner = forwardRef<ArchitectureCanvasHandle, ArchitectureCanvasProps
       const isDefaultValue = kind === "call" && graphEdge?.callsPerRequest === undefined;
       const value =
         kind === "distribution" ? (graphEdge?.distributionWeight ?? 1) : kind === "call" ? (graphEdge?.callsPerRequest ?? defaultCallsPerRequest) : undefined;
+
+      // F9(B7): "1"이라는 입력값만 봐서는 실제로 얼마나 흐르는지 알 수 없다는 피드백 — 상류(source)
+      // RPS에 분배 비율(또는 호출 배수)을 곱해서 "이 선이 실제로 나르는 RPS"를 같이 계산해 보여준다.
+      let resultRps: number | undefined;
+      let distributionPercent: number | undefined;
+      if (graphEdge && kind !== "replication") {
+        const sourceRps = computedRpsByNodeId.get(graphEdge.source);
+        if (kind === "distribution") {
+          const siblings = (graphEdgesBySourceId.get(graphEdge.source) ?? []).filter(
+            (candidate) => graphNodesById.get(candidate.target)?.type === targetType,
+          );
+          const totalWeight = siblings.reduce((sum, sibling) => sum + (sibling.distributionWeight ?? 1), 0) || 1;
+          distributionPercent = ((value ?? 1) / totalWeight) * 100;
+          if (sourceRps !== undefined) resultRps = sourceRps * ((value ?? 1) / totalWeight);
+        } else if (sourceRps !== undefined) {
+          resultRps = sourceRps * (value ?? 1);
+        }
+      }
+
       return {
         edgeId: edge.id,
         nodeId: otherId,
@@ -692,6 +711,8 @@ const CanvasInner = forwardRef<ArchitectureCanvasHandle, ArchitectureCanvasProps
         kind,
         value,
         isDefaultValue,
+        resultRps,
+        distributionPercent,
       };
     };
 

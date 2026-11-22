@@ -44,6 +44,10 @@ interface ConnectionGroup {
   value?: number;
   /** F6(A2): true면 value가 사용자가 직접 정한 게 아니라 타입 쌍 기본값이다. */
   isDefaultValue?: boolean;
+  /** F9(B7): 이 선(들)이 실제로 나르는 RPS. */
+  resultRps?: number;
+  /** F9(B7): kind가 "distribution"일 때만 — 형제 가중치 합 대비 비율(%). */
+  distributionPercent?: number;
   /**
    * F4: "값이 달라서 따로 보여주는" 호출(call) 연결이 정확히 2개일 때만 채워진다 — 다른 쪽 값을
    * 이 그룹에도 그대로 적용할 수 있게 해주는 지름길. 3개 이상으로 값이 갈리면(어느 쪽을 기준으로
@@ -70,6 +74,8 @@ function groupConnections(connections: SelectedElementConnection[]): ConnectionG
         kind: connection.kind,
         value: connection.value,
         isDefaultValue: connection.isDefaultValue,
+        resultRps: connection.resultRps,
+        distributionPercent: connection.distributionPercent,
       });
   }
   return Array.from(groups.values());
@@ -93,6 +99,17 @@ const TRAFFIC_KIND_LABEL: Record<SelectedElementConnection["kind"], string> = {
   replication: "복제",
 };
 
+/** B7: 종류 칩에 색 구분 말고도 모양(아이콘)으로 구분이 되게 — 작아서 잘 안 보인다는 피드백으로 키움. */
+const TRAFFIC_KIND_ICON: Record<SelectedElementConnection["kind"], string> = {
+  distribution: "⑂",
+  call: "↻",
+  replication: "⧉",
+};
+
+function formatRps(rps: number): string {
+  return `${rps < 10 ? rps.toFixed(1) : Math.round(rps)}/s`;
+}
+
 function ConnectionRow({
   arrow,
   group,
@@ -102,6 +119,10 @@ function ConnectionRow({
   group: ConnectionGroup;
   onUpdateEdgeTraffic: (edgeIds: string[], patch: { distributionWeight?: number; callsPerRequest?: number }) => void;
 }) {
+  // B7: 분배(distribution)는 형제 목록을 쥐고 있는 "부모"(이 노드가 source인 → 쪽)에서만 가중치를
+  // 바꿀 수 있다 — 자식(← 쪽)에서 편집하면 형제가 안 보이는 채로 비율을 바꾸는 꼴이라 혼란을 줬다.
+  const isEditable = group.kind === "call" || (group.kind === "distribution" && arrow === "→");
+
   const handleValueChange = (raw: string) => {
     const nextValue = raw === "" ? undefined : Number(raw);
     if (group.kind === "distribution") onUpdateEdgeTraffic(group.edgeIds, { distributionWeight: nextValue });
@@ -109,7 +130,11 @@ function ConnectionRow({
   };
 
   return (
-    <div className="flex flex-col gap-1 rounded-lg border border-gray-200 px-3 py-2.5 dark:border-gray-700">
+    <div
+      className={`flex flex-col gap-1.5 rounded-lg border px-3 py-2.5 ${
+        group.kind === "replication" ? "border-dashed border-gray-300 dark:border-gray-600" : "border-gray-200 dark:border-gray-700"
+      }`}
+    >
       <div className="flex items-center justify-between gap-2">
         <span className="flex min-w-0 items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
           <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-300">
@@ -123,7 +148,8 @@ function ConnectionRow({
           {group.edgeLabel && group.edgeLabel !== TRAFFIC_KIND_LABEL[group.kind] && (
             <span className="whitespace-nowrap text-xs text-gray-400 dark:text-gray-500">{group.edgeLabel}</span>
           )}
-          <span className="whitespace-nowrap rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-500 dark:bg-gray-700 dark:text-gray-400">
+          <span className="flex h-5 items-center gap-1 whitespace-nowrap rounded bg-gray-100 px-2 text-[11px] font-medium text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+            <span aria-hidden>{TRAFFIC_KIND_ICON[group.kind]}</span>
             {TRAFFIC_KIND_LABEL[group.kind]}
           </span>
           {group.isDefaultValue && (
@@ -131,19 +157,63 @@ function ConnectionRow({
               기본값
             </span>
           )}
-          {group.kind !== "replication" && (
+          {group.siblingApply && (
+            <span className="whitespace-nowrap rounded bg-amber-50 px-1 py-0.5 text-[10px] text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+              다름
+            </span>
+          )}
+        </span>
+      </div>
+
+      {group.kind === "call" && (
+        <div className="flex items-center justify-between gap-2 pl-9 text-xs text-gray-600 dark:text-gray-300">
+          <span className="flex items-center gap-1.5 whitespace-nowrap">
+            요청 1건당
             <input
               type="number"
               min={0}
               step="any"
               value={group.value ?? ""}
               onChange={(event) => handleValueChange(event.target.value)}
-              title={group.kind === "distribution" ? "같은 그룹 안에서의 상대적 가중치" : "요청 1건당 평균 호출 횟수"}
               className="w-14 rounded border border-gray-300 px-1.5 py-0.5 text-right text-xs dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
             />
+            회
+          </span>
+          {group.resultRps !== undefined && (
+            <span className="whitespace-nowrap font-medium text-gray-700 dark:text-gray-200">→ {formatRps(group.resultRps)}</span>
           )}
-        </span>
-      </div>
+        </div>
+      )}
+
+      {group.kind === "distribution" &&
+        (isEditable ? (
+          <div className="flex items-center justify-between gap-2 pl-9 text-xs text-gray-600 dark:text-gray-300">
+            <span className="flex items-center gap-1.5 whitespace-nowrap">
+              가중치
+              <input
+                type="number"
+                min={0}
+                step="any"
+                value={group.value ?? ""}
+                onChange={(event) => handleValueChange(event.target.value)}
+                className="w-14 rounded border border-gray-300 px-1.5 py-0.5 text-right text-xs dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+              />
+            </span>
+            <span className="whitespace-nowrap font-medium text-gray-700 dark:text-gray-200">
+              {group.distributionPercent !== undefined && `${group.distributionPercent.toFixed(0)}%`}
+              {group.resultRps !== undefined && ` · ${formatRps(group.resultRps)}`}
+            </span>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between gap-2 pl-9 text-xs text-gray-500 dark:text-gray-400">
+            <span>받는 비율</span>
+            <span className="font-medium text-gray-700 dark:text-gray-200">
+              가중치 {group.value} · {group.distributionPercent?.toFixed(0)}%
+              {group.resultRps !== undefined && ` · ${formatRps(group.resultRps)}`}
+            </span>
+          </div>
+        ))}
+
       {group.siblingApply && (
         <button
           type="button"
