@@ -1,9 +1,10 @@
 "use client";
 
 import type { CurrentUser } from "@nangman/shared-types";
-import type { ReactNode } from "react";
+import type { FC, ReactNode } from "react";
 import Link from "next/link";
 import { ConsoleNavBar } from "@/components/ConsoleNavBar";
+import { COMPONENT_META } from "@/domains/architecture-canvas/component-meta";
 import { GITHUB_LOGIN_URL } from "@/lib/api";
 import { AuthErrorBanner } from "./AuthErrorBanner";
 import { useCurrentUser } from "@/lib/use-current-user";
@@ -64,13 +65,15 @@ const FEATURES = [
   },
 ];
 
-/** 샘플 다이어그램의 노드 하나(로드밸런서, 웹 서버 등)를 그리는 작은 박스. */
+/** 샘플 다이어그램의 노드 하나(로드밸런서, 웹 서버 등)를 그리는 작은 박스 — 실제 캔버스와 같은 AWS 공식 아이콘을 쓴다. */
 function DiagramNode({
+  icon: Icon,
   label,
   sub,
   critical = false,
   muted = false,
 }: {
+  icon: FC<{ size?: number | string }>;
   label: string;
   sub: string;
   critical?: boolean;
@@ -83,8 +86,11 @@ function DiagramNode({
       : "border-console-accent text-console-accent";
   return (
     <div
-      className={`flex w-[76px] flex-col items-center justify-center gap-0.5 rounded border px-1.5 py-1.5 text-center font-jetbrains text-[10px] font-semibold leading-tight ${toneClass}`}
+      className={`flex w-[84px] flex-col items-center justify-center gap-1 rounded border px-1.5 py-2 text-center font-jetbrains text-[10px] font-semibold leading-tight ${toneClass}`}
     >
+      <span className={`flex h-7 w-7 items-center justify-center rounded bg-white ${muted ? "opacity-50" : ""}`}>
+        <Icon size={20} />
+      </span>
       <span>{label}</span>
       <span className="text-[8.5px] font-normal opacity-70">{sub}</span>
     </div>
@@ -165,36 +171,36 @@ export function LandingPage() {
               <div className="flex items-center overflow-x-auto p-7">
                 <div className="flex items-stretch gap-3">
                   <div className="flex flex-col items-center justify-center gap-1">
-                    <DiagramNode label="사용자" sub="User" />
+                    <DiagramNode icon={COMPONENT_META.USER.Icon} label="사용자" sub="User" />
                   </div>
                   <DiagramConnector />
                   <div className="flex flex-col items-center justify-center gap-1">
-                    <DiagramNode label="CDN" sub="CloudFront" />
+                    <DiagramNode icon={COMPONENT_META.CDN.Icon} label="CDN" sub="CloudFront" />
                   </div>
                   <DiagramConnector />
                   <DiagramGroup label="VPC" className="flex items-stretch gap-4">
                     <DiagramGroup label="Public Subnet" className="flex items-center">
                       <div className="flex flex-col gap-2.5">
-                        <DiagramNode label="로드밸런서" sub="#1" />
-                        <DiagramNode label="로드밸런서" sub="#2" />
+                        <DiagramNode icon={COMPONENT_META.LOAD_BALANCER.Icon} label="로드밸런서" sub="#1" />
+                        <DiagramNode icon={COMPONENT_META.LOAD_BALANCER.Icon} label="로드밸런서" sub="#2" />
                       </div>
                     </DiagramGroup>
                     <DiagramConnector />
                     <DiagramGroup label="Private Subnet" className="flex items-center">
                       <DiagramGroup label="Auto Scaling" className="flex items-center">
                         <div className="flex flex-col gap-2.5">
-                          <DiagramNode label="웹 서버" sub="EC2 #1" />
-                          <DiagramNode label="웹 서버" sub="EC2 #2" />
+                          <DiagramNode icon={COMPONENT_META.WEB_SERVER.Icon} label="웹 서버" sub="EC2 #1" />
+                          <DiagramNode icon={COMPONENT_META.WEB_SERVER.Icon} label="웹 서버" sub="EC2 #2" />
                         </div>
                       </DiagramGroup>
                     </DiagramGroup>
                     <DiagramConnector />
                     <DiagramGroup label="Multi-AZ" className="flex items-center">
                       <div className="flex flex-col gap-2 pl-1">
-                        <DiagramNode label="캐시" sub="ElastiCache" />
-                        <DiagramNode label="DB Primary" sub="RDS" />
+                        <DiagramNode icon={COMPONENT_META.CACHE.Icon} label="캐시" sub="ElastiCache" />
+                        <DiagramNode icon={COMPONENT_META.DB_PRIMARY.Icon} label="DB Primary" sub="RDS" />
                         <div className="pl-1 font-jetbrains text-[8px] text-console-muted">↓ 복제</div>
-                        <DiagramNode label="DB Replica" sub="RDS" muted />
+                        <DiagramNode icon={COMPONENT_META.DB_REPLICA.Icon} label="DB Replica" sub="RDS" muted />
                       </div>
                     </DiagramGroup>
                   </DiagramGroup>
