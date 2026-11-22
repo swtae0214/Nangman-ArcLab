@@ -72,12 +72,15 @@ function DiagramNode({
   sub,
   critical = false,
   muted = false,
+  whiteIcon = false,
 }: {
-  icon: FC<{ size?: number | string }>;
+  icon: FC<{ size?: number | string; className?: string }>;
   label: string;
   sub: string;
   critical?: boolean;
   muted?: boolean;
+  /** USER 아이콘은 원본 SVG가 짙은 남색(#242f3e) 고정이라 어두운 배경에서 거의 안 보여서, 테두리(path)만 흰색으로 덮어쓴다. */
+  whiteIcon?: boolean;
 }) {
   const toneClass = critical
     ? "border-console-critical text-console-critical"
@@ -89,7 +92,7 @@ function DiagramNode({
       className={`flex w-[84px] flex-col items-center justify-center gap-1 rounded border px-1.5 py-2 text-center font-jetbrains text-[10px] font-semibold leading-tight ${toneClass}`}
     >
       <span className={`flex h-7 w-7 items-center justify-center ${muted ? "opacity-50" : ""}`}>
-        <Icon size={22} />
+        <Icon size={22} className={whiteIcon ? "[&_path]:fill-white" : undefined} />
       </span>
       <span>{label}</span>
       <span className="text-[8.5px] font-normal opacity-70">{sub}</span>
@@ -129,7 +132,7 @@ export function LandingPage() {
 
         <section className="px-10 pt-16 pb-12">
           <div className="mb-3.5 font-jetbrains text-xs font-semibold text-console-accent">
-            ● EXAMPLE · 샘플 3-Tier 아키텍처
+            ● LIVE · 아키텍처 검증 진행 중
           </div>
           <h1 className="mb-[18px] max-w-[720px] text-[44px] leading-[1.22] font-black text-white">
             당신의 설계,
@@ -171,7 +174,7 @@ export function LandingPage() {
               <div className="flex items-center overflow-x-auto p-7">
                 <div className="flex items-stretch gap-3">
                   <div className="flex flex-col items-center justify-center gap-1">
-                    <DiagramNode icon={COMPONENT_META.USER.Icon} label="사용자" sub="User" />
+                    <DiagramNode icon={COMPONENT_META.USER.Icon} label="사용자" sub="User" whiteIcon />
                   </div>
                   <DiagramConnector />
                   <div className="flex flex-col items-center justify-center gap-1">
