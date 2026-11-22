@@ -126,6 +126,10 @@ export function ArchitectureEditor({ id }: { id: string }) {
     canvasRef.current?.updateRedundancySettings(nodeId, patch);
   }, []);
 
+  const handleUpdateQueueSettings = useCallback((nodeId: string, patch: { queueConsumerThroughputRps?: number }) => {
+    canvasRef.current?.updateQueueSettings(nodeId, patch);
+  }, []);
+
   // F5: 비용 탭의 "고정 요금만 반영" 버튼 — 같은 버튼으로 껐다 켰다 할 수 있게 토글로 둔다.
   const handleToggleAlbPartialCost = useCallback(
     (nodeId: string, next: boolean) => {
@@ -278,6 +282,7 @@ export function ArchitectureEditor({ id }: { id: string }) {
       onUpdateUsageBasedCostSettings={handleUpdateUsageBasedCostSettings}
       onUpdateCapacitySettings={handleUpdateCapacitySettings}
       onUpdateRedundancySettings={handleUpdateRedundancySettings}
+      onUpdateQueueSettings={handleUpdateQueueSettings}
     />
   ) : (
     tabContent

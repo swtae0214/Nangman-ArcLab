@@ -42,6 +42,8 @@ export interface FlowNodeData extends Record<string, unknown> {
   instanceCount?: number;
   /** 13단계: APP_RUNNER 전용 — App Runner 자체 오토스케일링의 최소 인스턴스 수(min size). */
   appRunnerMinInstanceCount?: number;
+  /** 13단계: SQS/Kinesis Data Streams 전용 — 컨슈머가 초당 처리할 수 있는 메시지(레코드) 수. */
+  queueConsumerThroughputRps?: number;
 }
 
 export type FlowNode = Node<FlowNodeData, ComponentType>;
@@ -108,6 +110,8 @@ export interface SelectedElementInfo {
   instanceCount?: number;
   /** 13단계: APP_RUNNER 노드일 때만 값이 있다 — 최소 인스턴스 수. */
   appRunnerMinInstanceCount?: number;
+  /** 13단계: SQS/Kinesis Data Streams 노드일 때만 값이 있다 — 컨슈머 처리 능력(초당 메시지/레코드 수). */
+  queueConsumerThroughputRps?: number;
 }
 
 /** 저장된 그래프(shared-types)를 React Flow가 다룰 수 있는 노드/엣지 배열로 변환한다. */
@@ -135,6 +139,7 @@ export function graphToFlow(graph: ArchitectureGraph): { nodes: FlowNode[]; edge
         albAcceptPartialCost: node.data.albAcceptPartialCost,
         instanceCount: node.data.instanceCount,
         appRunnerMinInstanceCount: node.data.appRunnerMinInstanceCount,
+        queueConsumerThroughputRps: node.data.queueConsumerThroughputRps,
       },
       // 저장된 크기가 있으면(중첩 배치·리사이즈로 부모보다 작게 만든 그룹/리프 등) 그걸 그대로 쓰고,
       // 없을 때만(옛 데이터, 최초 생성 등) 기본 크기로 어림잡는다. 논리적 그룹(Target Group/ASG)은
@@ -195,6 +200,7 @@ export function flowToGraph(nodes: FlowNode[], edges: FlowEdge[]): ArchitectureG
       ...(node.data.albAcceptPartialCost != null ? { albAcceptPartialCost: node.data.albAcceptPartialCost } : {}),
       ...(node.data.instanceCount != null ? { instanceCount: node.data.instanceCount } : {}),
       ...(node.data.appRunnerMinInstanceCount != null ? { appRunnerMinInstanceCount: node.data.appRunnerMinInstanceCount } : {}),
+      ...(node.data.queueConsumerThroughputRps != null ? { queueConsumerThroughputRps: node.data.queueConsumerThroughputRps } : {}),
     },
   }));
   const graphEdges: GraphEdge[] = edges.map((edge) => ({

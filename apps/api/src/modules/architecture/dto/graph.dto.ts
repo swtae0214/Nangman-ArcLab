@@ -69,6 +69,16 @@ export class NodeDataDto {
   @IsOptional()
   @IsNumber()
   instanceCount?: number;
+
+  // 13단계: APP_RUNNER 전용 — App Runner 자체 오토스케일링 설정의 최소 인스턴스 수(min size).
+  @IsOptional()
+  @IsNumber()
+  appRunnerMinInstanceCount?: number;
+
+  // 13단계: SQS/Kinesis Data Streams 전용 — 컨슈머가 초당 처리할 수 있는 메시지(레코드) 수.
+  @IsOptional()
+  @IsNumber()
+  queueConsumerThroughputRps?: number;
 }
 
 export class GraphNodeDto {

@@ -59,4 +59,5 @@ export const RULE_RELATED_COMPONENT_TYPES: Record<string, ComponentType[]> = {
   "NAT-001": ["NAT_GATEWAY"],
   "FARGATE-001": ["FARGATE"],
   "APPRUNNER-001": ["APP_RUNNER"],
+  "QUEUE-001": ["SQS", "KINESIS_DATA_STREAMS"],
 };

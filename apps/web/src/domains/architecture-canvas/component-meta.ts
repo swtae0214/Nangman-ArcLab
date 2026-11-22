@@ -319,21 +319,27 @@ export const COMPONENT_META: Record<ComponentType, ComponentMeta> = {
     category: "컴퓨트/메시징",
     isSimulated: true,
   },
+  // 13단계: SPOF-001(그래프 연결성만 보는 규칙이라 타입 구분 없이 이미 동작) + QUEUE-001(유입률이
+  // 컨슈머 처리 능력을 넘으면 적체 경고) 계산 대상. SQS는 풀(pull) 기반 큐라 "컨슈머가 못 따라가면
+  // 메시지가 쌓인다"는 적체 개념이 실제로 있다(ApproximateNumberOfMessagesVisible 지표).
   SQS: {
     type: "SQS",
     label: "SQS",
     Icon: ArchitectureServiceAmazonSimpleQueueService,
     isGroup: false,
     category: "컴퓨트/메시징",
-    isSimulated: false,
+    isSimulated: true,
   },
+  // 13단계: SPOF-001 계산 대상으로는 추가하지만 QUEUE-001(적체 경고) 대상은 아니다 — SNS는
+  // 구독자에게 바로 밀어주는(push) 방식이라 "쌓인다"는 개념 자체가 없다(실패하면 재시도 후
+  // DLQ로 가지, 쌓여서 지연되는 게 아니다).
   SNS: {
     type: "SNS",
     label: "SNS",
     Icon: ArchitectureServiceAmazonSimpleNotificationService,
     isGroup: false,
     category: "컴퓨트/메시징",
-    isSimulated: false,
+    isSimulated: true,
   },
   S3: {
     type: "S3",
@@ -351,13 +357,15 @@ export const COMPONENT_META: Record<ComponentType, ComponentMeta> = {
     category: "컴퓨트/메시징",
     isSimulated: false,
   },
+  // 13단계: SNS와 같은 이유로 SPOF-001만 추가 — 이벤트 버스도 push 방식 전달(실패 시 재시도 +
+  // DLQ)이라 적체 개념이 없다.
   EVENTBRIDGE: {
     type: "EVENTBRIDGE",
     label: "EventBridge",
     Icon: ArchitectureServiceAmazonEventBridge,
     isGroup: false,
     category: "컴퓨트/메시징",
-    isSimulated: false,
+    isSimulated: true,
   },
   APPSYNC: {
     type: "APPSYNC",
@@ -453,21 +461,25 @@ export const COMPONENT_META: Record<ComponentType, ComponentMeta> = {
     category: "데이터/스트리밍",
     isSimulated: false,
   },
+  // 13단계: SQS와 같은 이유로 QUEUE-001 대상 — 샤드 기반이라 컨슈머가 유입 속도를 못 따라가면
+  // 실제로 지연(쌓임)이 생긴다(GetRecords.IteratorAgeMilliseconds 지표가 바로 이걸 잰다).
   KINESIS_DATA_STREAMS: {
     type: "KINESIS_DATA_STREAMS",
     label: "Kinesis Data Streams",
     Icon: ArchitectureServiceAmazonKinesisDataStreams,
     isGroup: false,
     category: "데이터/스트리밍",
-    isSimulated: false,
+    isSimulated: true,
   },
+  // 13단계: SPOF-001만 추가 — Firehose는 완전관리형 자동 버퍼링/전달 파이프라서(사용자가 정하는
+  // "컨슈머 처리 능력"이라는 개념 자체가 없다) 적체 경고 대상이 아니다.
   KINESIS_DATA_FIREHOSE: {
     type: "KINESIS_DATA_FIREHOSE",
     label: "Kinesis Data Firehose",
     Icon: ArchitectureServiceAmazonDataFirehose,
     isGroup: false,
     category: "데이터/스트리밍",
-    isSimulated: false,
+    isSimulated: true,
   },
   // 12단계: 데이터 저장소 계층(SPOF-001, 시뮬레이션) 계산 대상으로 추가. MULTIAZ-001 대상은 아니다 —
   // 스토리지가 항상 자동으로 3개 가용 영역에 복제돼서, "Multi-AZ 그룹에 넣었는지"를 물을 수 없다.

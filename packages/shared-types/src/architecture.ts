@@ -186,6 +186,13 @@ export interface GraphNode {
      * min size 설정과 같은 구조). APPRUNNER-001(이중화) 규칙이 이 값으로 최소 2 이상인지 본다.
      */
     appRunnerMinInstanceCount?: number;
+    /**
+     * 13단계: SQS/Kinesis Data Streams 전용 — 이 큐/스트림을 읽어가는 컨슈머가 초당 처리할 수
+     * 있는 메시지(레코드) 수. QUEUE-001 규칙이 트래픽 전파 엔진이 계산한 유입 RPS와 이 값을
+     * 비교해서, 유입이 더 빠르면(컨슈머가 못 따라가면) 적체 위험을 경고한다. 값을 안 정했으면
+     * 비교할 기준이 없어서 그 노드는 판정에서 빠진다(기본값으로 추정하지 않는다).
+     */
+    queueConsumerThroughputRps?: number;
   };
 }
 

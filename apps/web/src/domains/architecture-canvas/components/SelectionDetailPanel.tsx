@@ -12,6 +12,7 @@ import { CapacityInspectorSection } from "./CapacityInspectorSection";
 import { CdnInspectorSection } from "./CdnInspectorSection";
 import { computeGlobalMonthlyFigures, GlobalTrafficSummarySection } from "./GlobalTrafficSummarySection";
 import { LoadBalancerInspectorSection } from "./LoadBalancerInspectorSection";
+import { QueueInspectorSection } from "./QueueInspectorSection";
 import { WhatIfRemovePanel } from "./WhatIfRemovePanel";
 
 interface SelectionDetailPanelProps {
@@ -36,6 +37,7 @@ interface SelectionDetailPanelProps {
   ) => void;
   onUpdateCapacitySettings: (nodeId: string, patch: { instanceCount?: number }) => void;
   onUpdateRedundancySettings: (nodeId: string, patch: { appRunnerMinInstanceCount?: number }) => void;
+  onUpdateQueueSettings: (nodeId: string, patch: { queueConsumerThroughputRps?: number }) => void;
 }
 
 interface ConnectionGroup {
@@ -252,6 +254,7 @@ export function SelectionDetailPanel({
   onUpdateUsageBasedCostSettings,
   onUpdateCapacitySettings,
   onUpdateRedundancySettings,
+  onUpdateQueueSettings,
 }: SelectionDetailPanelProps) {
   const meta = COMPONENT_META[elementInfo.type];
   const Icon = meta.Icon;
@@ -422,6 +425,10 @@ export function SelectionDetailPanel({
 
       {elementInfo.type === "APP_RUNNER" && (
         <AppRunnerInspectorSection elementInfo={elementInfo} onUpdateRedundancySettings={onUpdateRedundancySettings} />
+      )}
+
+      {(elementInfo.type === "SQS" || elementInfo.type === "KINESIS_DATA_STREAMS") && (
+        <QueueInspectorSection elementInfo={elementInfo} onUpdateQueueSettings={onUpdateQueueSettings} />
       )}
 
       {(inputGroups.length > 0 || outputGroups.length > 0) && (

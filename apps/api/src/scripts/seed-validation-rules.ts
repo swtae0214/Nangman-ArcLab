@@ -68,6 +68,14 @@ const VALIDATION_RULES = [
     sourceCitation: 'AWS Well-Architected Framework Reliability Pillar REL 7',
     category: 'RELIABILITY',
   },
+  {
+    code: 'QUEUE-001',
+    name: '큐/스트림 적체 위험',
+    description: 'SQS/Kinesis Data Streams의 유입 속도가 컨슈머 처리 능력을 넘으면 메시지가 쌓이기 시작합니다.',
+    defaultSeverity: 'WARNING',
+    sourceCitation: 'AWS Well-Architected Framework Reliability Pillar REL 7',
+    category: 'RELIABILITY',
+  },
 ] as const;
 
 async function main(): Promise<void> {
