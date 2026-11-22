@@ -20,6 +20,16 @@ export const SEVERITY_LABEL: Record<RuleSeverity, string> = {
   INFO: "INFO",
 };
 
+/** 색만으로 구분하지 않도록 라벨 앞에 붙이는 모양 — 에디터 쪽 validation-style.ts와 같은 기호. */
+export const SEVERITY_ICON: Record<RuleSeverity, string> = {
+  CRITICAL: "◆",
+  WARNING: "▲",
+  INFO: "●",
+};
+
+/** 심각도 순서(심각 → 경고 → 정보) — 규칙 목록을 심각도순으로 정렬할 때 쓴다. */
+export const SEVERITY_ORDER: RuleSeverity[] = ["CRITICAL", "WARNING", "INFO"];
+
 /** 위반 규칙 배지/칩의 옅은 배경색. 텍스트는 SEVERITY_TEXT_CLASS를 같이 쓴다. */
 export const SEVERITY_BADGE_BG_STYLE: Record<RuleSeverity, string> = {
   CRITICAL: "rgba(255,90,90,.15)",
