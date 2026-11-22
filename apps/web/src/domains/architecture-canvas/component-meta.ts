@@ -479,6 +479,17 @@ export const COMPONENT_META: Record<ComponentType, ComponentMeta> = {
     category: "데이터/스트리밍",
     isSimulated: true,
   },
+  // 13단계: DB-002(읽기 확장용 복제본) 확장 대상 — Aurora Replica는 최대 15개까지 만들 수 있는
+  // 읽기 전용 복제 인스턴스. AWS 공식 아이콘 세트에 별도 아이콘이 없어서(DB_REPLICA가 RDS 아이콘을
+  // 재사용하는 것과 같은 사정) Aurora와 같은 아이콘을 쓴다.
+  AURORA_REPLICA: {
+    type: "AURORA_REPLICA",
+    label: "Aurora Replica",
+    Icon: ArchitectureServiceAmazonAurora,
+    isGroup: false,
+    category: "데이터/스트리밍",
+    isSimulated: true,
+  },
   COGNITO: {
     type: "COGNITO",
     label: "Cognito",
@@ -493,6 +504,16 @@ export const COMPONENT_META: Record<ComponentType, ComponentMeta> = {
     // 참고 이미지의 "MongoDB"는 AWS 공식 아이콘이 아니라서(서드파티 제품), 가장 가까운 AWS 매니지드
     // 서비스인 DocumentDB(MongoDB 호환)로 대체했다.
     label: "DocumentDB (MongoDB 호환)",
+    Icon: ArchitectureServiceAmazonDocumentDB,
+    isGroup: false,
+    category: "데이터/스트리밍",
+    isSimulated: true,
+  },
+  // 13단계: DB-002(읽기 확장용 복제본) 확장 대상 — DocumentDB도 Aurora와 같은 구조(최대 15개
+  // 복제 인스턴스)라 같은 질문이 성립한다.
+  DOCUMENT_DB_REPLICA: {
+    type: "DOCUMENT_DB_REPLICA",
+    label: "DocumentDB Replica",
     Icon: ArchitectureServiceAmazonDocumentDB,
     isGroup: false,
     category: "데이터/스트리밍",

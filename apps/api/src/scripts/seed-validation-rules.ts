@@ -39,7 +39,7 @@ const VALIDATION_RULES = [
   {
     code: 'DB-002',
     name: '읽기 확장을 위한 DB Replica 존재 여부',
-    description: 'DB Primary만 있고 Replica가 없으면 읽기 트래픽을 분산할 수 없습니다.',
+    description: 'DB Primary/Aurora/DocumentDB만 있고 읽기 확장용 복제본이 없으면 읽기 트래픽을 분산할 수 없습니다.',
     defaultSeverity: 'INFO',
     sourceCitation: 'AWS Well-Architected Framework Reliability Pillar REL 7',
     category: 'RELIABILITY',

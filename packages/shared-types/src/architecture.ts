@@ -56,8 +56,18 @@ export const COMPONENT_TYPES = [
   'KINESIS_DATA_STREAMS',
   'KINESIS_DATA_FIREHOSE',
   'AURORA',
+  /**
+   * 13단계: DB-002(읽기 확장용 복제본 존재 여부)를 Aurora까지 확장하기 위한 전용 타입 — Aurora는
+   * 실제로 "Aurora Replica"(최대 15개, 같은 클러스터 스토리지를 공유하는 읽기 전용 인스턴스)를
+   * 지원하고, AWS가 이걸 읽기 확장 용도로 명시하기 때문에 RDS Replica와 같은 질문이 성립한다.
+   * DynamoDB(Global Tables=리전 간 복제, 읽기 확장용 아님)/Redshift(Concurrency Scaling=자동
+   * 임시 용량, 사용자가 만드는 복제본 아님)는 같은 질문이 성립하지 않아 DB-002 대상에서 뺐다.
+   */
+  'AURORA_REPLICA',
   'COGNITO',
   'DOCUMENT_DB',
+  // 13단계: Aurora와 같은 이유로 DocumentDB도 읽기 확장용 복제 인스턴스(최대 15개)를 지원한다.
+  'DOCUMENT_DB_REPLICA',
   'CODEPIPELINE',
   'CODEBUILD',
   'CLOUDFORMATION',

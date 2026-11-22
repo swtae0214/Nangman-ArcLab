@@ -51,8 +51,12 @@ enum ComponentType {
   KINESIS_DATA_STREAMS
   KINESIS_DATA_FIREHOSE
   AURORA
+  // 13단계: DB-002(읽기 확장용 복제본) 확장 대상 — Aurora/DocumentDB는 실제로 읽기 확장용 복제
+  // 인스턴스를 지원한다(DynamoDB/Redshift는 안 돼서 뺐다).
+  AURORA_REPLICA
   COGNITO
   DOCUMENT_DB
+  DOCUMENT_DB_REPLICA
   CODEPIPELINE
   CODEBUILD
   CLOUDFORMATION
