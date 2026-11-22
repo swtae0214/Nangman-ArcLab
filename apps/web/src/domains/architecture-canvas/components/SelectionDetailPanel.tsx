@@ -471,20 +471,35 @@ export function SelectionDetailPanel({
 
       <div className="mt-auto flex flex-col gap-2.5 rounded-xl bg-indigo-50/60 p-3 dark:bg-indigo-950/30">
         <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">이 요소로 실험해 보기</p>
-        <button
-          type="button"
-          onClick={onGoToExperiment}
-          className="flex items-center gap-2 rounded-lg border border-blue-300 bg-white px-3 py-2.5 text-left text-sm font-medium text-blue-600 hover:bg-blue-50 dark:border-blue-700 dark:bg-gray-900 dark:text-blue-300 dark:hover:bg-blue-950"
-        >
-          ⚡ {elementInfo.label} 장애 주입
-        </button>
-        <button
-          type="button"
-          onClick={onGoToExperiment}
-          className="flex items-center gap-2 rounded-lg border border-blue-300 bg-white px-3 py-2.5 text-left text-sm font-medium text-blue-600 hover:bg-blue-50 dark:border-blue-700 dark:bg-gray-900 dark:text-blue-300 dark:hover:bg-blue-950"
-        >
-          ↗ 트래픽 2배로 늘려 보기
-        </button>
+        {/* B8: USER(입구) 노드는 "장애"라는 개념이 없어서 "사용자 장애 주입"처럼 뜻이 안 통하는 버튼
+            대신, 실제 현재 값 기준 "트래픽 급증" 하나만 보여준다(일반 "트래픽 2배"와 중복이라 뺌). */}
+        {elementInfo.type === "USER" ? (
+          <button
+            type="button"
+            onClick={onGoToExperiment}
+            className="flex items-center gap-2 rounded-lg border border-blue-300 bg-white px-3 py-2.5 text-left text-sm font-medium text-blue-600 hover:bg-blue-50 dark:border-blue-700 dark:bg-gray-900 dark:text-blue-300 dark:hover:bg-blue-950"
+          >
+            ↗ 트래픽 급증{" "}
+            {elementInfo.entryAvgRps !== undefined && `(예: ${elementInfo.entryAvgRps} → ${elementInfo.entryAvgRps * 2} RPS)`}
+          </button>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={onGoToExperiment}
+              className="flex items-center gap-2 rounded-lg border border-blue-300 bg-white px-3 py-2.5 text-left text-sm font-medium text-blue-600 hover:bg-blue-50 dark:border-blue-700 dark:bg-gray-900 dark:text-blue-300 dark:hover:bg-blue-950"
+            >
+              ⚡ {elementInfo.label} 장애 주입
+            </button>
+            <button
+              type="button"
+              onClick={onGoToExperiment}
+              className="flex items-center gap-2 rounded-lg border border-blue-300 bg-white px-3 py-2.5 text-left text-sm font-medium text-blue-600 hover:bg-blue-50 dark:border-blue-700 dark:bg-gray-900 dark:text-blue-300 dark:hover:bg-blue-950"
+            >
+              ↗ 트래픽 2배로 늘려 보기
+            </button>
+          </>
+        )}
         {COST_RELEVANT_TYPES.includes(elementInfo.type) && (
           <WhatIfRemovePanel architectureId={architectureId} graph={graph} nodeId={elementInfo.id} nodeLabel={elementInfo.label} />
         )}

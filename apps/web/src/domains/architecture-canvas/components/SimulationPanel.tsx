@@ -10,6 +10,13 @@ import { useFailureScenarios, useRunSimulation, useSimulationRuns } from "../hoo
 const SECONDS_PER_DAY = 86_400;
 const MAX_COMPARE_SELECTION = 2;
 
+/** B9: 초 단위 raw 입력("2592000") 대신 의미가 바로 와닿는 기간 단위로 고르게 한다. */
+const OBSERVATION_PERIOD_OPTIONS = [
+  { label: "1일", seconds: SECONDS_PER_DAY },
+  { label: "7일", seconds: 7 * SECONDS_PER_DAY },
+  { label: "30일", seconds: 30 * SECONDS_PER_DAY },
+];
+
 function formatRunTimestamp(iso: string): string {
   const date = new Date(iso);
   return date.toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
@@ -47,7 +54,11 @@ export function SimulationPanel({
   const runSimulation = useRunSimulation(architectureId);
   const runsQuery = useSimulationRuns(architectureId);
   const [selectedRunIds, setSelectedRunIds] = useState<string[]>([]);
+  // B9: 2개를 고른다고 표가 바로 뜨면 "왜 떴는지" 헷갈려서, 명시적으로 "비교" 버튼을 눌러야 뜨게 한다.
+  const [isComparing, setIsComparing] = useState(false);
+  const scenarioLabel = (code?: string) => (code ? (failureScenariosQuery.data?.find((s) => s.code === code)?.displayName ?? code) : "없음");
   const toggleRunSelection = (runId: string) => {
+    setIsComparing(false);
     setSelectedRunIds((prev) => {
       if (prev.includes(runId)) return prev.filter((id) => id !== runId);
       // F2: 3개 이상 고르면 비교 표가 복잡해져서, 가장 먼저 고른 것부터 밀어내고 항상 최대 2개만 유지한다.
@@ -144,24 +155,28 @@ export function SimulationPanel({
         </label>
 
         <label className="text-xs font-medium text-gray-600 dark:text-gray-300">
-          관찰 기간 (초)
-          <input
-            type="number"
-            min={1}
+          관찰 기간
+          <select
             {...register("observationPeriodSec", { valueAsNumber: true })}
             className="mt-1 w-full rounded border border-gray-300 px-2 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
-          />
-          <span className="mt-0.5 block text-[11px] text-gray-400 dark:text-gray-500">기본값은 30일(2,592,000초)이에요.</span>
+          >
+            {OBSERVATION_PERIOD_OPTIONS.map((option) => (
+              <option key={option.seconds} value={option.seconds}>
+                {option.label}
+              </option>
+            ))}
+          </select>
           {errors.observationPeriodSec && (
             <span className="mt-0.5 block text-[11px] text-red-500 dark:text-red-400">{errors.observationPeriodSec.message}</span>
           )}
         </label>
 
+        {/* 규칙 5: 주 버튼은 파랑 하나로 통일 — 검정 주 버튼 금지. */}
         <button
           type="submit"
           disabled={runSimulation.isPending || entryAvgRps === undefined}
           title={entryAvgRps === undefined ? "사용자 노드에 평균 요청 수를 먼저 입력하세요" : undefined}
-          className="mt-1 rounded-md bg-black px-3 py-1.5 text-xs text-white disabled:opacity-40 dark:bg-gray-100 dark:text-gray-900"
+          className="mt-1 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-40"
         >
           {runSimulation.isPending ? "실행 중..." : "시뮬레이션 실행"}
         </button>
@@ -222,19 +237,26 @@ export function SimulationPanel({
           <ul className="flex flex-col gap-1">
             {runsQuery.data.map((run) => (
               <li key={run.id}>
-                <label className="flex cursor-pointer items-center gap-2 rounded border border-gray-200 px-2 py-1.5 text-xs dark:border-gray-700">
-                  <input
-                    type="checkbox"
-                    checked={selectedRunIds.includes(run.id)}
-                    onChange={() => toggleRunSelection(run.id)}
-                    className="shrink-0"
-                  />
-                  <span className="w-24 shrink-0 text-gray-500 dark:text-gray-400">{formatRunTimestamp(run.createdAt)}</span>
-                  <span className={run.validationPassed ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}>
-                    {run.validationPassed ? "✓" : "⚠"}
+                {/* B9: 전부 "100.00%, $60.74"처럼 보이면 행끼리 구분이 안 돼서, 그 실행의 입력값
+                    (예상 RPS·장애 시나리오)을 같이 보여준다. */}
+                <label className="flex cursor-pointer flex-col gap-0.5 rounded border border-gray-200 px-2 py-1.5 text-xs dark:border-gray-700">
+                  <span className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={selectedRunIds.includes(run.id)}
+                      onChange={() => toggleRunSelection(run.id)}
+                      className="shrink-0"
+                    />
+                    <span className="w-24 shrink-0 text-gray-500 dark:text-gray-400">{formatRunTimestamp(run.createdAt)}</span>
+                    <span className={run.validationPassed ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}>
+                      {run.validationPassed ? "✓" : "⚠"}
+                    </span>
+                    <span className="text-gray-600 dark:text-gray-300">가용성 {run.estimatedAvailabilityPercent.toFixed(2)}%</span>
+                    <span className="ml-auto font-medium text-gray-700 dark:text-gray-200">월 ${run.estimatedMonthlyCostUsd.toFixed(2)}</span>
                   </span>
-                  <span className="text-gray-600 dark:text-gray-300">가용성 {run.estimatedAvailabilityPercent.toFixed(2)}%</span>
-                  <span className="ml-auto font-medium text-gray-700 dark:text-gray-200">월 ${run.estimatedMonthlyCostUsd.toFixed(2)}</span>
+                  <span className="pl-6 text-[11px] text-gray-400 dark:text-gray-500">
+                    {run.expectedRps} RPS · {scenarioLabel(run.failureScenarioCode)}
+                  </span>
                 </label>
               </li>
             ))}
@@ -243,7 +265,17 @@ export function SimulationPanel({
           <p className="text-[11px] text-gray-400 dark:text-gray-500">아직 실행한 시뮬레이션이 없어요.</p>
         )}
 
-        {selectedRuns.length === MAX_COMPARE_SELECTION && (
+        {selectedRuns.length === MAX_COMPARE_SELECTION && !isComparing && (
+          <button
+            type="button"
+            onClick={() => setIsComparing(true)}
+            className="self-start rounded-md border border-blue-300 bg-white px-3 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-50 dark:border-blue-700 dark:bg-gray-900 dark:text-blue-300 dark:hover:bg-blue-950"
+          >
+            선택한 2개 비교
+          </button>
+        )}
+
+        {selectedRuns.length === MAX_COMPARE_SELECTION && isComparing && (
           <div className="overflow-x-auto rounded-md border border-gray-200 dark:border-gray-700">
             <table className="w-full text-xs">
               <thead>
@@ -278,6 +310,14 @@ export function SimulationPanel({
                   {selectedRuns.map((run) => (
                     <td key={run.id} className="p-2 text-gray-700 dark:text-gray-200">
                       {run.expectedRps}
+                    </td>
+                  ))}
+                </tr>
+                <tr className="border-b border-gray-100 dark:border-gray-800">
+                  <td className="p-2 text-gray-500 dark:text-gray-400">장애 시나리오</td>
+                  {selectedRuns.map((run) => (
+                    <td key={run.id} className="p-2 text-gray-700 dark:text-gray-200">
+                      {scenarioLabel(run.failureScenarioCode)}
                     </td>
                   ))}
                 </tr>

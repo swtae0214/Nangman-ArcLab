@@ -7,6 +7,8 @@ interface ToggleSwitchProps {
   title?: string;
   /** 같은 모서리에 여러 개를 쌓을 때(트래픽 흐름 보기 + RPS 표시 등) 위치를 다르게 잡는 용도. */
   className?: string;
+  /** B10: "floating"(캔버스 위에 떠 있는 알약, 기본값) / "inline"("표시" 드롭다운 안의 한 줄). */
+  variant?: "floating" | "inline";
 }
 
 /**
@@ -14,7 +16,7 @@ interface ToggleSwitchProps {
  * 표시"도 똑같은 모양이 필요해서 공용으로 뺐다. Tailwind의 translate-x-* 유틸이 빌드 타이밍에
  * 따라 안 먹는 경우가 있어서, 손잡이 위치는 숫자(px) 인라인 style로 고정한다.
  */
-export function ToggleSwitch({ checked, onToggle, label, title, className }: ToggleSwitchProps) {
+export function ToggleSwitch({ checked, onToggle, label, title, className, variant = "floating" }: ToggleSwitchProps) {
   return (
     <button
       type="button"
@@ -22,7 +24,11 @@ export function ToggleSwitch({ checked, onToggle, label, title, className }: Tog
       aria-checked={checked}
       onClick={onToggle}
       title={title}
-      className={`absolute z-10 flex items-center gap-2 rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 dark:border-gray-700 dark:bg-gray-800 ${className ?? ""}`}
+      className={
+        variant === "floating"
+          ? `absolute z-10 flex items-center gap-2 rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 dark:border-gray-700 dark:bg-gray-800 ${className ?? ""}`
+          : `flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 dark:hover:bg-gray-700 ${className ?? ""}`
+      }
     >
       <span className="relative shrink-0 rounded-full transition-colors" style={{ width: 36, height: 20, backgroundColor: checked ? "#16a34a" : "#d1d5db" }}>
         <span

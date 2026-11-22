@@ -60,7 +60,7 @@ import { LabeledEdge } from "./edges/LabeledEdge";
 import { LeftSidebar } from "./LeftSidebar";
 import { nodeTypes } from "./node-types";
 import { SelectionToolbar } from "./SelectionToolbar";
-import { ToggleSwitch } from "./ToggleSwitch";
+import { DisplayMenu } from "./DisplayMenu";
 
 const edgeTypes = { labeledStep: LabeledEdge };
 
@@ -200,6 +200,8 @@ const CanvasInner = forwardRef<ArchitectureCanvasHandle, ArchitectureCanvasProps
   // 있으면 LeafNode에는 빈 Map을 내려줘서 아무것도 안 그리게 한다).
   const computedRpsByNodeId = useMemo(() => computeNodeRps(flowToGraph(nodes, edges)).rpsByNodeId, [nodes, edges]);
   const rpsByNodeId = showTrafficRps ? computedRpsByNodeId : EMPTY_RPS_BY_NODE_ID;
+  // B10: "표시" 메뉴가 "꺼져 있지만 보여줄 게 있어요" 안내를 띄울 때 쓴다.
+  const hasRpsToShow = useMemo(() => [...computedRpsByNodeId.values()].some((rps) => rps > 0), [computedRpsByNodeId]);
 
   // F1: "비용 보기" 토글과는 무관하게 늘 계산해 둔다 — 헤더 배지·"예상 비용" 탭은 토글 상태와
   // 상관없이 항상 최신 합계를 보여줘야 해서다(토글은 캔버스 위 라벨 표시 여부만 결정한다).
@@ -211,6 +213,8 @@ const CanvasInner = forwardRef<ArchitectureCanvasHandle, ArchitectureCanvasProps
   // F5: 캔버스 노드 라벨("$30"/점선 "미반영")이 비용 탭과 같은 계산 결과를 쓰도록, 한 번 계산한
   // costSummary.lines를 노드 id로 바로 찾아볼 수 있게 맵으로만 바꿔서 내려준다.
   const costLinesByNodeId = useMemo(() => new Map(costSummary.lines.map((line) => [line.nodeId, line])), [costSummary]);
+  // B10: "표시" 메뉴의 "반영된 비용이 있어요" 안내용.
+  const hasCostToShow = costSummary.resolvedCount > 0;
   const lastReportedCostSignatureRef = useRef<string | null>(null);
   useEffect(() => {
     const signature = JSON.stringify(costSummary);
@@ -1022,31 +1026,16 @@ const CanvasInner = forwardRef<ArchitectureCanvasHandle, ArchitectureCanvasProps
             data-interaction-mode={interactionMode}
             className="relative h-full flex-1 dark:bg-gray-900"
           >
-            {!readOnly && onToggleTrafficFlow && (
-              <ToggleSwitch
-                checked={showTrafficFlow ?? false}
-                onToggle={onToggleTrafficFlow}
-                label="트래픽 흐름 보기"
-                title="사용자 요청이 로드밸런서·서버를 거쳐 DB까지 이동하는 구간을 강조해서 보여줘요"
-                className="left-3 top-3"
-              />
-            )}
-            {!readOnly && onToggleTrafficRps && (
-              <ToggleSwitch
-                checked={showTrafficRps ?? false}
-                onToggle={onToggleTrafficRps}
-                label="트래픽(RPS) 표시"
-                title="사용자(USER) 노드의 평균 RPS가 분배·호출선을 타고 각 요소까지 흘러간 값을 노드 아래에 보여줘요"
-                className="left-3 top-12"
-              />
-            )}
-            {!readOnly && onToggleNodeCost && (
-              <ToggleSwitch
-                checked={showNodeCost ?? false}
-                onToggle={onToggleNodeCost}
-                label="비용 보기"
-                title="프리셋에 가격 데이터가 있는 노드 아래에 월 예상 비용을 보여줘요"
-                className="left-3 top-[84px]"
+            {!readOnly && onToggleTrafficFlow && onToggleTrafficRps && onToggleNodeCost && (
+              <DisplayMenu
+                showTrafficFlow={showTrafficFlow ?? false}
+                onToggleTrafficFlow={onToggleTrafficFlow}
+                showTrafficRps={showTrafficRps ?? false}
+                onToggleTrafficRps={onToggleTrafficRps}
+                hasRpsToShow={hasRpsToShow}
+                showNodeCost={showNodeCost ?? false}
+                onToggleNodeCost={onToggleNodeCost}
+                hasCostToShow={hasCostToShow}
               />
             )}
             <ReactFlow

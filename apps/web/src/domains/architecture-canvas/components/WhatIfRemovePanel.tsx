@@ -62,17 +62,23 @@ export function WhatIfRemovePanel({
 
   return (
     <div className="flex flex-col gap-2">
+      {/* B8: 다른 실험 버튼들(장애 주입/트래픽 2배)과 같은 파란 스타일로 통일 — 노란 버튼은 없앴다. */}
       <button
         type="button"
         onClick={hasResult ? handleReset : handleTry}
         disabled={isPending}
-        className="flex items-center gap-2 rounded-lg border border-amber-300 bg-white px-3 py-2.5 text-left text-sm font-medium text-amber-700 hover:bg-amber-50 disabled:opacity-40 dark:border-amber-700 dark:bg-gray-900 dark:text-amber-300 dark:hover:bg-amber-950"
+        className="flex items-center gap-2 rounded-lg border border-blue-300 bg-white px-3 py-2.5 text-left text-sm font-medium text-blue-600 hover:bg-blue-50 disabled:opacity-40 dark:border-blue-700 dark:bg-gray-900 dark:text-blue-300 dark:hover:bg-blue-950"
       >
         {isPending ? "계산 중..." : hasResult ? "✕ 결과 닫기" : `🗑 "${nodeLabel}" 빼고 시험해 보기`}
       </button>
 
+      {/* 규칙 5: 실제 그래프가 아니라 "가상으로 빼봤을 때"의 실험 상태라서, 주황(#B54708) + 점선
+          테두리로 "이건 실제 상태가 아니다"를 색과 테두리 모양 둘 다로 보여준다. */}
       {hasResult && beforePreview.data && afterPreview.data && (
-        <div className="flex flex-col gap-2 rounded-lg border border-amber-200 bg-amber-50/60 p-3 text-xs dark:border-amber-800 dark:bg-amber-950/30">
+        <div
+          className="flex flex-col gap-2 rounded-lg border border-dashed p-3 text-xs"
+          style={{ borderColor: "#B54708", backgroundColor: "rgba(181,71,8,0.06)" }}
+        >
           <div className="flex items-center justify-between">
             <span className="text-gray-500 dark:text-gray-400">월 예상 비용</span>
             <span className="font-medium text-gray-800 dark:text-gray-100">

@@ -107,4 +107,6 @@ export interface SimulationRunSummary {
   validationPassed: boolean;
   /** F2: 이 실행 당시 그래프 스냅샷을 기준으로 어림잡은 월 예상 비용(USD). 가격 미지원 노드는 제외한 합계. */
   estimatedMonthlyCostUsd: number;
+  /** B9: 실행 이력 목록에서 "이 행이 다른 행과 뭐가 다른지" 구분하려고 — 장애 시나리오 없이 돌렸으면 undefined. */
+  failureScenarioCode?: string;
 }

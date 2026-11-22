@@ -226,6 +226,7 @@ export class SimulationService {
         }),
         validationPassed: run.validationResults.every((result) => result.passed || result.severityAtRun !== 'CRITICAL'),
         estimatedMonthlyCostUsd: estimateMonthlyCostUsd(run.architectureSnapshot as unknown as ArchitectureGraph, presets),
+        failureScenarioCode: run.failureScenarioCode ?? undefined,
       };
     });
   }
