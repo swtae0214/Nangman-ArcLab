@@ -1,7 +1,7 @@
 /** validation_rules 테이블(카탈로그)과 정적 검증 엔진 실행 결과가 공유하는 타입. */
 
 export type RuleSeverity = 'CRITICAL' | 'WARNING' | 'INFO';
-export type RuleCategory = 'RELIABILITY' | 'PERFORMANCE';
+export type RuleCategory = 'RELIABILITY' | 'PERFORMANCE' | 'SECURITY';
 
 export interface ValidationRuleCatalogItem {
   code: string;

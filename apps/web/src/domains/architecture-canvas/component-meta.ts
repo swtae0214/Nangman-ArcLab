@@ -252,13 +252,14 @@ export const COMPONENT_META: Record<ComponentType, ComponentMeta> = {
     category: "네트워킹",
     isSimulated: false,
   },
+  // 13단계: SEC-002(진입점의 WAF 보호 여부)가 "이 노드가 WAF인지"를 직접 확인하는 대상.
   WAF: {
     type: "WAF",
     label: "WAF",
     Icon: ArchitectureServiceAWSWAF,
     isGroup: false,
     category: "엣지/보안",
-    isSimulated: false,
+    isSimulated: true,
   },
   SHIELD: {
     type: "SHIELD",
@@ -418,13 +419,14 @@ export const COMPONENT_META: Record<ComponentType, ComponentMeta> = {
     category: "네트워크 경계",
     isSimulated: false,
   },
+  // 13단계: SEC-001(데이터 저장소의 Public Subnet 노출 여부)이 조상 타입으로 직접 확인하는 대상.
   PUBLIC_SUBNET: {
     type: "PUBLIC_SUBNET",
     label: "Public Subnet",
     Icon: ArchitectureGroupPublicsubnet,
     isGroup: true,
     category: "네트워크 경계",
-    isSimulated: false,
+    isSimulated: true,
   },
   PRIVATE_SUBNET: {
     type: "PRIVATE_SUBNET",

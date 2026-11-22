@@ -115,6 +115,8 @@ enum RuleSeverity {
 enum RuleCategory {
   RELIABILITY
   PERFORMANCE
+  // 13단계: SEC-001/SEC-002(Public Subnet 노출, WAF 부재) 추가.
+  SECURITY
 
   @@map("rule_category")
 }

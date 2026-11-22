@@ -76,6 +76,22 @@ const VALIDATION_RULES = [
     sourceCitation: 'AWS Well-Architected Framework Reliability Pillar REL 7',
     category: 'RELIABILITY',
   },
+  {
+    code: 'SEC-001',
+    name: '데이터 저장소의 Public Subnet 노출 여부',
+    description: 'DB(Primary/Replica), Aurora, DocumentDB, Redshift, OpenSearch, DynamoDB가 Public Subnet 안에 직접 배치되어 있으면 인터넷에서 접근 가능한 경로가 생깁니다.',
+    defaultSeverity: 'CRITICAL',
+    sourceCitation: 'AWS Well-Architected Framework Security Pillar SEC05-BP01',
+    category: 'SECURITY',
+  },
+  {
+    code: 'SEC-002',
+    name: '진입점의 WAF 보호 여부',
+    description: '로드밸런서/API Gateway(또는 그 앞의 CDN)에 WAF가 연결되어 있지 않으면 SQL 인젝션 같은 흔한 웹 공격을 막을 수 없습니다.',
+    defaultSeverity: 'WARNING',
+    sourceCitation: 'AWS Well-Architected Framework Security Pillar SEC05-BP03',
+    category: 'SECURITY',
+  },
 ] as const;
 
 async function main(): Promise<void> {

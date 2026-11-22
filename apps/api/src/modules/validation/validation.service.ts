@@ -8,9 +8,11 @@ import { evaluateDbReplicaRule } from './rules/db-replica.rule.js';
 import { evaluateFargateRule } from './rules/fargate.rule.js';
 import { evaluateCacheMultiAzRule, evaluateDbMultiAzRule } from './rules/multi-az.rule.js';
 import { evaluateNatGatewayRule } from './rules/nat-gateway.rule.js';
+import { evaluatePublicSubnetExposureRule } from './rules/public-subnet-exposure.rule.js';
 import { evaluateQueueBacklogRule } from './rules/queue-backlog.rule.js';
 import type { RuleEvaluation } from './rules/rule.types.js';
 import { evaluateSpofRule } from './rules/spof.rule.js';
+import { evaluateWafProtectionRule } from './rules/waf-protection.rule.js';
 
 /** 탐지 로직은 코드에, 규칙 설명/근거 문구는 DB(validation_rules)에 — 4단계에서 정한 분리 원칙. */
 const RULE_EVALUATORS: Array<(graph: ArchitectureGraph) => RuleEvaluation> = [
@@ -23,6 +25,8 @@ const RULE_EVALUATORS: Array<(graph: ArchitectureGraph) => RuleEvaluation> = [
   evaluateFargateRule,
   evaluateAppRunnerRule,
   evaluateQueueBacklogRule,
+  evaluatePublicSubnetExposureRule,
+  evaluateWafProtectionRule,
 ];
 
 @Injectable()
