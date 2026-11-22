@@ -88,8 +88,8 @@ function DiagramNode({
     <div
       className={`flex w-[84px] flex-col items-center justify-center gap-1 rounded border px-1.5 py-2 text-center font-jetbrains text-[10px] font-semibold leading-tight ${toneClass}`}
     >
-      <span className={`flex h-7 w-7 items-center justify-center rounded bg-white ${muted ? "opacity-50" : ""}`}>
-        <Icon size={20} />
+      <span className={`flex h-7 w-7 items-center justify-center ${muted ? "opacity-50" : ""}`}>
+        <Icon size={22} />
       </span>
       <span>{label}</span>
       <span className="text-[8.5px] font-normal opacity-70">{sub}</span>
