@@ -7,6 +7,7 @@ import { COST_RELEVANT_TYPES, PRESET_SELECTABLE_TYPES } from "../node-cost";
 import type { SelectedElementConnection, SelectedElementInfo } from "../types";
 import { DEFAULT_ENTRY_AVG_RESPONSE_SIZE_KB } from "../usage-based-cost";
 import { RULE_RELATED_COMPONENT_TYPES, SEVERITY_ICON, SEVERITY_LABEL, SEVERITY_PILL_STYLE } from "../validation-style";
+import { AppRunnerInspectorSection } from "./AppRunnerInspectorSection";
 import { CapacityInspectorSection } from "./CapacityInspectorSection";
 import { CdnInspectorSection } from "./CdnInspectorSection";
 import { computeGlobalMonthlyFigures, GlobalTrafficSummarySection } from "./GlobalTrafficSummarySection";
@@ -34,6 +35,7 @@ interface SelectionDetailPanelProps {
     },
   ) => void;
   onUpdateCapacitySettings: (nodeId: string, patch: { instanceCount?: number }) => void;
+  onUpdateRedundancySettings: (nodeId: string, patch: { appRunnerMinInstanceCount?: number }) => void;
 }
 
 interface ConnectionGroup {
@@ -249,6 +251,7 @@ export function SelectionDetailPanel({
   onUpdateEdgeTraffic,
   onUpdateUsageBasedCostSettings,
   onUpdateCapacitySettings,
+  onUpdateRedundancySettings,
 }: SelectionDetailPanelProps) {
   const meta = COMPONENT_META[elementInfo.type];
   const Icon = meta.Icon;
@@ -415,6 +418,10 @@ export function SelectionDetailPanel({
 
       {PRESET_SELECTABLE_TYPES.includes(elementInfo.type) && (
         <CapacityInspectorSection elementInfo={elementInfo} onUpdateCapacitySettings={onUpdateCapacitySettings} />
+      )}
+
+      {elementInfo.type === "APP_RUNNER" && (
+        <AppRunnerInspectorSection elementInfo={elementInfo} onUpdateRedundancySettings={onUpdateRedundancySettings} />
       )}
 
       {(inputGroups.length > 0 || outputGroups.length > 0) && (

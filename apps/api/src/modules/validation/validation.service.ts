@@ -2,8 +2,10 @@ import type { ArchitectureGraph, ArchitectureValidationReport, ValidationRuleRes
 import { Injectable } from '@nestjs/common';
 import type { ValidationRuleModel } from '../../generated/prisma/models.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { evaluateAppRunnerRule } from './rules/app-runner.rule.js';
 import { evaluateAsgRule } from './rules/asg.rule.js';
 import { evaluateDbReplicaRule } from './rules/db-replica.rule.js';
+import { evaluateFargateRule } from './rules/fargate.rule.js';
 import { evaluateCacheMultiAzRule, evaluateDbMultiAzRule } from './rules/multi-az.rule.js';
 import { evaluateNatGatewayRule } from './rules/nat-gateway.rule.js';
 import type { RuleEvaluation } from './rules/rule.types.js';
@@ -17,6 +19,8 @@ const RULE_EVALUATORS: Array<(graph: ArchitectureGraph) => RuleEvaluation> = [
   evaluateAsgRule,
   evaluateDbReplicaRule,
   evaluateNatGatewayRule,
+  evaluateFargateRule,
+  evaluateAppRunnerRule,
 ];
 
 @Injectable()

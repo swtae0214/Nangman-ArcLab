@@ -57,4 +57,6 @@ export const RULE_RELATED_COMPONENT_TYPES: Record<string, ComponentType[]> = {
   "MULTIAZ-002": ["CACHE"],
   "ASG-001": ["WEB_SERVER", "ECS", "ELASTIC_BEANSTALK"],
   "NAT-001": ["NAT_GATEWAY"],
+  "FARGATE-001": ["FARGATE"],
+  "APPRUNNER-001": ["APP_RUNNER"],
 };

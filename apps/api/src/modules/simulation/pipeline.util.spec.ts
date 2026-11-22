@@ -240,4 +240,29 @@ describe('computePipeline', () => {
     const ecsMetric = result.nodeMetrics.find((metric) => metric.nodeType === 'ECS');
     expect(ecsMetric?.instanceCount).toBe(2);
   });
+
+  it('같은 ECS_SERVICE 아래 Fargate 컨테이너 여러 개도 하나의 큐로 합쳐진다', () => {
+    const result = computePipeline(
+      graph(
+        [
+          { id: 'lb1', type: 'LOAD_BALANCER', position: { x: 0, y: 0 }, data: { label: 'LB' } },
+          { id: 'svc1', type: 'ECS_SERVICE', position: { x: 1, y: 0 }, data: { label: 'Service' } },
+          { id: 'fg1', type: 'FARGATE', logicalGroupId: 'svc1', position: { x: 0, y: 0 }, data: { label: 'FG1' } },
+          { id: 'fg2', type: 'FARGATE', logicalGroupId: 'svc1', position: { x: 1, y: 0 }, data: { label: 'FG2' } },
+          { id: 'db1', type: 'DB_PRIMARY', position: { x: 2, y: 0 }, data: { label: 'DB', presetCode: 'db-preset' } },
+        ],
+        [
+          { id: 'e1', source: 'lb1', target: 'fg1' },
+          { id: 'e2', source: 'lb1', target: 'fg2' },
+          { id: 'e3', source: 'fg1', target: 'db1' },
+          { id: 'e4', source: 'fg2', target: 'db1' },
+        ],
+      ),
+      30,
+      PRESETS,
+    );
+
+    const fargateMetric = result.nodeMetrics.find((metric) => metric.nodeType === 'FARGATE');
+    expect(fargateMetric?.instanceCount).toBe(2);
+  });
 });

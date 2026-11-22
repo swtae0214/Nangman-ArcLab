@@ -109,6 +109,8 @@ export interface ArchitectureCanvasHandle {
   ) => void;
   /** F4: 프리셋 선택 가능 타입의 인스턴스 수를 우측 패널(용량 섹션)에서 바로 고칠 수 있게 해주는 통로. */
   updateCapacitySettings: (nodeId: string, patch: { instanceCount?: number }) => void;
+  /** 13단계: APP_RUNNER의 최소 인스턴스 수를 우측 패널에서 바로 고칠 수 있게 해주는 통로. */
+  updateRedundancySettings: (nodeId: string, patch: { appRunnerMinInstanceCount?: number }) => void;
   /** 연결(엣지)의 분배 가중치·호출 횟수를 우측 패널의 "연결" 섹션에서 바로 고칠 수 있게 해주는 통로.
    *  edgeIds를 여러 개 주면(묶여서 보이던 연결들) 한 번에 같은 값으로 맞춘다. */
   updateEdgeTraffic: (edgeIds: string[], patch: { distributionWeight?: number; callsPerRequest?: number }) => void;
@@ -140,6 +142,7 @@ const GROUPABLE_TYPES: { type: ComponentType; label: string }[] = [
 const LOGICAL_GROUPABLE_TYPES: { type: ComponentType; label: string }[] = [
   { type: "TARGET_GROUP", label: "Target Group으로 묶기" },
   { type: "AUTO_SCALING_GROUP", label: "ASG로 묶기" },
+  { type: "ECS_SERVICE", label: "ECS 서비스로 묶기" },
 ];
 
 const LOGICAL_GROUP_TYPE_SET = new Set<ComponentType>(LOGICAL_GROUP_TYPES);
@@ -637,6 +640,9 @@ const CanvasInner = forwardRef<ArchitectureCanvasHandle, ArchitectureCanvasProps
       updateCapacitySettings: (nodeId, patch) => {
         setNodes((current) => current.map((node) => (node.id === nodeId ? { ...node, data: { ...node.data, ...patch } } : node)));
       },
+      updateRedundancySettings: (nodeId, patch) => {
+        setNodes((current) => current.map((node) => (node.id === nodeId ? { ...node, data: { ...node.data, ...patch } } : node)));
+      },
       updateEdgeTraffic: (edgeIds, patch) => {
         const idSet = new Set(edgeIds);
         setEdges((current) => current.map((edge) => (idSet.has(edge.id) ? { ...edge, data: { ...edge.data, ...patch } } : edge)));
@@ -743,6 +749,7 @@ const CanvasInner = forwardRef<ArchitectureCanvasHandle, ArchitectureCanvasProps
       ...(PRESET_SELECTABLE_TYPES.includes(node.type)
         ? { presetCode: node.data.presetCode, instanceCount: node.data.instanceCount }
         : {}),
+      ...(node.type === "APP_RUNNER" ? { appRunnerMinInstanceCount: node.data.appRunnerMinInstanceCount } : {}),
     };
   }, [selectedNodes, selectedEdges, nodes, edges, computedRpsByNodeId]);
 

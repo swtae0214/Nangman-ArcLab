@@ -31,6 +31,8 @@ const GROUP_RECOMMENDATION_RULES: Partial<Record<ComponentType, ComponentType[]>
   // Multi-AZ를 직접 켤 수 있는 서비스라 추천에 넣었다.
   ECS: ["AUTO_SCALING_GROUP"],
   ELASTIC_BEANSTALK: ["AUTO_SCALING_GROUP"],
+  // Fargate는 EC2 ASG가 아니라 ECS 서비스로 이중화한다(실제 AWS 동작 방식 차이).
+  FARGATE: ["ECS_SERVICE"],
   REDSHIFT: ["MULTI_AZ_GROUP"],
   OPENSEARCH: ["MULTI_AZ_GROUP"],
   API_GATEWAY: ["TARGET_GROUP"],
@@ -50,6 +52,7 @@ const GROUP_CATEGORY_BY_TYPE: Partial<Record<ComponentType, GroupCategory>> = {
   MULTI_REGION_GROUP: "다중화",
   TARGET_GROUP: "로드밸런싱",
   AUTO_SCALING_GROUP: "로드밸런싱",
+  ECS_SERVICE: "로드밸런싱",
   GENERIC_GROUP: "기타",
   CORPORATE_DATACENTER: "기타",
 };

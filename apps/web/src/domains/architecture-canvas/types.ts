@@ -40,6 +40,8 @@ export interface FlowNodeData extends Record<string, unknown> {
   albAcceptPartialCost?: boolean;
   /** F4: 프리셋 선택 가능 타입 전용 — 같은 프리셋을 몇 대 쓰는지(용량 계산 + 비용 둘 다에 쓰임). 기본값 1. */
   instanceCount?: number;
+  /** 13단계: APP_RUNNER 전용 — App Runner 자체 오토스케일링의 최소 인스턴스 수(min size). */
+  appRunnerMinInstanceCount?: number;
 }
 
 export type FlowNode = Node<FlowNodeData, ComponentType>;
@@ -104,6 +106,8 @@ export interface SelectedElementInfo {
   presetCode?: string;
   /** F4: 위와 같은 타입 전용 — 같은 프리셋을 몇 대 쓰는지. */
   instanceCount?: number;
+  /** 13단계: APP_RUNNER 노드일 때만 값이 있다 — 최소 인스턴스 수. */
+  appRunnerMinInstanceCount?: number;
 }
 
 /** 저장된 그래프(shared-types)를 React Flow가 다룰 수 있는 노드/엣지 배열로 변환한다. */
@@ -130,6 +134,7 @@ export function graphToFlow(graph: ArchitectureGraph): { nodes: FlowNode[]; edge
         albRequestsPerConnection: node.data.albRequestsPerConnection,
         albAcceptPartialCost: node.data.albAcceptPartialCost,
         instanceCount: node.data.instanceCount,
+        appRunnerMinInstanceCount: node.data.appRunnerMinInstanceCount,
       },
       // 저장된 크기가 있으면(중첩 배치·리사이즈로 부모보다 작게 만든 그룹/리프 등) 그걸 그대로 쓰고,
       // 없을 때만(옛 데이터, 최초 생성 등) 기본 크기로 어림잡는다. 논리적 그룹(Target Group/ASG)은
@@ -189,6 +194,7 @@ export function flowToGraph(nodes: FlowNode[], edges: FlowEdge[]): ArchitectureG
       ...(node.data.albRequestsPerConnection != null ? { albRequestsPerConnection: node.data.albRequestsPerConnection } : {}),
       ...(node.data.albAcceptPartialCost != null ? { albAcceptPartialCost: node.data.albAcceptPartialCost } : {}),
       ...(node.data.instanceCount != null ? { instanceCount: node.data.instanceCount } : {}),
+      ...(node.data.appRunnerMinInstanceCount != null ? { appRunnerMinInstanceCount: node.data.appRunnerMinInstanceCount } : {}),
     },
   }));
   const graphEdges: GraphEdge[] = edges.map((edge) => ({

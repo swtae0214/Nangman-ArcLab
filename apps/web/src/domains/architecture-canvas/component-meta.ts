@@ -658,6 +658,18 @@ export const COMPONENT_META: Record<ComponentType, ComponentMeta> = {
     isSimulated: false,
     hideFromPalette: true,
   },
+  // 13단계: FARGATE-001(이중화) 전용 논리적 그룹 — Fargate 컨테이너는 EC2 Auto Scaling Group이
+  // 아니라 ECS 서비스의 "원하는 태스크 수"로 이중화되기 때문에, AUTO_SCALING_GROUP과 구분한다.
+  ECS_SERVICE: {
+    type: "ECS_SERVICE",
+    label: "ECS 서비스",
+    // Target Group/AZ와 같은 사정으로 공식 아이콘이 없어서 범용 아이콘으로 대체한다.
+    Icon: GenericGroupIcon,
+    isGroup: false,
+    category: "핵심 인프라",
+    isSimulated: true,
+    hideFromPalette: true,
+  },
   // 12단계: "3-Tier 위주라 EKS, SageMaker 같은 리소스가 없다"는 팀원 피드백으로 추가한
   // 컨테이너/AI·ML 서비스. 아직 검증/시뮬레이션 엔진 계산 대상은 아니라 isSimulated: false.
   EKS: {
@@ -824,10 +836,12 @@ export const Z_ORDER_BIAS_MAX = 5;
  * Target Group은 참고 이미지의 빨간 테두리를 그대로 따랐고, Auto Scaling Group은 실제 AWS
  * 아이콘 색(주황)에 맞춰 구분했다.
  */
-export const LOGICAL_GROUP_TYPES: readonly ComponentType[] = ["TARGET_GROUP", "AUTO_SCALING_GROUP"];
+export const LOGICAL_GROUP_TYPES: readonly ComponentType[] = ["TARGET_GROUP", "AUTO_SCALING_GROUP", "ECS_SERVICE"];
 export const LOGICAL_GROUP_PADDING = 24;
 export const LOGICAL_GROUP_BORDER_COLOR: Partial<Record<ComponentType, string>> = {
   TARGET_GROUP: "border-red-500",
   AUTO_SCALING_GROUP: "border-orange-500",
+  // Fargate 아이콘(aws-react-icons)의 브랜드 색(청록)에 맞춰 구분했다.
+  ECS_SERVICE: "border-teal-500",
 };
 export const DEFAULT_LOGICAL_GROUP_BORDER_COLOR = "border-red-500";

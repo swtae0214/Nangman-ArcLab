@@ -8,6 +8,8 @@ const SUGGESTIONS_BY_RULE_CODE: Record<string, string> = {
   'ASG-001': '웹 서버를 Auto Scaling Group 안에, 최소 2대 이상 배치하세요.',
   'DB-002': 'DB Replica를 추가하면 읽기 트래픽을 분산할 수 있어요.',
   'NAT-001': 'NAT Gateway를 가용 영역마다 하나씩 추가로 배치하세요.',
+  'FARGATE-001': 'Fargate 컨테이너를 ECS 서비스로 묶고, 최소 2개 이상 배치하세요.',
+  'APPRUNNER-001': 'App Runner의 최소 인스턴스 수를 2 이상으로 설정하세요.',
 };
 
 /** 실패한 규칙마다 하나씩, 원래 순서(정적 검증 규칙 순서)를 유지해서 개선 제안을 만든다. */

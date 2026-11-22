@@ -73,6 +73,12 @@ export const COMPONENT_TYPES = [
    * 바꿈)과 달리, 멤버 노드의 parentId는 그대로 두고 data.logicalGroupId만 표시로 붙인다.
    */
   'TARGET_GROUP',
+  /**
+   * 13단계: Fargate 전용 FARGATE-001(이중화) 규칙을 위한 논리적 그룹 — 실제 AWS에서 Fargate
+   * 컨테이너(태스크)의 이중화는 EC2 Auto Scaling Group이 아니라 ECS 서비스의 "원하는 태스크 수"로
+   * 이뤄지기 때문에, AUTO_SCALING_GROUP을 재사용하지 않고 별도 타입으로 둔다.
+   */
+  'ECS_SERVICE',
   // 12단계: "3-Tier 위주라 EKS, SageMaker 같은 리소스가 없다"는 피드백으로 추가한 컨테이너/AI·ML 서비스.
   'EKS',
   'SAGEMAKER',
@@ -163,6 +169,13 @@ export interface GraphNode {
      * 몇 대 쓰는지. 용량 계산(M/M/c의 c)과 월 비용(프리셋 단가 × 이 값) 둘 다에 쓰인다. 기본값 1.
      */
     instanceCount?: number;
+    /**
+     * 13단계: APP_RUNNER 전용 — App Runner 자체 오토스케일링 설정의 최소 인스턴스 수(min size).
+     * ECS/Elastic Beanstalk처럼 "인스턴스 노드를 여러 개 그려서 ASG로 묶는" 방식이 아니라, App
+     * Runner는 서비스 하나당 박스 하나만 그리고 이 숫자로 최소 용량을 나타낸다(실제 AWS 콘솔의
+     * min size 설정과 같은 구조). APPRUNNER-001(이중화) 규칙이 이 값으로 최소 2 이상인지 본다.
+     */
+    appRunnerMinInstanceCount?: number;
   };
 }
 

@@ -131,8 +131,11 @@ export function computePipeline(
   for (const id of relevantIds) {
     const node = nodesById.get(id);
     if (!node || !COMPUTE_COMPONENT_TYPES.includes(node.type)) continue;
+    // AUTO_SCALING_GROUP(EC2/ECS/Elastic Beanstalk)과 ECS_SERVICE(Fargate)는 메커니즘은
+    // 다르지만 둘 다 "이 묶음 안의 멤버 수만큼 처리 능력(c)이 커진다"는 점은 같다.
     const logicalGroup = node.logicalGroupId ? nodesById.get(node.logicalGroupId) : undefined;
-    const groupKey = logicalGroup?.type === 'AUTO_SCALING_GROUP' ? logicalGroup.id : node.id;
+    const groupKey =
+      logicalGroup?.type === 'AUTO_SCALING_GROUP' || logicalGroup?.type === 'ECS_SERVICE' ? logicalGroup.id : node.id;
     const group = computeGroups.get(groupKey) ?? [];
     group.push(node);
     computeGroups.set(groupKey, group);

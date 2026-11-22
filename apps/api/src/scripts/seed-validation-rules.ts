@@ -52,6 +52,22 @@ const VALIDATION_RULES = [
     sourceCitation: 'AWS Well-Architected Framework Reliability Pillar REL 10',
     category: 'RELIABILITY',
   },
+  {
+    code: 'FARGATE-001',
+    name: 'Fargate 컨테이너의 이중화 여부',
+    description: 'Fargate 컨테이너가 ECS 서비스로 묶여 있고, 그 안에 최소 2개 이상 배치되어 있는지 확인합니다.',
+    defaultSeverity: 'WARNING',
+    sourceCitation: 'AWS Well-Architected Framework Reliability Pillar REL 7',
+    category: 'RELIABILITY',
+  },
+  {
+    code: 'APPRUNNER-001',
+    name: 'App Runner의 최소 인스턴스 수',
+    description: 'App Runner의 최소 인스턴스 수(min size)가 2 미만이면 인스턴스 하나에 장애가 났을 때 서비스가 끊길 수 있습니다.',
+    defaultSeverity: 'WARNING',
+    sourceCitation: 'AWS Well-Architected Framework Reliability Pillar REL 7',
+    category: 'RELIABILITY',
+  },
 ] as const;
 
 async function main(): Promise<void> {
