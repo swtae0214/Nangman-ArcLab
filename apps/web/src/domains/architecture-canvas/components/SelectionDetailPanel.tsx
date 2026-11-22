@@ -6,7 +6,7 @@ import { COMPONENT_META } from "../component-meta";
 import { COST_RELEVANT_TYPES, PRESET_SELECTABLE_TYPES } from "../node-cost";
 import type { SelectedElementConnection, SelectedElementInfo } from "../types";
 import { DEFAULT_ENTRY_AVG_RESPONSE_SIZE_KB } from "../usage-based-cost";
-import { RULE_RELATED_COMPONENT_TYPES, SEVERITY_ICON, SEVERITY_PILL_STYLE } from "../validation-style";
+import { RULE_RELATED_COMPONENT_TYPES, SEVERITY_ICON, SEVERITY_LABEL, SEVERITY_PILL_STYLE } from "../validation-style";
 import { CapacityInspectorSection } from "./CapacityInspectorSection";
 import { CdnInspectorSection } from "./CdnInspectorSection";
 import { computeGlobalMonthlyFigures, GlobalTrafficSummarySection } from "./GlobalTrafficSummarySection";
@@ -451,7 +451,7 @@ export function SelectionDetailPanel({
                   <span
                     className={`flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ${SEVERITY_PILL_STYLE[result.severity]}`}
                   >
-                    {SEVERITY_ICON[result.severity]} {result.severity}
+                    {SEVERITY_ICON[result.severity]} {SEVERITY_LABEL[result.severity]}
                   </span>
                   {!result.passed && result.detail.nodeIds && result.detail.nodeIds.length > 0 && (
                     <button

@@ -1,7 +1,7 @@
 "use client";
 
 import type { ArchitectureValidationReport, ValidationRuleResult } from "@nangman/shared-types";
-import { SEVERITY_DOT_STYLE, SEVERITY_LABEL, SEVERITY_ORDER, SEVERITY_STYLE } from "../validation-style";
+import { SEVERITY_DOT_STYLE, SEVERITY_ICON, SEVERITY_LABEL, SEVERITY_ORDER, SEVERITY_PILL_STYLE, SEVERITY_STYLE } from "../validation-style";
 
 interface ValidationResultListProps {
   report: ArchitectureValidationReport;
@@ -40,15 +40,24 @@ function ValidationItem({
             : SEVERITY_STYLE[result.severity]
       }`}
     >
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-2 [&::-webkit-details-marker]:hidden">
-        <span className="flex items-center gap-1.5 font-medium">
-          <span className="text-[10px] transition-transform group-open:rotate-90">▶</span>
-          {result.applicable ? (result.passed ? "✅" : "⚠️") : "➖"} {result.name}
+      <summary className="flex h-6 cursor-pointer list-none items-center justify-between gap-2 [&::-webkit-details-marker]:hidden">
+        <span className="flex min-w-0 items-center gap-1.5 font-medium">
+          <span className="shrink-0 text-[10px] transition-transform group-open:rotate-90">▶</span>
+          <span className="shrink-0">{result.applicable ? (result.passed ? "✅" : "⚠️") : "➖"}</span>
+          <span className="truncate" title={result.name}>
+            {result.name}
+          </span>
         </span>
+        {/* B6: 색(배경)만이 아니라 ◆▲●(모양) + 한글 라벨로도 중요도를 구분한다 — 영문 대문자
+            ("CRITICAL")만 떠 있던 걸 요소 인스펙터의 중요도 칩과 같은 모양으로 맞췄다. */}
         {result.applicable ? (
-          <span className="text-xs uppercase text-gray-400 dark:text-gray-500">{result.severity}</span>
+          <span
+            className={`flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-medium ${SEVERITY_PILL_STYLE[result.severity]}`}
+          >
+            {SEVERITY_ICON[result.severity]} {SEVERITY_LABEL[result.severity]}
+          </span>
         ) : (
-          <span className="rounded border border-gray-300 px-1.5 py-0.5 text-[10px] text-gray-400 dark:border-gray-600 dark:text-gray-500">
+          <span className="shrink-0 rounded border border-gray-300 px-1.5 py-0.5 text-[10px] text-gray-400 dark:border-gray-600 dark:text-gray-500">
             해당 없음
           </span>
         )}

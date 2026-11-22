@@ -13,10 +13,11 @@ export const SEVERITY_DOT_STYLE: Record<RuleSeverity, string> = {
   INFO: "bg-blue-500",
 };
 
+/** B6: "CRITICAL" 같은 영문 대문자 그대로 보이던 걸 한글로 — 색만으로 구분하지 않고 글자로도 구분되게. */
 export const SEVERITY_LABEL: Record<RuleSeverity, string> = {
-  CRITICAL: "Critical",
-  WARNING: "Warning",
-  INFO: "Info",
+  CRITICAL: "심각",
+  WARNING: "경고",
+  INFO: "정보",
 };
 
 export const SEVERITY_ORDER: RuleSeverity[] = ["CRITICAL", "WARNING", "INFO"];
