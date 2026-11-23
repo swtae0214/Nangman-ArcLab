@@ -1,8 +1,9 @@
 "use client";
 
-import type { CurrentUser } from "@nangman/shared-types";
+import type { CurrentUser, RuleSeverity, ValidationRuleCatalogItem } from "@nangman/shared-types";
 import type { FC, ReactNode } from "react";
 import Link from "next/link";
+import { useState } from "react";
 import { ConsoleNavBar } from "@/components/ConsoleNavBar";
 import { COMPONENT_META } from "@/domains/architecture-canvas/component-meta";
 import { GITHUB_LOGIN_URL } from "@/lib/api";
@@ -10,13 +11,24 @@ import { AuthErrorBanner } from "./AuthErrorBanner";
 import { useCurrentUser } from "@/lib/use-current-user";
 import { useValidationRuleCatalog } from "@/lib/use-catalog";
 import {
+  CATEGORY_LABEL,
+  CATEGORY_ORDER,
   SEVERITY_BADGE_BG_STYLE,
   SEVERITY_BORDER_STYLE,
   SEVERITY_ICON,
   SEVERITY_LABEL,
   SEVERITY_ORDER,
+  SEVERITY_SECTION_SUBTITLE,
   SEVERITY_TEXT_CLASS,
 } from "@/lib/severity-colors";
+
+/**
+ * 홈 화면 개선(14단계): 규칙이 5개에서 12개로 늘어나면서 "캔버스를 실제로 연결 안 해도" 보여줄 수
+ * 있는 히어로 미리보기는 전부 통과로 두면 밋밋해서, 실제로 이 샘플 다이어그램에 없는 걸(WAF) 하나
+ * 일부러 "미충족"으로 둬서 "검증이 뭘 찾아주는지" 바로 보여준다. 실제 검증 엔진을 돌리는 게
+ * 아니라 손으로 고른 마케팅용 예시 데이터라, 여기 숫자를 바꾸면 이 집합도 같이 맞춰야 한다.
+ */
+const HERO_FAILED_RULE_CODES = new Set(["SEC-002"]);
 
 const GITHUB_REPO_URL = "https://github.com/swtae0214/Nangman-ArcLab";
 const README_URL = `${GITHUB_REPO_URL}/blob/main/README.md`;
@@ -117,12 +129,215 @@ function DiagramConnector() {
   return <div className="h-0.5 w-5 flex-shrink-0 self-center bg-console-accent/40" aria-hidden />;
 }
 
+/** 심각도 필터 칩(전체/심각/경고/정보) — 선택된 값만 색이 들어오고 나머지는 중립 테두리. */
+function SeverityFilterChip({
+  label,
+  count,
+  active,
+  onClick,
+  icon,
+}: {
+  label: string;
+  count: number;
+  active: boolean;
+  onClick: () => void;
+  icon?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 font-jetbrains text-xs font-semibold transition-colors ${
+        active
+          ? "border-console-accent bg-console-accent/15 text-console-accent"
+          : "border-console-accent/20 text-console-muted hover:border-console-accent/40"
+      }`}
+    >
+      {icon && <span>{icon}</span>}
+      {label} <span className="opacity-70">{count}</span>
+    </button>
+  );
+}
+
+/** 카테고리 필터 칩(가용성/보안/용량·성능) — 심각도 칩과 모양을 구분하려고 둥근 사각형으로 둔다. */
+function CategoryFilterChip({ label, count, active, onClick }: { label: string; count: number; active: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded border px-3 py-1.5 font-jetbrains text-xs font-semibold transition-colors ${
+        active
+          ? "border-console-accent bg-console-accent/15 text-console-accent"
+          : "border-console-accent/20 text-console-muted hover:border-console-accent/40"
+      }`}
+    >
+      {label} <span className="opacity-70">{count}</span>
+    </button>
+  );
+}
+
+/** 규칙 카드 하나 — 눌러서 펼치면 전체 설명 + 근거(Well-Architected citation)를 보여준다. */
+function RuleCard({ rule, expanded, onToggle }: { rule: ValidationRuleCatalogItem; expanded: boolean; onToggle: () => void }) {
+  return (
+    <div
+      style={{ borderLeftColor: SEVERITY_BORDER_STYLE[rule.severity] }}
+      className="rounded-md border border-console-accent/15 border-l-2 bg-console-panel p-5"
+    >
+      <button type="button" onClick={onToggle} className="flex w-full items-start justify-between gap-2 text-left">
+        <div className="min-w-0">
+          <span className="mb-2 inline-block rounded border border-console-accent/20 px-2 py-0.5 font-jetbrains text-[10px] font-semibold text-console-muted">
+            {CATEGORY_LABEL[rule.category]}
+          </span>
+          <div className="text-[15px] font-bold text-white">{rule.name}</div>
+          <p className={`mt-1.5 text-[13px] leading-[1.6] text-console-subtle ${expanded ? "" : "line-clamp-2"}`}>{rule.description}</p>
+        </div>
+        <span className={`mt-1 flex-shrink-0 text-console-muted transition-transform ${expanded ? "rotate-180" : ""}`}>⌄</span>
+      </button>
+      {expanded && (
+        <div className="mt-3 border-t border-dashed border-console-accent/20 pt-3">
+          <span className="text-[11px] text-console-muted">근거 · {rule.sourceCitation}</span>
+        </div>
+      )}
+      <div className="mt-3 font-jetbrains text-[10.5px] font-semibold text-console-muted">{rule.code}</div>
+    </div>
+  );
+}
+
+/** 홈 화면 개선(14단계): 규칙이 12개로 늘어난 만큼, 전체 나열 대신 심각도/카테고리 필터 + 검색 +
+ *  심각도별 묶음으로 바꿨다. 각 묶음은 접고 펼칠 수 있고, 카드도 눌러서 설명을 더 볼 수 있다. */
+function RulesExplorerSection({ rules }: { rules: ValidationRuleCatalogItem[] }) {
+  const [severityFilter, setSeverityFilter] = useState<RuleSeverity | "ALL">("ALL");
+  const [categoryFilter, setCategoryFilter] = useState<ValidationRuleCatalogItem["category"] | null>(null);
+  const [searchText, setSearchText] = useState("");
+  const [expandedCodes, setExpandedCodes] = useState<ReadonlySet<string>>(
+    () => new Set(rules.length > 0 ? [rules[0].code] : []),
+  );
+  const [collapsedSeverities, setCollapsedSeverities] = useState<ReadonlySet<RuleSeverity>>(() => new Set());
+
+  const toggleExpanded = (code: string) => {
+    setExpandedCodes((current) => {
+      const next = new Set(current);
+      if (next.has(code)) next.delete(code);
+      else next.add(code);
+      return next;
+    });
+  };
+
+  const toggleSeverityCollapsed = (severity: RuleSeverity) => {
+    setCollapsedSeverities((current) => {
+      const next = new Set(current);
+      if (next.has(severity)) next.delete(severity);
+      else next.add(severity);
+      return next;
+    });
+  };
+
+  const normalizedSearch = searchText.trim().toLowerCase();
+  const filteredRules = rules.filter((rule) => {
+    if (severityFilter !== "ALL" && rule.severity !== severityFilter) return false;
+    if (categoryFilter && rule.category !== categoryFilter) return false;
+    if (!normalizedSearch) return true;
+    return (
+      rule.name.toLowerCase().includes(normalizedSearch) ||
+      rule.description.toLowerCase().includes(normalizedSearch) ||
+      rule.code.toLowerCase().includes(normalizedSearch)
+    );
+  });
+
+  const severityCounts: Record<RuleSeverity, number> = { CRITICAL: 0, WARNING: 0, INFO: 0 };
+  const categoryCounts: Record<ValidationRuleCatalogItem["category"], number> = { RELIABILITY: 0, SECURITY: 0, PERFORMANCE: 0 };
+  for (const rule of rules) {
+    severityCounts[rule.severity] += 1;
+    categoryCounts[rule.category] += 1;
+  }
+
+  return (
+    <>
+      <div className="mb-7 flex flex-wrap items-center gap-2.5 rounded-md border border-console-accent/15 bg-console-panel p-3.5">
+        <SeverityFilterChip label="전체" count={rules.length} active={severityFilter === "ALL"} onClick={() => setSeverityFilter("ALL")} />
+        {SEVERITY_ORDER.map((severity) => (
+          <SeverityFilterChip
+            key={severity}
+            label={SEVERITY_LABEL[severity]}
+            icon={SEVERITY_ICON[severity]}
+            count={severityCounts[severity]}
+            active={severityFilter === severity}
+            onClick={() => setSeverityFilter(severityFilter === severity ? "ALL" : severity)}
+          />
+        ))}
+        <span className="mx-1 h-5 w-px bg-console-accent/15" aria-hidden />
+        {CATEGORY_ORDER.map((category) => (
+          <CategoryFilterChip
+            key={category}
+            label={CATEGORY_LABEL[category]}
+            count={categoryCounts[category]}
+            active={categoryFilter === category}
+            onClick={() => setCategoryFilter(categoryFilter === category ? null : category)}
+          />
+        ))}
+        <input
+          type="search"
+          value={searchText}
+          onChange={(event) => setSearchText(event.target.value)}
+          placeholder="🔍 규칙 검색"
+          className="ml-auto w-48 rounded border border-console-accent/20 bg-console-bg px-3 py-1.5 text-xs text-console-fg placeholder:text-console-muted focus:border-console-accent focus:outline-none"
+        />
+      </div>
+
+      {filteredRules.length === 0 ? (
+        <div className="rounded-md border border-console-accent/15 bg-console-panel p-8 text-center text-sm text-console-subtle">
+          조건에 맞는 규칙이 없어요.
+        </div>
+      ) : (
+        <div className="flex flex-col gap-6">
+          {SEVERITY_ORDER.filter((severity) => filteredRules.some((rule) => rule.severity === severity)).map((severity) => {
+            const groupRules = filteredRules.filter((rule) => rule.severity === severity);
+            const isCollapsed = collapsedSeverities.has(severity);
+            return (
+              <div key={severity}>
+                <button
+                  type="button"
+                  onClick={() => toggleSeverityCollapsed(severity)}
+                  className="mb-3 flex w-full items-center gap-2.5 text-left"
+                >
+                  <span className={`font-jetbrains text-xs font-bold ${SEVERITY_TEXT_CLASS[severity]}`}>
+                    {SEVERITY_ICON[severity]} {SEVERITY_LABEL[severity]}
+                  </span>
+                  <span className="font-jetbrains text-xs font-semibold text-console-muted">{groupRules.length}개</span>
+                  <span className="text-xs text-console-subtle">{SEVERITY_SECTION_SUBTITLE[severity]}</span>
+                  <span className="ml-auto font-jetbrains text-xs text-console-muted">{isCollapsed ? "▾ 펼치기" : "▴ 접기"}</span>
+                </button>
+                {!isCollapsed && (
+                  <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2 lg:grid-cols-3">
+                    {groupRules.map((rule) => (
+                      <RuleCard key={rule.code} rule={rule} expanded={expandedCodes.has(rule.code)} onToggle={() => toggleExpanded(rule.code)} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </>
+  );
+}
+
 export function LandingPage() {
   const { data: rulesData } = useValidationRuleCatalog();
   const { data: user } = useCurrentUser();
   const rules = [...(rulesData ?? [])].sort(
     (a, b) => SEVERITY_ORDER.indexOf(a.severity) - SEVERITY_ORDER.indexOf(b.severity),
   );
+  const [isPassedListOpen, setIsPassedListOpen] = useState(false);
+
+  // 히어로 미리보기: HERO_FAILED_RULE_CODES에 손으로 골라 둔 규칙만 "미충족"으로 보여준다(실제
+  // 검증 엔진을 돌리는 게 아니라 "검증이 뭘 찾아주는지" 보여주는 마케팅용 예시).
+  const heroFailedRules = rules.filter((rule) => HERO_FAILED_RULE_CODES.has(rule.code));
+  const heroPassedRules = rules.filter((rule) => !HERO_FAILED_RULE_CODES.has(rule.code));
+  const heroWorstSeverity: RuleSeverity | null = heroFailedRules.length > 0 ? heroFailedRules[0].severity : null;
+  const heroSeverityCounts: Record<RuleSeverity, number> = { CRITICAL: 0, WARNING: 0, INFO: 0 };
+  for (const rule of heroFailedRules) heroSeverityCounts[rule.severity] += 1;
 
   return (
     <div className="min-h-screen bg-console-bg font-noto-kr text-console-fg">
@@ -163,9 +378,18 @@ export function LandingPage() {
             <div className="flex items-center justify-between border-b border-console-accent/15 px-6 py-3.5">
               <div className="flex items-center gap-2.5">
                 <span className="text-sm font-bold text-white">샘플 3-Tier 아키텍처</span>
-                <span className="flex items-center gap-1 rounded bg-console-accent/15 px-2 py-0.5 font-jetbrains text-[10.5px] font-semibold text-console-accent">
-                  ✓ 통과
-                </span>
+                {heroWorstSeverity ? (
+                  <span
+                    style={{ backgroundColor: SEVERITY_BADGE_BG_STYLE[heroWorstSeverity] }}
+                    className={`flex items-center gap-1 rounded px-2 py-0.5 font-jetbrains text-[10.5px] font-semibold ${SEVERITY_TEXT_CLASS[heroWorstSeverity]}`}
+                  >
+                    {SEVERITY_ICON[heroWorstSeverity]} {SEVERITY_LABEL[heroWorstSeverity]} {heroFailedRules.length}
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1 rounded bg-console-accent/15 px-2 py-0.5 font-jetbrains text-[10.5px] font-semibold text-console-accent">
+                    ✓ 통과
+                  </span>
+                )}
               </div>
               <span className="font-jetbrains text-[10.5px] font-semibold text-console-muted">예시 화면</span>
             </div>
@@ -212,28 +436,72 @@ export function LandingPage() {
 
               <div className="flex flex-col border-l border-console-accent/15">
                 <div className="p-5">
-                  <div className="mb-1 flex items-center gap-2">
-                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-console-accent/15 text-[11px] text-console-accent">
-                      ✓
-                    </span>
-                    <span className="text-sm font-bold text-white">검증 통과</span>
+                  <div className="mb-1 text-sm font-bold text-white">
+                    {rules.length}개 규칙 중 {heroPassedRules.length}개 통과
                   </div>
-                  <p className="mb-4 text-xs text-console-subtle">5개 규칙을 모두 충족했어요</p>
-                  <ul className="flex flex-col gap-2.5">
-                    {rules.map((rule) => (
-                      <li key={rule.code} className="flex items-center justify-between gap-2 text-xs">
-                        <span className="flex items-center gap-1.5 text-console-fg">
-                          <span className="text-console-accent">✓</span> {rule.name}
-                        </span>
+                  <p className="mb-4 text-xs text-console-subtle">
+                    {heroFailedRules.length > 0 ? `${heroFailedRules.length}개를 확인해 보세요` : "모두 통과했어요"}
+                  </p>
+
+                  <div className="mb-4 flex items-center gap-3">
+                    {SEVERITY_ORDER.map((severity) => (
+                      <span key={severity} className={`flex items-center gap-1 font-jetbrains text-[11px] font-semibold ${SEVERITY_TEXT_CLASS[severity]}`}>
+                        {SEVERITY_ICON[severity]} {SEVERITY_LABEL[severity]} {heroSeverityCounts[severity]}
+                      </span>
+                    ))}
+                  </div>
+
+                  {heroFailedRules.map((rule) => (
+                    <div
+                      key={rule.code}
+                      style={{ borderColor: SEVERITY_BORDER_STYLE[rule.severity] }}
+                      className="mb-3 rounded-md border bg-console-bg p-3.5"
+                    >
+                      <div className="mb-1.5 flex items-center gap-1.5">
                         <span
                           style={{ backgroundColor: SEVERITY_BADGE_BG_STYLE[rule.severity] }}
-                          className={`flex flex-shrink-0 items-center gap-1 rounded px-1.5 py-0.5 font-jetbrains text-[9.5px] font-semibold ${SEVERITY_TEXT_CLASS[rule.severity]}`}
+                          className={`flex items-center gap-1 rounded px-1.5 py-0.5 font-jetbrains text-[9.5px] font-semibold ${SEVERITY_TEXT_CLASS[rule.severity]}`}
                         >
                           {SEVERITY_ICON[rule.severity]} {SEVERITY_LABEL[rule.severity]}
                         </span>
-                      </li>
-                    ))}
-                  </ul>
+                        <span className="rounded border border-console-accent/20 px-1.5 py-0.5 font-jetbrains text-[9.5px] font-semibold text-console-muted">
+                          {CATEGORY_LABEL[rule.category]}
+                        </span>
+                      </div>
+                      <div className="mb-1 text-[13px] font-bold text-white">{rule.name}</div>
+                      <p className="mb-2 text-[12px] leading-[1.6] text-console-subtle">{rule.description}</p>
+                      <a
+                        href={user ? "/architectures" : GITHUB_LOGIN_URL}
+                        className="text-[12px] font-semibold text-console-accent hover:text-console-accent-hover"
+                      >
+                        캔버스에서 확인 →
+                      </a>
+                    </div>
+                  ))}
+
+                  <button
+                    type="button"
+                    onClick={() => setIsPassedListOpen((current) => !current)}
+                    className="flex w-full items-center justify-between rounded-md border border-console-accent/15 px-3.5 py-2.5 text-xs font-semibold text-console-fg hover:border-console-accent/30"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <span className="text-console-accent">✓</span> 통과한 규칙 {heroPassedRules.length}개
+                    </span>
+                    <span className="text-console-muted">{isPassedListOpen ? "▴" : "▾"}</span>
+                  </button>
+                  {isPassedListOpen && (
+                    <ul className="mt-2 flex flex-col gap-2">
+                      {heroPassedRules.map((rule) => (
+                        <li key={rule.code} className="flex items-center gap-1.5 text-xs text-console-subtle">
+                          <span className="text-console-accent">✓</span> {rule.name}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+
+                  <a href="#rules" className="mt-3 block text-xs font-semibold text-console-accent hover:text-console-accent-hover">
+                    전체 규칙 {rules.length}개 보기 →
+                  </a>
                 </div>
                 <div className="mt-auto border-t border-console-accent/15 p-5">
                   <div className="mb-2.5 font-jetbrains text-[10px] font-semibold text-console-muted">
@@ -269,29 +537,9 @@ export function LandingPage() {
           <div className="mb-1 font-jetbrains text-xs font-bold tracking-wide text-console-accent">
             STATIC VALIDATION RULES
           </div>
-          <h2 className="mb-1.5 text-2xl font-black text-white">검증 규칙 5가지</h2>
-          <p className="mb-7 text-xs text-console-subtle">중요도는 색과 모양으로 함께 표시돼요.</p>
-          <div className="grid grid-cols-3 gap-3.5">
-            {rules.map((rule) => (
-              <div
-                key={rule.code}
-                style={{ borderColor: SEVERITY_BORDER_STYLE[rule.severity] }}
-                className="rounded-md border bg-console-panel p-5"
-              >
-                <div className="mb-3 flex items-center justify-between">
-                  <span
-                    style={{ backgroundColor: SEVERITY_BADGE_BG_STYLE[rule.severity] }}
-                    className={`flex items-center gap-1 rounded px-2 py-1 font-jetbrains text-[10.5px] font-semibold ${SEVERITY_TEXT_CLASS[rule.severity]}`}
-                  >
-                    {SEVERITY_ICON[rule.severity]} {SEVERITY_LABEL[rule.severity]}
-                  </span>
-                  <span className="font-jetbrains text-[10.5px] font-semibold text-console-muted">{rule.code}</span>
-                </div>
-                <div className="mb-1.5 text-[15px] font-bold text-white">{rule.name}</div>
-                <p className="text-[13px] leading-[1.6] text-console-subtle">{rule.description}</p>
-              </div>
-            ))}
-          </div>
+          <h2 className="mb-1.5 text-2xl font-black text-white">검증 규칙 {rules.length}가지</h2>
+          <p className="mb-7 text-xs text-console-subtle">중요도는 색과 모양, 글자로 함께 표시돼요. 카드를 누르면 자세한 설명이 펼쳐져요.</p>
+          <RulesExplorerSection rules={rules} />
         </section>
 
         <section className="px-10 pt-6 pb-16">

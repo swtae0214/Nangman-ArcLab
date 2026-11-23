@@ -42,7 +42,9 @@ const VALIDATION_RULES = [
     description: 'DB Primary/Aurora/DocumentDB만 있고 읽기 확장용 복제본이 없으면 읽기 트래픽을 분산할 수 없습니다.',
     defaultSeverity: 'INFO',
     sourceCitation: 'AWS Well-Architected Framework Reliability Pillar REL 7',
-    category: 'RELIABILITY',
+    // 홈 화면 개선(14단계): "가용성이 끊기냐"보다 "처리량을 늘릴 수 있냐"에 가까운 질문이라
+    // RELIABILITY가 아니라 PERFORMANCE로 재분류했다(QUEUE-001과 같은 이유).
+    category: 'PERFORMANCE',
   },
   {
     code: 'NAT-001',
@@ -74,7 +76,8 @@ const VALIDATION_RULES = [
     description: 'SQS/Kinesis Data Streams의 유입 속도가 컨슈머 처리 능력을 넘으면 메시지가 쌓이기 시작합니다.',
     defaultSeverity: 'WARNING',
     sourceCitation: 'AWS Well-Architected Framework Reliability Pillar REL 7',
-    category: 'RELIABILITY',
+    // 홈 화면 개선(14단계): 처리 능력(용량)에 관한 규칙이라 PERFORMANCE로 분류.
+    category: 'PERFORMANCE',
   },
   {
     code: 'SEC-001',
