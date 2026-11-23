@@ -144,6 +144,11 @@ export class GraphEdgeDto {
   @IsOptional()
   @IsNumber()
   callsPerRequest?: number;
+
+  // 14단계: IAM↔컴퓨트 노드 연결 전용 — 이 연결에 실제로 권한이 부여되어 있는지.
+  @IsOptional()
+  @IsBoolean()
+  iamPermissionGranted?: boolean;
 }
 
 export class ArchitectureGraphDto {

@@ -11,7 +11,7 @@ import { useResizableWidth } from "../hooks/useResizableWidth";
 import { useValidation } from "../hooks/useValidation";
 import { useRunSimulation } from "../hooks/useSimulation";
 import type { ArchitectureCostSummary } from "../node-cost";
-import { computeTrafficPathEdgeIds } from "../traffic-path";
+import { computeTrafficFlowEdges } from "../traffic-path";
 import type { SelectedElementInfo } from "../types";
 import { ArchitectureCanvas, type ArchitectureCanvasHandle } from "./ArchitectureCanvas";
 import { CostPanel } from "./CostPanel";
@@ -97,7 +97,7 @@ export function ArchitectureEditor({ id }: { id: string }) {
   );
 
   const handleUpdateEdgeTraffic = useCallback(
-    (edgeIds: string[], patch: { distributionWeight?: number; callsPerRequest?: number }) => {
+    (edgeIds: string[], patch: { distributionWeight?: number; callsPerRequest?: number; iamPermissionGranted?: boolean }) => {
       canvasRef.current?.updateEdgeTraffic(edgeIds, patch);
     },
     [],
@@ -156,10 +156,12 @@ export function ArchitectureEditor({ id }: { id: string }) {
   // 항상 최신 집계를 보여주므로 별도의 costSummary 상태로 ArchitectureCanvas가 올려주는 값을 받는다.
   const [showNodeCost, setShowNodeCost] = useState(false);
   const [costSummary, setCostSummary] = useState<ArchitectureCostSummary | null>(null);
-  const trafficPathEdgeIds = useMemo(
-    () => (showTrafficFlow ? computeTrafficPathEdgeIds(liveGraph) : EMPTY_EDGE_IDS),
+  const trafficFlowEdges = useMemo(
+    () => (showTrafficFlow ? computeTrafficFlowEdges(liveGraph) : null),
     [showTrafficFlow, liveGraph],
   );
+  const trafficPathEdgeIds = trafficFlowEdges?.flowingEdgeIds ?? EMPTY_EDGE_IDS;
+  const blockedEdgeIds = trafficFlowEdges?.blockedEdgeIds ?? EMPTY_EDGE_IDS;
   // F8(A3): 트래픽 입력(RPS)은 사용자(USER) 노드에만 있는 단일 출처라, 시뮬레이션 탭은 이 값을
   // 읽기 전용으로 받아쓰고 "사용자 노드에서 수정" 링크만 제공한다(자체 RPS 입력 필드 없음).
   const entryUserNode = useMemo(() => liveGraph.nodes.find((node) => node.type === "USER"), [liveGraph.nodes]);
@@ -398,6 +400,7 @@ export function ArchitectureEditor({ id }: { id: string }) {
             exportContainerRef={exportContainerRef}
             colorMode={theme}
             highlightedEdgeIds={trafficPathEdgeIds}
+            blockedEdgeIds={blockedEdgeIds}
             showTrafficFlow={showTrafficFlow}
             onToggleTrafficFlow={() => setShowTrafficFlow((prev) => !prev)}
             showTrafficRps={showTrafficRps}

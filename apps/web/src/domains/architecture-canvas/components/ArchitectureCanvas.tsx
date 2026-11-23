@@ -1,7 +1,7 @@
 "use client";
 
 import "@xyflow/react/dist/style.css";
-import type { ArchitectureGraph, ComponentType } from "@nangman/shared-types";
+import { COMPUTE_COMPONENT_TYPES, type ArchitectureGraph, type ComponentType } from "@nangman/shared-types";
 import {
   addEdge,
   Background,
@@ -77,6 +77,8 @@ interface ArchitectureCanvasProps {
   colorMode?: ColorMode;
   /** 12단계: "트래픽 흐름 보기"가 켜져 있을 때 강조할 엣지 id들(USER→...→DB 구간). */
   highlightedEdgeIds?: ReadonlySet<string>;
+  /** 14단계: IAM 권한이 없어서 실제로는 못 지나가는 엣지 id들 — 빨간 점선+✕로 표시한다. */
+  blockedEdgeIds?: ReadonlySet<string>;
   /** "트래픽 흐름 보기" 토글 스위치를 캔버스 좌상단에 띄울 때 쓴다 — 상태 자체는 부모(ArchitectureEditor)가 들고 있는다. */
   showTrafficFlow?: boolean;
   onToggleTrafficFlow?: () => void;
@@ -115,7 +117,10 @@ export interface ArchitectureCanvasHandle {
   updateQueueSettings: (nodeId: string, patch: { queueConsumerThroughputRps?: number }) => void;
   /** 연결(엣지)의 분배 가중치·호출 횟수를 우측 패널의 "연결" 섹션에서 바로 고칠 수 있게 해주는 통로.
    *  edgeIds를 여러 개 주면(묶여서 보이던 연결들) 한 번에 같은 값으로 맞춘다. */
-  updateEdgeTraffic: (edgeIds: string[], patch: { distributionWeight?: number; callsPerRequest?: number }) => void;
+  updateEdgeTraffic: (
+    edgeIds: string[],
+    patch: { distributionWeight?: number; callsPerRequest?: number; iamPermissionGranted?: boolean },
+  ) => void;
 }
 
 const EMPTY_PROBLEM_NODE_IDS: ReadonlySet<string> = new Set();
@@ -185,6 +190,7 @@ const CanvasInner = forwardRef<ArchitectureCanvasHandle, ArchitectureCanvasProps
     readOnly = false,
     colorMode = "light",
     highlightedEdgeIds,
+    blockedEdgeIds,
     showTrafficFlow,
     onToggleTrafficFlow,
     showTrafficRps,
@@ -231,19 +237,30 @@ const CanvasInner = forwardRef<ArchitectureCanvasHandle, ArchitectureCanvasProps
   // 12단계: 트래픽 흐름 강조는 저장되는 데이터가 아니라 화면 표시 전용이라, edges 상태 자체는 안
   // 건드리고 ReactFlow에 넘기기 직전에만 animated/색상을 덧씌운다.
   const displayEdges = useMemo(() => {
-    if (!highlightedEdgeIds || highlightedEdgeIds.size === 0) return edges;
-    return edges.map((edge) =>
-      highlightedEdgeIds.has(edge.id)
-        ? {
-            ...edge,
-            style: { ...edge.style, stroke: "#16a34a", strokeWidth: 2.5 },
-            // 12단계: "선이 한번에 다 밝아지기만 하면 실제 트래픽이 어디까지 갔는지 체감이 안 된다"는
-            // 피드백 — 점선 일괄 애니메이션 대신 LabeledEdge가 선을 따라 움직이는 점(패킷)을 그리게 한다.
-            data: { ...edge.data, isTrafficFlow: true },
-          }
-        : edge,
-    );
-  }, [edges, highlightedEdgeIds]);
+    const hasHighlight = highlightedEdgeIds && highlightedEdgeIds.size > 0;
+    const hasBlocked = blockedEdgeIds && blockedEdgeIds.size > 0;
+    if (!hasHighlight && !hasBlocked) return edges;
+    return edges.map((edge) => {
+      if (blockedEdgeIds?.has(edge.id)) {
+        // 14단계: IAM 권한이 없어서 실제로는 못 지나가는 구간 — 빨간 점선으로 "여기서 막힌다"를 보여준다.
+        return {
+          ...edge,
+          style: { ...edge.style, stroke: "#dc2626", strokeWidth: 2.5, strokeDasharray: "6 4" },
+          data: { ...edge.data, isTrafficFlow: false, isTrafficBlocked: true },
+        };
+      }
+      if (highlightedEdgeIds?.has(edge.id)) {
+        return {
+          ...edge,
+          style: { ...edge.style, stroke: "#16a34a", strokeWidth: 2.5 },
+          // 12단계: "선이 한번에 다 밝아지기만 하면 실제 트래픽이 어디까지 갔는지 체감이 안 된다"는
+          // 피드백 — 점선 일괄 애니메이션 대신 LabeledEdge가 선을 따라 움직이는 점(패킷)을 그리게 한다.
+          data: { ...edge.data, isTrafficFlow: true },
+        };
+      }
+      return edge;
+    });
+  }, [edges, highlightedEdgeIds, blockedEdgeIds]);
   const { screenToFlowPosition, deleteElements, fitView, zoomIn, zoomOut } = useReactFlow<FlowNode>();
   // 13단계: 캔버스 좌하단 도구모음 — 선택/손 도구 전환과 잠금 상태. 줌 배율은 react-flow 내부
   // zustand 스토어에서 직접 읽어와야(useStore) 버튼을 눌렀을 때 화면에 바로 반영된다.
@@ -757,6 +774,19 @@ const CanvasInner = forwardRef<ArchitectureCanvasHandle, ArchitectureCanvasProps
       ...(node.type === "APP_RUNNER" ? { appRunnerMinInstanceCount: node.data.appRunnerMinInstanceCount } : {}),
       ...(node.type === "SQS" || node.type === "KINESIS_DATA_STREAMS"
         ? { queueConsumerThroughputRps: node.data.queueConsumerThroughputRps }
+        : {}),
+      // 14단계: 컴퓨트 노드 전용 — 이 노드와 직접 연결된 IAM 노드들(권한 부여 토글용).
+      ...(COMPUTE_COMPONENT_TYPES.includes(node.type)
+        ? {
+            iamConnections: edges
+              .filter((edge) => edge.source === node.id || edge.target === node.id)
+              .flatMap((edge) => {
+                const otherId = edge.source === node.id ? edge.target : edge.source;
+                const otherNode = nodesById.get(otherId);
+                if (otherNode?.type !== "IAM") return [];
+                return [{ edgeId: edge.id, iamNodeLabel: otherNode.data.label, granted: edge.data?.iamPermissionGranted !== false }];
+              }),
+          }
         : {}),
     };
   }, [selectedNodes, selectedEdges, nodes, edges, computedRpsByNodeId]);

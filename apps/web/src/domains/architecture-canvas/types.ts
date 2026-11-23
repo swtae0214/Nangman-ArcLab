@@ -55,6 +55,8 @@ export interface FlowEdgeData extends Record<string, unknown> {
   distributionWeight?: number;
   /** kind가 "call"일 때 — 요청 1건당 이 선을 타는 평균 횟수. 기본값 1. */
   callsPerRequest?: number;
+  /** 14단계: IAM↔컴퓨트 노드 연결 전용 — 이 연결에 권한이 부여되어 있는지. 기본값 true. */
+  iamPermissionGranted?: boolean;
 }
 
 export type FlowEdge = Edge<FlowEdgeData>;
@@ -112,6 +114,8 @@ export interface SelectedElementInfo {
   appRunnerMinInstanceCount?: number;
   /** 13단계: SQS/Kinesis Data Streams 노드일 때만 값이 있다 — 컨슈머 처리 능력(초당 메시지/레코드 수). */
   queueConsumerThroughputRps?: number;
+  /** 14단계: 컴퓨트 노드일 때만 값이 있다 — 이 노드와 직접 연결된 IAM 노드들과 각각의 권한 부여 여부. */
+  iamConnections?: { edgeId: string; iamNodeLabel: string; granted: boolean }[];
 }
 
 /** 저장된 그래프(shared-types)를 React Flow가 다룰 수 있는 노드/엣지 배열로 변환한다. */
@@ -163,6 +167,7 @@ export function graphToFlow(graph: ArchitectureGraph): { nodes: FlowNode[]; edge
       trafficKindOverride: edge.trafficKindOverride,
       distributionWeight: edge.distributionWeight,
       callsPerRequest: edge.callsPerRequest,
+      iamPermissionGranted: edge.iamPermissionGranted,
     },
   }));
   // 12단계: React Flow는 부모 노드가 배열에서 자식보다 앞에 있어야 절대좌표를 올바르게 계산한다.
@@ -211,6 +216,7 @@ export function flowToGraph(nodes: FlowNode[], edges: FlowEdge[]): ArchitectureG
     ...(edge.data?.trafficKindOverride ? { trafficKindOverride: edge.data.trafficKindOverride } : {}),
     ...(edge.data?.distributionWeight != null ? { distributionWeight: edge.data.distributionWeight } : {}),
     ...(edge.data?.callsPerRequest != null ? { callsPerRequest: edge.data.callsPerRequest } : {}),
+    ...(edge.data?.iamPermissionGranted != null ? { iamPermissionGranted: edge.data.iamPermissionGranted } : {}),
   }));
   return { nodes: graphNodes, edges: graphEdges };
 }

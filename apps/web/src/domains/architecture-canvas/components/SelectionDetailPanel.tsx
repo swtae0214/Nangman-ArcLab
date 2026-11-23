@@ -10,6 +10,7 @@ import { RULE_RELATED_COMPONENT_TYPES, SEVERITY_ICON, SEVERITY_LABEL, SEVERITY_P
 import { AppRunnerInspectorSection } from "./AppRunnerInspectorSection";
 import { CapacityInspectorSection } from "./CapacityInspectorSection";
 import { CdnInspectorSection } from "./CdnInspectorSection";
+import { IamInspectorSection } from "./IamInspectorSection";
 import { computeGlobalMonthlyFigures, GlobalTrafficSummarySection } from "./GlobalTrafficSummarySection";
 import { LoadBalancerInspectorSection } from "./LoadBalancerInspectorSection";
 import { QueueInspectorSection } from "./QueueInspectorSection";
@@ -25,7 +26,10 @@ interface SelectionDetailPanelProps {
   onClose: () => void;
   onGoToExperiment: () => void;
   onUpdateEntryTraffic: (nodeId: string, patch: { entryAvgRps?: number; entryPeakMultiplier?: number; entryAvgResponseSizeKb?: number }) => void;
-  onUpdateEdgeTraffic: (edgeIds: string[], patch: { distributionWeight?: number; callsPerRequest?: number }) => void;
+  onUpdateEdgeTraffic: (
+    edgeIds: string[],
+    patch: { distributionWeight?: number; callsPerRequest?: number; iamPermissionGranted?: boolean },
+  ) => void;
   onUpdateUsageBasedCostSettings: (
     nodeId: string,
     patch: {
@@ -430,6 +434,8 @@ export function SelectionDetailPanel({
       {(elementInfo.type === "SQS" || elementInfo.type === "KINESIS_DATA_STREAMS") && (
         <QueueInspectorSection elementInfo={elementInfo} onUpdateQueueSettings={onUpdateQueueSettings} />
       )}
+
+      <IamInspectorSection elementInfo={elementInfo} onUpdateEdgeTraffic={onUpdateEdgeTraffic} />
 
       {(inputGroups.length > 0 || outputGroups.length > 0) && (
         <div>

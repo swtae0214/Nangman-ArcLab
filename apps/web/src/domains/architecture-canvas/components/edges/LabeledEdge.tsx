@@ -40,6 +40,9 @@ export function LabeledEdge({
   // 12단계: "트래픽 흐름 보기"로 강조된 선 위에서, 선을 따라 움직이는 점(패킷)으로 실제 도달 구간을
   // 체감할 수 있게 한다. 점이 따라갈 경로는 바로 아래 가시 path(edgePathId)를 그대로 재사용한다.
   const isTrafficFlow = Boolean((data as { isTrafficFlow?: boolean } | undefined)?.isTrafficFlow);
+  // 14단계: IAM 권한이 없어서 실제로는 못 지나가는 구간 — 점(패킷)이 움직이는 대신, 선 가운데에
+  // 고정된 ✕ 표시로 "여기서 막힌다"를 보여준다.
+  const isTrafficBlocked = Boolean((data as { isTrafficBlocked?: boolean } | undefined)?.isTrafficBlocked);
   const edgePathId = `${id}-path`;
   const currentLabel = typeof label === "string" ? label : "";
   const [isEditing, setIsEditing] = useState(false);
@@ -78,6 +81,26 @@ export function LabeledEdge({
             <mpath href={`#${edgePathId}`} />
           </animateMotion>
         </circle>
+      )}
+      {isTrafficBlocked && (
+        <EdgeLabelRenderer>
+          <div
+            className="nodrag nopan"
+            style={{
+              position: "absolute",
+              pointerEvents: "none",
+              zIndex: 1000,
+              transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
+            }}
+          >
+            <span
+              title="IAM 권한이 없어서 실제로는 여기서 막혀요"
+              className="flex h-5 w-5 items-center justify-center rounded-full border-2 border-red-600 bg-white text-[11px] font-bold text-red-600 shadow dark:bg-gray-900"
+            >
+              ✕
+            </span>
+          </div>
+        </EdgeLabelRenderer>
       )}
       {!isReadOnly && (
         <path

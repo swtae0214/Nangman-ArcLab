@@ -213,6 +213,13 @@ export interface GraphEdge {
   distributionWeight?: number;
   /** kind가 "call"일 때 — 요청 1건당 이 선을 타는 평균 횟수(예: 쓰기 0.6회). 기본값 1. */
   callsPerRequest?: number;
+  /**
+   * 14단계: IAM 노드와 컴퓨트 노드(웹 서버/Lambda 등)를 잇는 선 전용 — 이 연결에 실제로 필요한
+   * 권한이 부여되어 있는지. 연결선을 그리면 기본값은 true(권한 있음)로 간주하고, 명시적으로
+   * false로 꺼야만 "권한 없음(거부)"로 취급한다 — "트래픽 흐름 보기"가 이 값으로 컴퓨트 노드
+   * 뒤쪽 구간이 실제로는 막힌다는 걸 빨간 점선으로 보여준다(traffic-path.ts 참고).
+   */
+  iamPermissionGranted?: boolean;
 }
 
 export interface ArchitectureGraph {
