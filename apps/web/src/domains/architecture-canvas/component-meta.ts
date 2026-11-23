@@ -294,13 +294,14 @@ export const COMPONENT_META: Record<ComponentType, ComponentMeta> = {
     category: "엣지/보안",
     isSimulated: false,
   },
+  // 14단계: SEC-003(데이터 저장소의 KMS 암호화 연결 여부)이 "이 노드가 KMS인지"를 직접 확인하는 대상.
   KMS: {
     type: "KMS",
     label: "KMS",
     Icon: ArchitectureServiceAWSKeyManagementService,
     isGroup: false,
     category: "엣지/보안",
-    isSimulated: false,
+    isSimulated: true,
   },
   CLOUDTRAIL: {
     type: "CLOUDTRAIL",

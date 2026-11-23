@@ -8,6 +8,7 @@ import { evaluateDbReplicaRule } from './rules/db-replica.rule.js';
 import { evaluateFargateRule } from './rules/fargate.rule.js';
 import { evaluateCacheMultiAzRule, evaluateDbMultiAzRule } from './rules/multi-az.rule.js';
 import { evaluateNatGatewayRule } from './rules/nat-gateway.rule.js';
+import { evaluateKmsEncryptionRule } from './rules/kms-encryption.rule.js';
 import { evaluatePublicSubnetExposureRule } from './rules/public-subnet-exposure.rule.js';
 import { evaluateQueueBacklogRule } from './rules/queue-backlog.rule.js';
 import type { RuleEvaluation } from './rules/rule.types.js';
@@ -27,6 +28,7 @@ const RULE_EVALUATORS: Array<(graph: ArchitectureGraph) => RuleEvaluation> = [
   evaluateQueueBacklogRule,
   evaluatePublicSubnetExposureRule,
   evaluateWafProtectionRule,
+  evaluateKmsEncryptionRule,
 ];
 
 @Injectable()

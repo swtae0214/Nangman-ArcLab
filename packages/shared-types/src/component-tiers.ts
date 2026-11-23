@@ -56,3 +56,18 @@ export const ASG_CAPABLE_COMPUTE_TYPES: ComponentType[] = ["WEB_SERVER", "ECS", 
  * "그룹에 넣었는지" 물어볼 설정 자체가 없어서 뺐다 — 영구적인 제외다.
  */
 export const MULTI_AZ_TOGGLE_DATA_TYPES: ComponentType[] = ["DB_PRIMARY", "DB_REPLICA", "REDSHIFT", "OPENSEARCH"];
+
+/**
+ * SEC-003(KMS 암호화 연결 여부)을 적용할 수 있는 타입 — "저장 시 암호화가 선택사항(opt-in)인"
+ * 서비스만 넣었다. Aurora(2026-02부터 항상 암호화), DynamoDB(항상 암호화), Redshift(2025년부터
+ * 새로 만들면 항상 암호화), S3(2023-01부터 항상 암호화)는 전부 기본적으로 자동 암호화되는
+ * 서비스로 바뀌어서, "KMS가 연결 안 돼 있다"가 "암호화 안 됨"을 뜻하지 않는다 — 영구적인 제외다.
+ * RDS/OpenSearch/DocumentDB는 지금도 암호화를 사용자가 직접 켜야 한다(안 켜면 진짜 평문 저장).
+ */
+export const OPT_IN_ENCRYPTION_DATA_TYPES: ComponentType[] = [
+  "DB_PRIMARY",
+  "DB_REPLICA",
+  "OPENSEARCH",
+  "DOCUMENT_DB",
+  "DOCUMENT_DB_REPLICA",
+];

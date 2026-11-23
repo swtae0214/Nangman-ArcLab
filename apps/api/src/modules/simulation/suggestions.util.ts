@@ -13,6 +13,7 @@ const SUGGESTIONS_BY_RULE_CODE: Record<string, string> = {
   'QUEUE-001': '컨슈머 처리 능력을 늘리거나(동시 실행 수 증가), 샤드/인스턴스를 추가하세요.',
   'SEC-001': '데이터 저장소를 Private Subnet 안으로 옮기세요.',
   'SEC-002': '로드밸런서/API Gateway(또는 그 앞의 CDN)에 WAF를 연결하세요.',
+  'SEC-003': '데이터 저장소에 KMS 키를 연결해서 저장 시 암호화를 켜세요.',
 };
 
 /** 실패한 규칙마다 하나씩, 원래 순서(정적 검증 규칙 순서)를 유지해서 개선 제안을 만든다. */

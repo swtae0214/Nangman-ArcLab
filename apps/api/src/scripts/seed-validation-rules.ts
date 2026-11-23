@@ -92,6 +92,14 @@ const VALIDATION_RULES = [
     sourceCitation: 'AWS Well-Architected Framework Security Pillar SEC05-BP03',
     category: 'SECURITY',
   },
+  {
+    code: 'SEC-003',
+    name: '데이터 저장소의 KMS 암호화 연결 여부',
+    description: 'RDS/OpenSearch/DocumentDB는 저장 시 암호화를 직접 켜야 합니다 — KMS가 연결되어 있지 않으면 평문으로 저장되고 있을 수 있습니다.',
+    defaultSeverity: 'WARNING',
+    sourceCitation: 'AWS Well-Architected Framework Security Pillar SEC08-BP02',
+    category: 'SECURITY',
+  },
 ] as const;
 
 async function main(): Promise<void> {
