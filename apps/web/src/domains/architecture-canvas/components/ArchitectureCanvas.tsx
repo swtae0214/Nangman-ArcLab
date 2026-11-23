@@ -49,8 +49,10 @@ import {
 import { useComponentPresets } from "../hooks/useCapacityCalculator";
 import { PRESET_SELECTABLE_TYPES, summarizeArchitectureCost, type ArchitectureCostSummary } from "../node-cost";
 import { NodeCostLineProvider, NodeCostProvider } from "../node-cost-context";
+import { IamBlockedCountProvider } from "../iam-blocked-context";
 import { ProblemNodesProvider } from "../problem-nodes-context";
 import { ReadOnlyProvider } from "../read-only-context";
+import { computeIamBlockedCountByNodeId } from "../traffic-path";
 import { computeNodeRps, getDefaultCallsPerRequest, inferEdgeKind } from "../traffic-rps";
 import { TrafficRpsProvider } from "../traffic-rps-context";
 import { flowToGraph, graphToFlow, type FlowEdge, type FlowNode, type SelectedElementInfo } from "../types";
@@ -213,6 +215,10 @@ const CanvasInner = forwardRef<ArchitectureCanvasHandle, ArchitectureCanvasProps
   const rpsByNodeId = showTrafficRps ? computedRpsByNodeId : EMPTY_RPS_BY_NODE_ID;
   // B10: "표시" 메뉴가 "꺼져 있지만 보여줄 게 있어요" 안내를 띄울 때 쓴다.
   const hasRpsToShow = useMemo(() => [...computedRpsByNodeId.values()].some((rps) => rps > 0), [computedRpsByNodeId]);
+
+  // 14단계: IAM 노드 위 "▲ 차단 N" 배지 — "트래픽 흐름 보기" 토글과 무관하게 항상 보여줘서,
+  // 마스터 스위치로 꺼둔(저장되는) 상태를 사용자가 패널을 안 열어도 계속 알 수 있게 한다.
+  const iamBlockedCountByNodeId = useMemo(() => computeIamBlockedCountByNodeId(flowToGraph(nodes, edges)), [nodes, edges]);
 
   // F1: "비용 보기" 토글과는 무관하게 늘 계산해 둔다 — 헤더 배지·"예상 비용" 탭은 토글 상태와
   // 상관없이 항상 최신 합계를 보여줘야 해서다(토글은 캔버스 위 라벨 표시 여부만 결정한다).
@@ -775,7 +781,7 @@ const CanvasInner = forwardRef<ArchitectureCanvasHandle, ArchitectureCanvasProps
       ...(node.type === "SQS" || node.type === "KINESIS_DATA_STREAMS"
         ? { queueConsumerThroughputRps: node.data.queueConsumerThroughputRps }
         : {}),
-      // 14단계: 컴퓨트 노드 전용 — 이 노드와 직접 연결된 IAM 노드들(권한 부여 토글용).
+      // 14단계: 컴퓨트 노드 전용 — 이 노드와 직접 연결된 IAM 노드들(읽기 전용 표시, 수정은 역할 쪽에서).
       ...(COMPUTE_COMPONENT_TYPES.includes(node.type)
         ? {
             iamConnections: edges
@@ -784,7 +790,34 @@ const CanvasInner = forwardRef<ArchitectureCanvasHandle, ArchitectureCanvasProps
                 const otherId = edge.source === node.id ? edge.target : edge.source;
                 const otherNode = nodesById.get(otherId);
                 if (otherNode?.type !== "IAM") return [];
-                return [{ edgeId: edge.id, iamNodeLabel: otherNode.data.label, granted: edge.data?.iamPermissionGranted !== false }];
+                return [
+                  {
+                    edgeId: edge.id,
+                    iamNodeId: otherId,
+                    iamNodeLabel: otherNode.data.label,
+                    granted: edge.data?.iamPermissionGranted !== false,
+                  },
+                ];
+              }),
+          }
+        : {}),
+      // 14단계: IAM 노드 전용 — 이 역할을 쓰는 컴퓨트 노드들(권한 부여 편집은 여기서만 한다).
+      ...(node.type === "IAM"
+        ? {
+            iamAttachments: edges
+              .filter((edge) => edge.source === node.id || edge.target === node.id)
+              .flatMap((edge) => {
+                const otherId = edge.source === node.id ? edge.target : edge.source;
+                const otherNode = nodesById.get(otherId);
+                if (!otherNode || !COMPUTE_COMPONENT_TYPES.includes(otherNode.type)) return [];
+                return [
+                  {
+                    edgeId: edge.id,
+                    computeNodeLabel: otherNode.data.label,
+                    computeNodeType: otherNode.type,
+                    granted: edge.data?.iamPermissionGranted !== false,
+                  },
+                ];
               }),
           }
         : {}),
@@ -1059,6 +1092,7 @@ const CanvasInner = forwardRef<ArchitectureCanvasHandle, ArchitectureCanvasProps
     <ProblemNodesProvider value={problemNodeIds ?? EMPTY_PROBLEM_NODE_IDS}>
       <ReadOnlyProvider value={readOnly}>
         <TrafficRpsProvider value={rpsByNodeId}>
+        <IamBlockedCountProvider value={iamBlockedCountByNodeId}>
         <NodeCostProvider value={showNodeCost ?? false}>
         <NodeCostLineProvider value={costLinesByNodeId}>
         <div className="flex h-full w-full dark:bg-gray-900">
@@ -1150,6 +1184,7 @@ const CanvasInner = forwardRef<ArchitectureCanvasHandle, ArchitectureCanvasProps
         </div>
         </NodeCostLineProvider>
         </NodeCostProvider>
+        </IamBlockedCountProvider>
         </TrafficRpsProvider>
       </ReadOnlyProvider>
     </ProblemNodesProvider>

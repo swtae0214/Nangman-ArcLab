@@ -1,6 +1,7 @@
 import { Handle, NodeResizer, Position, useReactFlow, type NodeProps } from "@xyflow/react";
 import { COMPONENT_META, LEAF_MIN_HEIGHT, LEAF_MIN_WIDTH } from "../../component-meta";
 import { useComponentPresets } from "../../hooks/useCapacityCalculator";
+import { useIamBlockedCountByNodeId } from "../../iam-blocked-context";
 import { PRESET_SELECTABLE_TYPES } from "../../node-cost";
 import { useNodeCostLine, useShowNodeCost } from "../../node-cost-context";
 import { useProblemNodeIds } from "../../problem-nodes-context";
@@ -28,6 +29,9 @@ export function LeafNode({ id, type, data, selected }: NodeProps<FlowNode>) {
   // F5: 비용 탭(summarizeArchitectureCost)과 같은 계산 결과를 쓴다 — instanceCount 배수나
   // LOAD_BALANCER/CDN의 사용량 기반 비용까지 여기서 직접 다시 계산하면 두 화면이 어긋날 수 있다.
   const costLine = useNodeCostLine(id);
+  // 14단계: IAM 노드 전용 — "트래픽 흐름 보기"를 안 켜도, 꺼둔(저장된) 권한이 있으면 항상 보여준다.
+  const iamBlockedCount = useIamBlockedCountByNodeId().get(id);
+  const showIamBadge = type === "IAM" && iamBlockedCount !== undefined;
 
   const handleLabelChange = (label: string) => {
     setNodes((nodes) => nodes.map((node) => (node.id === id ? { ...node, data: { ...node.data, label } } : node)));
@@ -98,8 +102,16 @@ export function LeafNode({ id, type, data, selected }: NodeProps<FlowNode>) {
           ))}
         <Handle type="source" position={Position.Bottom} />
       </div>
+      {showIamBadge && (
+        <div className="absolute left-1/2 top-full z-10 mt-1 flex -translate-x-1/2 items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700 shadow-sm dark:border-amber-700 dark:bg-amber-950 dark:text-amber-300">
+          <span aria-hidden>▲</span>
+          <span>차단 {iamBlockedCount}</span>
+        </div>
+      )}
       {(trafficRps !== undefined || (showNodeCost && costLine)) && (
-        <div className="absolute left-1/2 top-full z-10 mt-1 flex -translate-x-1/2 flex-col items-center gap-0.5">
+        <div
+          className={`absolute left-1/2 top-full z-10 flex -translate-x-1/2 flex-col items-center gap-0.5 ${showIamBadge ? "mt-6" : "mt-1"}`}
+        >
           {trafficRps !== undefined && (
             <div className="rounded border border-gray-300 bg-white px-1.5 py-0.5 text-[10px] font-medium text-gray-600 shadow-sm dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300">
               {Math.round(trafficRps)}

@@ -435,7 +435,7 @@ export function SelectionDetailPanel({
         <QueueInspectorSection elementInfo={elementInfo} onUpdateQueueSettings={onUpdateQueueSettings} />
       )}
 
-      <IamInspectorSection elementInfo={elementInfo} onUpdateEdgeTraffic={onUpdateEdgeTraffic} />
+      <IamInspectorSection elementInfo={elementInfo} onUpdateEdgeTraffic={onUpdateEdgeTraffic} onFocusNodes={onFocusNodes} />
 
       {(inputGroups.length > 0 || outputGroups.length > 0) && (
         <div>

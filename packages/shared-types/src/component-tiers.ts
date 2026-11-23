@@ -71,3 +71,22 @@ export const OPT_IN_ENCRYPTION_DATA_TYPES: ComponentType[] = [
   "DOCUMENT_DB",
   "DOCUMENT_DB_REPLICA",
 ];
+
+/**
+ * 14단계: IAM 권한이 실제로 호출을 통제하는 "AWS API 기반" 서비스만 넣었다. RDS/Aurora 같은
+ * DB 연결은 기본적으로 DB 계정(+ 비밀번호)과 보안 그룹으로 통제되고, IAM이 관여하는 건 선택
+ * 기능인 IAM 데이터베이스 인증을 켠 경우뿐이다 — 그래서 DB_PRIMARY/DB_REPLICA/AURORA 등은
+ * 일부러 뺐다. 여기 포함된 타입으로 가는 선만 "IAM 권한 없음"의 영향을 받는다(컴퓨트→DB 선은
+ * IAM 권한과 무관하게 항상 그대로 흐른다).
+ */
+export const IAM_GOVERNED_TARGET_TYPES: ComponentType[] = [
+  "S3",
+  "DYNAMODB",
+  "SQS",
+  "SNS",
+  "EVENTBRIDGE",
+  "KINESIS_DATA_STREAMS",
+  "KINESIS_DATA_FIREHOSE",
+  "KMS",
+  "SECRETS_MANAGER",
+];

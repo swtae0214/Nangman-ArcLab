@@ -114,8 +114,17 @@ export interface SelectedElementInfo {
   appRunnerMinInstanceCount?: number;
   /** 13단계: SQS/Kinesis Data Streams 노드일 때만 값이 있다 — 컨슈머 처리 능력(초당 메시지/레코드 수). */
   queueConsumerThroughputRps?: number;
-  /** 14단계: 컴퓨트 노드일 때만 값이 있다 — 이 노드와 직접 연결된 IAM 노드들과 각각의 권한 부여 여부. */
-  iamConnections?: { edgeId: string; iamNodeLabel: string; granted: boolean }[];
+  /**
+   * 14단계: 컴퓨트 노드일 때만 값이 있다 — 이 노드와 직접 연결된 IAM 노드들과 각각의 권한 부여
+   * 여부. 디자인 검토 피드백: 권한의 주체는 역할(IAM) 쪽이라, 여기서는 상태만 읽기 전용으로
+   * 보여주고 고치는 건 iamNodeId로 그 역할 노드를 선택해서 하게 한다("역할에서 수정 →").
+   */
+  iamConnections?: { edgeId: string; iamNodeId: string; iamNodeLabel: string; granted: boolean }[];
+  /**
+   * 14단계: IAM 노드일 때만 값이 있다 — 이 역할을 쓰는 컴퓨트 노드들과 각각의 권한 부여 여부.
+   * 권한을 켜고 끄는 편집은 여기(IAM 노드 패널)에서만 한다.
+   */
+  iamAttachments?: { edgeId: string; computeNodeLabel: string; computeNodeType: ComponentType; granted: boolean }[];
 }
 
 /** 저장된 그래프(shared-types)를 React Flow가 다룰 수 있는 노드/엣지 배열로 변환한다. */
