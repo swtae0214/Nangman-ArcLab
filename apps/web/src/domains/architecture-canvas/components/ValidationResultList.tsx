@@ -1,7 +1,19 @@
 "use client";
 
-import type { ArchitectureValidationReport, ValidationRuleResult } from "@nangman/shared-types";
-import { SEVERITY_DOT_STYLE, SEVERITY_ICON, SEVERITY_LABEL, SEVERITY_ORDER, SEVERITY_PILL_STYLE, SEVERITY_STYLE } from "../validation-style";
+import type { ArchitectureValidationReport, RuleSeverity, ValidationRuleResult } from "@nangman/shared-types";
+import type { CSSProperties } from "react";
+import { useState } from "react";
+import {
+  GROUP_CHIP_STYLE,
+  PASSED_EXPANDED_ROW_STYLE,
+  SEVERITY_ICON,
+  SEVERITY_LABEL,
+  SEVERITY_ORDER,
+  SEVERITY_STYLE,
+  summarizeValidationResults,
+  VIOLATED_ROW_STYLE,
+} from "../validation-style";
+import { ChevronIcon, ValidationStatusIcon, type ValidationRowStatus } from "./ValidationStatusIcon";
 
 interface ValidationResultListProps {
   report: ArchitectureValidationReport;
@@ -22,126 +34,270 @@ function formatElapsed(timestamp: number): string {
   return `${diffHour}시간 전`;
 }
 
+function rowStatus(result: ValidationRuleResult): ValidationRowStatus {
+  if (result.passed) return "passed";
+  if (result.severity === "CRITICAL") return "violated-critical";
+  if (result.severity === "WARNING") return "violated-warning";
+  return "violated-info";
+}
+
+/**
+ * V3/V4/V5/V6/V7: 통과 행은 보통(400) 굵기·중립색, 위반 행은 굵게(700)·기본 텍스트색(색은 아이콘/
+ * 테두리/배경에만) + 심각도별 배경색(심각만 왼쪽 4px 강조선 추가). 펼쳤을 때 버튼은 심각 위반만
+ * 채움(파랑), 나머지는 외곽선.
+ *
+ * V8(문제/방향, 확인한 것/결과 구조화 문구)은 아직 데이터에 없는 필드라 보류 — 지금은 기존
+ * description 하나를 그대로 보여준다.
+ */
 function ValidationItem({
   result,
+  isOpen,
+  onToggle,
   onFocusNodes,
 }: {
   result: ValidationRuleResult;
+  isOpen: boolean;
+  onToggle: () => void;
   onFocusNodes?: (nodeIds: string[]) => void;
 }) {
   const nodeIds = result.detail.nodeIds ?? [];
+  const status = rowStatus(result);
+
+  const rowStyle: CSSProperties | undefined = result.passed
+    ? isOpen
+      ? { backgroundColor: PASSED_EXPANDED_ROW_STYLE.backgroundColor, borderColor: PASSED_EXPANDED_ROW_STYLE.borderColor }
+      : undefined
+    : {
+        backgroundColor: VIOLATED_ROW_STYLE[result.severity].backgroundColor,
+        borderColor: VIOLATED_ROW_STYLE[result.severity].borderColor,
+        ...(result.severity === "CRITICAL" ? { borderLeftWidth: 4, borderLeftColor: "#D92D20" } : {}),
+      };
+
   return (
-    <details
-      className={`group rounded-md border px-3 py-2 text-sm ${
-        !result.applicable
-          ? "border-gray-200 bg-gray-50 text-gray-400 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-500"
-          : result.passed
-            ? "border-gray-200 bg-white text-gray-800 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
-            : SEVERITY_STYLE[result.severity]
+    <div
+      style={rowStyle}
+      className={`rounded-md border px-3 py-2 text-sm text-gray-800 dark:text-gray-100 ${
+        result.passed && !isOpen ? "border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800" : ""
       }`}
     >
-      <summary className="flex h-6 cursor-pointer list-none items-center justify-between gap-2 [&::-webkit-details-marker]:hidden">
-        <span className="flex min-w-0 items-center gap-1.5 font-medium">
-          <span className="shrink-0 text-[10px] transition-transform group-open:rotate-90">▶</span>
-          <span className="shrink-0">{result.applicable ? (result.passed ? "✅" : "⚠️") : "➖"}</span>
-          <span className="truncate" title={result.name}>
-            {result.name}
-          </span>
+      <button type="button" onClick={onToggle} className="flex w-full items-center gap-2 text-left">
+        <ValidationStatusIcon status={status} />
+        <span
+          className={`min-w-0 flex-1 text-[13px] leading-[18px] ${result.passed ? "font-normal" : "font-bold"}`}
+          style={{ wordBreak: "keep-all" }}
+        >
+          {result.name}
         </span>
-        {/* B6: 색(배경)만이 아니라 ◆▲●(모양) + 한글 라벨로도 중요도를 구분한다 — 영문 대문자
-            ("CRITICAL")만 떠 있던 걸 요소 인스펙터의 중요도 칩과 같은 모양으로 맞췄다. */}
-        {result.applicable ? (
-          <span
-            className={`flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-medium ${SEVERITY_PILL_STYLE[result.severity]}`}
-          >
-            {SEVERITY_ICON[result.severity]} {SEVERITY_LABEL[result.severity]}
-          </span>
-        ) : (
-          <span className="shrink-0 rounded border border-gray-300 px-1.5 py-0.5 text-[10px] text-gray-400 dark:border-gray-600 dark:text-gray-500">
-            해당 없음
-          </span>
-        )}
-      </summary>
-      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-        {result.applicable ? result.description : "이 규칙이 다루는 컴포넌트가 캔버스에 없어서, 검사할 대상이 없어요."}
-      </p>
-      <p className="mt-1 text-[11px] text-gray-400 dark:text-gray-500">근거: {result.sourceCitation}</p>
-      {result.applicable && !result.passed && nodeIds.length > 0 && (
-        <div className="mt-1.5 flex items-center justify-between gap-2">
-          <p className="text-[11px] text-red-500 dark:text-red-400">문제 노드 {nodeIds.length}개</p>
-          {onFocusNodes && (
+        <ChevronIcon isOpen={isOpen} />
+      </button>
+      {isOpen && (
+        <div className="mt-1.5 pl-[26px]">
+          <p className="text-xs opacity-80">{result.description}</p>
+          {!result.passed && nodeIds.length > 0 && onFocusNodes && (
             <button
               type="button"
-              onClick={(event) => {
-                event.preventDefault();
-                onFocusNodes(nodeIds);
-              }}
-              className="rounded border border-gray-300 px-1.5 py-0.5 text-[11px] text-gray-600 hover:border-blue-400 hover:text-blue-600 dark:border-gray-600 dark:text-gray-300 dark:hover:border-blue-400 dark:hover:text-blue-400"
+              onClick={() => onFocusNodes(nodeIds)}
+              className={
+                result.severity === "CRITICAL"
+                  ? "mt-1.5 rounded-md bg-blue-600 px-2.5 py-1 text-[11px] font-medium text-white hover:bg-blue-700"
+                  : "mt-1.5 rounded-md border border-blue-600 bg-white px-2.5 py-1 text-[11px] font-medium text-blue-600 hover:bg-blue-50 dark:bg-gray-900"
+              }
             >
-              ◇ 캔버스에서 보기
+              캔버스에서 확인 →
             </button>
           )}
+          <p className="mt-1.5 text-[10px] text-gray-400 dark:text-gray-500">{result.ruleCode}</p>
         </div>
       )}
-    </details>
+    </div>
   );
 }
 
 export function ValidationResultList({ report, checkedAt, onFocusNodes, onGoToExperiment }: ValidationResultListProps) {
-  const applicableResults = report.results.filter((result) => result.applicable);
-  const failedCount = applicableResults.filter((result) => !result.passed).length;
-  const checkedLabel = checkedAt ? ` · ${formatElapsed(checkedAt)} 검증` : "";
+  const [openedCode, setOpenedCode] = useState<string | null>(null);
+  const [collapsedOverrides, setCollapsedOverrides] = useState<ReadonlySet<RuleSeverity>>(() => new Set());
+  const [openedPassedBundles, setOpenedPassedBundles] = useState<ReadonlySet<RuleSeverity>>(() => new Set());
+  const [isNotApplicableOpen, setIsNotApplicableOpen] = useState(false);
 
-  const groups = SEVERITY_ORDER.map((severity) => ({
-    severity,
-    results: report.results.filter((result) => result.severity === severity),
-  })).filter((group) => group.results.length > 0);
+  // P1: report.passed 대신, results에서 직접 파생한 이 요약 하나를 배너·그룹 요약이 같이 쓴다.
+  const summary = summarizeValidationResults(report.results);
+  const notApplicableResults = report.results.filter((result) => !result.applicable);
+
+  const subtitleParts: string[] = [];
+  if (checkedAt) subtitleParts.push(`${formatElapsed(checkedAt)} 검증`);
+  if (notApplicableResults.length > 0) subtitleParts.push(`해당 없음 ${notApplicableResults.length}개는 제외했어요`);
+  const subtitle =
+    summary.violatedCount === 0
+      ? `${summary.applicableCount}개 규칙을 모두 통과했어요${subtitleParts.length > 0 ? ` · ${subtitleParts.join(" · ")}` : ""}`
+      : subtitleParts.join(" · ");
+
+  const groups = SEVERITY_ORDER.map((severity) => {
+    const applicable = report.results.filter((result) => result.severity === severity && result.applicable);
+    const violated = applicable.filter((result) => !result.passed);
+    const passed = applicable.filter((result) => result.passed);
+    return { severity, violated, passed, applicableCount: applicable.length, violatedCount: violated.length };
+  }).filter((group) => group.applicableCount > 0);
+
+  const toggleGroupCollapsed = (severity: RuleSeverity) => {
+    setCollapsedOverrides((current) => {
+      const next = new Set(current);
+      if (next.has(severity)) next.delete(severity);
+      else next.add(severity);
+      return next;
+    });
+  };
+
+  const togglePassedBundle = (severity: RuleSeverity) => {
+    setOpenedPassedBundles((current) => {
+      const next = new Set(current);
+      if (next.has(severity)) next.delete(severity);
+      else next.add(severity);
+      return next;
+    });
+  };
 
   return (
-    <div className="flex h-full flex-col gap-3 overflow-y-auto p-3">
-      <div
-        className={`rounded-md border px-3 py-2 text-sm ${
-          report.passed
-            ? "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
-            : "border-red-300 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300"
-        }`}
-      >
-        <p className="font-semibold">{report.passed ? "✅ 검증 통과" : "⚠️ 검증 실패"}</p>
-        <p className="mt-0.5 text-xs opacity-80">
-          {report.passed
-            ? `${applicableResults.length}개 규칙을 모두 충족했어요${checkedLabel}`
-            : `${failedCount}개 규칙을 충족하지 못했어요${checkedLabel}`}
-        </p>
-      </div>
-      {groups.map((group) => (
-        <div key={group.severity} className="flex flex-col gap-2">
-          <p className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400">
-            <span className={`h-2 w-2 rounded-full ${SEVERITY_DOT_STYLE[group.severity]}`} />
-            {SEVERITY_LABEL[group.severity]} · 규칙 {group.results.length}개
+    <div className="flex h-full flex-col">
+      <div className="flex flex-1 flex-col gap-3 overflow-y-auto p-3">
+        <div
+          className={`rounded-md border px-3 py-2 text-sm ${
+            summary.worstSeverity
+              ? SEVERITY_STYLE[summary.worstSeverity]
+              : "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+          }`}
+        >
+          <p className="font-semibold">
+            {summary.worstSeverity ? `${SEVERITY_ICON[summary.worstSeverity]} ` : "✓ "}
+            {summary.applicableCount}개 중 {summary.passedCount}개 통과
+            {summary.worstSeverity && ` · ${SEVERITY_LABEL[summary.worstSeverity]} ${summary.violatedCount}개`}
           </p>
-          <ul className="flex flex-col gap-2">
-            {group.results.map((result) => (
-              <li key={result.ruleCode}>
-                <ValidationItem result={result} onFocusNodes={onFocusNodes} />
-              </li>
-            ))}
-          </ul>
+          {subtitle && <p className="mt-0.5 text-xs opacity-80">{subtitle}</p>}
         </div>
-      ))}
+
+        {groups.map((group) => {
+          const defaultCollapsed = group.violatedCount === 0;
+          const isCollapsed = collapsedOverrides.has(group.severity) ? !defaultCollapsed : defaultCollapsed;
+          const isPassedBundleOpen = openedPassedBundles.has(group.severity);
+          return (
+            <div key={group.severity} className="flex flex-col gap-2">
+              {/* V1: 색 점 + 모양 글자가 따로 떠 있던 걸 알약 칩 하나로 합쳤다. */}
+              <button type="button" onClick={() => toggleGroupCollapsed(group.severity)} className="flex w-full items-center gap-2 text-left">
+                <span
+                  style={GROUP_CHIP_STYLE[group.severity]}
+                  className="flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold"
+                >
+                  {SEVERITY_ICON[group.severity]} {SEVERITY_LABEL[group.severity]}
+                </span>
+                <span className="text-xs font-normal text-gray-500 dark:text-gray-400">
+                  {group.violatedCount === 0
+                    ? `${group.applicableCount}개 모두 통과`
+                    : `${group.applicableCount}개 중 ${group.violatedCount}개 위반`}
+                </span>
+                <span className="ml-auto">
+                  <ChevronIcon isOpen={!isCollapsed} />
+                </span>
+              </button>
+              {!isCollapsed && (
+                <ul className="flex flex-col gap-2">
+                  {group.violated.map((result) => (
+                    <li key={result.ruleCode}>
+                      <ValidationItem
+                        result={result}
+                        isOpen={openedCode === result.ruleCode}
+                        onToggle={() => setOpenedCode((current) => (current === result.ruleCode ? null : result.ruleCode))}
+                        onFocusNodes={onFocusNodes}
+                      />
+                    </li>
+                  ))}
+                  {/* V2: 위반이 있는 그룹에서는 통과한 규칙을 한 줄로 접어 둔다 — 첫 시선이 위반 행에 가게. */}
+                  {group.passed.length > 0 &&
+                    (group.violatedCount > 0 ? (
+                      <li>
+                        <button
+                          type="button"
+                          onClick={() => togglePassedBundle(group.severity)}
+                          className="flex w-full items-center gap-1.5 rounded-md border border-gray-200 px-3 py-1.5 text-left text-xs text-gray-500 dark:border-gray-700 dark:text-gray-400"
+                        >
+                          <span>통과한 규칙 {group.passed.length}개</span>
+                          <span className="ml-auto">
+                            <ChevronIcon isOpen={isPassedBundleOpen} />
+                          </span>
+                        </button>
+                        {isPassedBundleOpen && (
+                          <ul className="mt-2 flex flex-col gap-2">
+                            {group.passed.map((result) => (
+                              <li key={result.ruleCode}>
+                                <ValidationItem
+                                  result={result}
+                                  isOpen={openedCode === result.ruleCode}
+                                  onToggle={() => setOpenedCode((current) => (current === result.ruleCode ? null : result.ruleCode))}
+                                  onFocusNodes={onFocusNodes}
+                                />
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </li>
+                    ) : (
+                      group.passed.map((result) => (
+                        <li key={result.ruleCode}>
+                          <ValidationItem
+                            result={result}
+                            isOpen={openedCode === result.ruleCode}
+                            onToggle={() => setOpenedCode((current) => (current === result.ruleCode ? null : result.ruleCode))}
+                            onFocusNodes={onFocusNodes}
+                          />
+                        </li>
+                      ))
+                    ))}
+                </ul>
+              )}
+            </div>
+          );
+        })}
+
+        {notApplicableResults.length > 0 && (
+          <div>
+            <button
+              type="button"
+              onClick={() => setIsNotApplicableOpen((current) => !current)}
+              className="flex w-full items-center gap-2 rounded-md border border-gray-200 px-3 py-1.5 text-left text-xs text-gray-500 dark:border-gray-700 dark:text-gray-400"
+            >
+              <ValidationStatusIcon status="not-applicable" size={16} />
+              <span>해당 없음 {notApplicableResults.length}개</span>
+              <span className="ml-auto">
+                <ChevronIcon isOpen={isNotApplicableOpen} />
+              </span>
+            </button>
+            {isNotApplicableOpen && (
+              <ul className="mt-1.5 flex flex-col gap-1.5 pl-3">
+                {notApplicableResults.map((result) => (
+                  <li key={result.ruleCode} className="flex items-start gap-1.5 text-xs text-gray-400 dark:text-gray-500">
+                    <ValidationStatusIcon status="not-applicable" size={14} />
+                    <span className="mt-0.5">{result.name}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+      </div>
+
       {onGoToExperiment && (
-        <div className="flex flex-col gap-1.5 border-t border-gray-200 pt-3 dark:border-gray-700">
+        <div className="flex shrink-0 flex-col gap-1.5 border-t border-gray-200 p-3 dark:border-gray-700">
           <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">다음으로 실험해 보기</p>
+          {/* V6: 채움 버튼은 심각 위반 전용 — 이 둘은 보조 동작이라 연한 파랑 바탕 + 파랑 글자/테두리. */}
           <button
             type="button"
             onClick={onGoToExperiment}
-            className="rounded-md border border-blue-300 bg-blue-50 px-3 py-1.5 text-left text-xs text-blue-700 hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
+            className="rounded-md border border-blue-300 bg-blue-50 px-3 py-1.5 text-left text-xs font-medium text-blue-700 hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
           >
             ⚡ AZ 장애 주입해보기
           </button>
           <button
             type="button"
             onClick={onGoToExperiment}
-            className="rounded-md border border-gray-300 px-3 py-1.5 text-left text-xs text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+            className="rounded-md border border-blue-300 bg-blue-50 px-3 py-1.5 text-left text-xs font-medium text-blue-700 hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
           >
             ↗ 트래픽 2배로 늘려 보기
           </button>

@@ -12,6 +12,7 @@ import { useValidation } from "../hooks/useValidation";
 import { useRunSimulation } from "../hooks/useSimulation";
 import type { ArchitectureCostSummary } from "../node-cost";
 import { computeTrafficFlowEdges } from "../traffic-path";
+import { SEVERITY_ICON, SEVERITY_LABEL, SEVERITY_PILL_STYLE, summarizeValidationResults } from "../validation-style";
 import type { SelectedElementInfo } from "../types";
 import { ArchitectureCanvas, type ArchitectureCanvasHandle } from "./ArchitectureCanvas";
 import { CostPanel } from "./CostPanel";
@@ -58,6 +59,12 @@ export function ArchitectureEditor({ id }: { id: string }) {
   });
   const validation = useValidation(id);
   const runSimulation = useRunSimulation(id);
+  // P1: 헤더 칩·배너·그룹 요약이 전부 같은 파생 상태를 쓴다 — report.passed(= CRITICAL만 기준)를
+  // 직접 읽으면 WARNING 위반이 있어도 "통과"로 보여서 목록과 모순이 생긴다.
+  const validationSummary = useMemo(
+    () => (validation.data ? summarizeValidationResults(validation.data.results) : null),
+    [validation.data],
+  );
   const [activeTab, setActiveTab] = useState<SidePanelTab>("validation");
   /**
    * 10단계: 설계할 땐 오른쪽 패널(검증/용량/시뮬레이션)을 안 쓰는 경우가 많아서 접을 수 있게 했다.
@@ -203,10 +210,12 @@ export function ArchitectureEditor({ id }: { id: string }) {
 
   const tabBar = (
     <div className="flex flex-1 items-center text-xs">
+      {/* P4: 기본 :focus 테두리는 클릭 후에도 남아서 "까만 사각형이 안 없어진다"는 피드백을 받았다
+          — 키보드로 탭 이동할 때(:focus-visible)만 테두리가 보이게 한다. */}
       <button
         type="button"
         onClick={() => setActiveTab("validation")}
-        className={`flex-1 px-2 py-2 font-medium ${
+        className={`flex-1 px-2 py-2 font-medium outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500 ${
           activeTab === "validation"
             ? "border-b-2 border-black text-black dark:border-gray-100 dark:text-gray-100"
             : "text-gray-400 dark:text-gray-500"
@@ -217,7 +226,7 @@ export function ArchitectureEditor({ id }: { id: string }) {
       <button
         type="button"
         onClick={() => setActiveTab("cost")}
-        className={`flex-1 px-2 py-2 font-medium ${
+        className={`flex-1 px-2 py-2 font-medium outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500 ${
           activeTab === "cost"
             ? "border-b-2 border-black text-black dark:border-gray-100 dark:text-gray-100"
             : "text-gray-400 dark:text-gray-500"
@@ -228,7 +237,7 @@ export function ArchitectureEditor({ id }: { id: string }) {
       <button
         type="button"
         onClick={() => setActiveTab("simulation")}
-        className={`flex-1 px-2 py-2 font-medium ${
+        className={`flex-1 px-2 py-2 font-medium outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500 ${
           activeTab === "simulation"
             ? "border-b-2 border-black text-black dark:border-gray-100 dark:text-gray-100"
             : "text-gray-400 dark:text-gray-500"
@@ -341,15 +350,17 @@ export function ArchitectureEditor({ id }: { id: string }) {
                 className="text-sm font-semibold dark:text-gray-100"
                 inputClassName="text-sm font-semibold dark:bg-gray-800 dark:text-gray-100"
               />
-              {validation.data && (
+              {validationSummary && (
                 <span
                   className={`rounded px-1.5 py-0.5 text-[11px] font-medium ${
-                    validation.data.passed
-                      ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
-                      : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
+                    validationSummary.worstSeverity
+                      ? SEVERITY_PILL_STYLE[validationSummary.worstSeverity]
+                      : "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
                   }`}
                 >
-                  {validation.data.passed ? "✓ 검증 통과" : "⚠ 검증 실패"}
+                  {validationSummary.worstSeverity
+                    ? `${SEVERITY_ICON[validationSummary.worstSeverity]} ${SEVERITY_LABEL[validationSummary.worstSeverity]} ${validationSummary.violatedCount}`
+                    : "✓ 통과"}
                 </span>
               )}
               {costSummary && costSummary.lines.length > 0 && (

@@ -1,4 +1,38 @@
-import type { ComponentType, RuleSeverity } from "@nangman/shared-types";
+import type { ComponentType, RuleSeverity, ValidationRuleResult } from "@nangman/shared-types";
+
+/**
+ * 홈 화면 개선 다음 단계(우측 패널 정합성, P1): 백엔드의 report.passed는 "CRITICAL만 전부 통과하면
+ * true"라서, WARNING/INFO 위반이 있어도 "통과"로 뜬다 — 헤더 칩과 배너가 서로 다른 기준을 쓰면서
+ * "통과"라는데 목록엔 위반이 떠 있는 모순이 생겼다. report.passed는 쓰지 말고, results 배열에서
+ * 직접 파생한 이 값 하나를 헤더 칩·배너·그룹 요약이 전부 같이 쓴다.
+ */
+export interface ValidationSummary {
+  applicableCount: number;
+  passedCount: number;
+  violatedCount: number;
+  notApplicableCount: number;
+  /** 위반이 하나도 없으면 null. 있으면 그중 가장 심각한 등급(CRITICAL > WARNING > INFO). */
+  worstSeverity: RuleSeverity | null;
+}
+
+export function summarizeValidationResults(results: ValidationRuleResult[]): ValidationSummary {
+  const applicable = results.filter((result) => result.applicable);
+  const violated = applicable.filter((result) => !result.passed);
+  let worstSeverity: RuleSeverity | null = null;
+  for (const severity of SEVERITY_ORDER) {
+    if (violated.some((result) => result.severity === severity)) {
+      worstSeverity = severity;
+      break;
+    }
+  }
+  return {
+    applicableCount: applicable.length,
+    passedCount: applicable.length - violated.length,
+    violatedCount: violated.length,
+    notApplicableCount: results.length - applicable.length,
+    worstSeverity,
+  };
+}
 
 /** ValidationResultList와 SelectionDetailPanel이 같이 쓰는 심각도별 색/라벨. */
 export const SEVERITY_STYLE: Record<RuleSeverity, string> = {
@@ -34,6 +68,38 @@ export const SEVERITY_ICON: Record<RuleSeverity, string> = {
   WARNING: "▲",
   INFO: "●",
 };
+
+/**
+ * 정적 검증 탭 시각 처리 정리(V1): 그룹 헤더의 "알약 칩" 색 — 디자인 문서가 준 정확한 헥스값.
+ * 다크모드 변형은 문서에 없어서 라이트모드 값을 그대로 쓴다(필요하면 나중에 다크모드 값을 받아야 함).
+ */
+export const GROUP_CHIP_STYLE: Record<RuleSeverity, { color: string; backgroundColor: string }> = {
+  CRITICAL: { color: "#B42318", backgroundColor: "#FEE4E2" },
+  WARNING: { color: "#92400E", backgroundColor: "#FEF0C7" },
+  INFO: { color: "#175CD3", backgroundColor: "#E4EEFC" },
+};
+
+/**
+ * V5: 위반 행의 배경/테두리색(글자는 기본 텍스트색을 쓰고 색은 여기에만 쓴다). INFO 위반의 색은
+ * 디자인 문서에 없어서, 그룹 칩과 같은 계열로 추정해 만들었다 — 확인 필요.
+ */
+export const VIOLATED_ROW_STYLE: Record<RuleSeverity, { backgroundColor: string; borderColor: string }> = {
+  CRITICAL: { backgroundColor: "#FFF3F2", borderColor: "#F1B7B2" },
+  WARNING: { backgroundColor: "#FFFBF0", borderColor: "#F3D9A4" },
+  INFO: { backgroundColor: "#EDF4FE", borderColor: "#BBD2F5" },
+};
+
+/** V5: 통과 규칙을 펼쳤을 때만 입히는 배경/테두리(접혀 있을 때는 중립색 그대로). */
+export const PASSED_EXPANDED_ROW_STYLE = { backgroundColor: "#F3FBF7", borderColor: "#BFE6D2" };
+
+/** V4: 상태 아이콘 색. */
+export const STATUS_ICON_COLOR = {
+  passed: "#2BBF7E",
+  violatedWarning: "#F79009",
+  violatedCritical: "#D92D20",
+  violatedInfo: "#175CD3",
+  notApplicable: "#A9B3C4",
+} as const;
 
 /**
  * 각 검증 규칙(apps/api의 rules/*.rule.ts)이 "다루는" 컴포넌트 타입.
