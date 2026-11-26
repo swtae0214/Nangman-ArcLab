@@ -27,6 +27,12 @@ interface FailurePhaseOutcome {
   failureDurationSec: number;
 }
 
+/**
+ * 실행 이력이 테스트를 반복할수록 끝없이 쌓이는 문제 — 아키텍처 하나당 최근 N개만 남기고, 넘치는
+ * 만큼 가장 오래된 것부터 자동으로 지운다. 비교·복기에 쓸 만한 양(최근 며칠치 실험)은 남기면서도
+ * 무한정 쌓이지는 않게 하는 절충값. 그래도 특정 실행을 더 일찍 지우고 싶으면 개별 삭제로 한다.
+ */
+const RUN_HISTORY_LIMIT = 20;
 
 @Injectable()
 export class SimulationService {
@@ -116,6 +122,8 @@ export class SimulationService {
       },
     });
 
+    await this.pruneOldRuns(architectureId);
+
     return {
       id: run.id,
       createdAt: run.createdAt.toISOString(),
@@ -128,6 +136,29 @@ export class SimulationService {
       warnings,
       suggestions: generateSuggestions(validation),
     };
+  }
+
+  /** RUN_HISTORY_LIMIT개를 넘는 만큼, 이 아키텍처의 가장 오래된 실행부터 지운다. */
+  private async pruneOldRuns(architectureId: string): Promise<void> {
+    const total = await this.prisma.simulationRun.count({ where: { architectureId } });
+    if (total <= RUN_HISTORY_LIMIT) return;
+
+    const oldestExcess = await this.prisma.simulationRun.findMany({
+      where: { architectureId },
+      orderBy: { createdAt: 'asc' },
+      take: total - RUN_HISTORY_LIMIT,
+      select: { id: true },
+    });
+    await this.prisma.simulationRun.deleteMany({ where: { id: { in: oldestExcess.map((run) => run.id) } } });
+  }
+
+  /** 사용자가 특정 실행 하나를 바로 치우고 싶을 때 — 개별 삭제. */
+  async deleteRun(runId: string, userId: string): Promise<void> {
+    const run = await this.prisma.simulationRun.findUnique({ where: { id: runId }, include: { architecture: true } });
+    if (!run || run.architecture.userId !== userId) {
+      throw new NotFoundException('시뮬레이션 실행 결과를 찾을 수 없습니다.');
+    }
+    await this.prisma.simulationRun.delete({ where: { id: runId } });
   }
 
   async getRun(runId: string, userId: string): Promise<SimulationRunResult> {

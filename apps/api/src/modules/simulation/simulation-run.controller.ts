@@ -1,5 +1,5 @@
 import type { SimulationRunResult, SimulationRunSummary } from '@nangman/shared-types';
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { CurrentUserId } from '../../common/decorators/current-user.decorator.js';
 import { AuthGuard } from '../../common/guards/auth.guard.js';
 import { CreateSimulationRunDto } from './dto/create-simulation-run.dto.js';
@@ -31,5 +31,11 @@ export class SimulationRunController {
   @Get('simulations/:runId')
   getOne(@CurrentUserId() userId: string, @Param('runId') runId: string): Promise<SimulationRunResult> {
     return this.simulationService.getRun(runId, userId);
+  }
+
+  @Delete('simulations/:runId')
+  async remove(@CurrentUserId() userId: string, @Param('runId') runId: string): Promise<{ id: string }> {
+    await this.simulationService.deleteRun(runId, userId);
+    return { id: runId };
   }
 }

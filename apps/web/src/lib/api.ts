@@ -108,6 +108,10 @@ export function listSimulationRuns(architectureId: string): Promise<SimulationRu
   return request<SimulationRunSummary[]>(`/architectures/${architectureId}/simulations`);
 }
 
+export function deleteSimulationRun(runId: string): Promise<{ id: string }> {
+  return request<{ id: string }>(`/simulations/${runId}`, { method: "DELETE" });
+}
+
 export function shareArchitecture(id: string): Promise<ShareArchitectureResponse> {
   return request<ShareArchitectureResponse>(`/architectures/${id}/share`, { method: "POST" });
 }
